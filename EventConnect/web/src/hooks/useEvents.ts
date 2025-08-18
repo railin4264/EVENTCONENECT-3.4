@@ -1,293 +1,437 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Event, Location, SearchFilters, PaginationParams } from '@/types'
-import { apiClient } from '@/services/apiClient'
+import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { api } from './useAuth';
 
-interface UseEventsOptions {
-  location?: Location | null
-  filters?: SearchFilters
-  pagination?: PaginationParams
-  enabled?: boolean
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  tags: string[];
+  host: {
+    id: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+    rating: number;
+    reviewCount: number;
+  };
+  location: {
+    coordinates: [number, number];
+    address: string;
+    city: string;
+    country: string;
+    venue?: string;
+  };
+  dateTime: {
+    start: string;
+    end: string;
+    timezone: string;
+  };
+  capacity: {
+    max: number;
+    current: number;
+    waitlist: number;
+  };
+  pricing: {
+    isFree: boolean;
+    amount?: number;
+    currency?: string;
+    earlyBird?: {
+      amount: number;
+      endDate: string;
+    };
+  };
+  media: {
+    images: string[];
+    videos: string[];
+  };
+  attendees: Array<{
+    user: {
+      id: string;
+      username: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+    };
+    status: 'confirmed' | 'pending' | 'waitlist' | 'cancelled';
+    joinedAt: string;
+    isHost: boolean;
+  }>;
+  reviews: Array<{
+    id: string;
+    user: {
+      id: string;
+      username: string;
+      firstName: string;
+      lastName: string;
+      avatar?: string;
+    };
+    rating: number;
+    comment: string;
+    createdAt: string;
+  }>;
+  stats: {
+    viewCount: number;
+    shareCount: number;
+    saveCount: number;
+    averageRating: number;
+    reviewCount: number;
+  };
+  settings: {
+    isPublic: boolean;
+    allowComments: boolean;
+    requireApproval: boolean;
+    maxWaitlist: number;
+  };
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface UseEventsReturn {
-  events: Event[]
-  isLoading: boolean
-  error: string | null
-  refetch: () => void
-  createEvent: (eventData: any) => Promise<void>
-  updateEvent: (id: string, eventData: any) => Promise<void>
-  deleteEvent: (id: string) => Promise<void>
-  joinEvent: (id: string) => Promise<void>
-  leaveEvent: (id: string) => Promise<void>
-  searchEvents: (query: string) => Promise<void>
-  clearFilters: () => void
+interface EventFilters {
+  category?: string;
+  location?: {
+    coordinates: [number, number];
+    radius?: number;
+  };
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+  search?: string;
+  priceRange?: {
+    min: number;
+    max: number;
+  };
+  tags?: string[];
+  hostId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
 }
 
-export function useEvents(options: UseEventsOptions = {}): UseEventsReturn {
-  const {
-    location,
-    filters = {},
-    pagination = { page: 1, limit: 20 },
-    enabled = true
-  } = options
+interface CreateEventData {
+  title: string;
+  description: string;
+  category: string;
+  tags?: string[];
+  location: {
+    coordinates: [number, number];
+    address: string;
+    city: string;
+    country: string;
+    venue?: string;
+  };
+  dateTime: {
+    start: string;
+    end: string;
+    timezone: string;
+  };
+  capacity: {
+    max: number;
+  };
+  pricing: {
+    isFree: boolean;
+    amount?: number;
+    currency?: string;
+    earlyBird?: {
+      amount: number;
+      endDate: string;
+    };
+  };
+  settings?: {
+    isPublic?: boolean;
+    allowComments?: boolean;
+    requireApproval?: boolean;
+    maxWaitlist?: number;
+  };
+}
 
-  const queryClient = useQueryClient()
-  const [localFilters, setLocalFilters] = useState<SearchFilters>(filters)
-  const [searchQuery, setSearchQuery] = useState('')
+interface UpdateEventData extends Partial<CreateEventData> {
+  id: string;
+}
+
+// Fetch events with filters
+const fetchEvents = async (filters: EventFilters = {}): Promise<{ events: Event[]; pagination: any }> => {
+  const params = new URLSearchParams();
+  
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      if (key === 'location' && typeof value === 'object') {
+        params.append('location[coordinates]', value.coordinates.join(','));
+        if (value.radius) params.append('radius', value.radius.toString());
+      } else if (key === 'dateRange' && typeof value === 'object') {
+        params.append('dateRange[start]', value.start);
+        params.append('dateRange[end]', value.end);
+      } else if (key === 'priceRange' && typeof value === 'object') {
+        params.append('priceRange[min]', value.min.toString());
+        params.append('priceRange[max]', value.max.toString());
+      } else if (key === 'tags' && Array.isArray(value)) {
+        value.forEach(tag => params.append('tags', tag));
+      } else {
+        params.append(key, value.toString());
+      }
+    }
+  });
+
+  const response = await api.get(`/api/events?${params.toString()}`);
+  return response.data;
+};
+
+// Fetch single event
+const fetchEvent = async (id: string): Promise<Event> => {
+  const response = await api.get(`/api/events/${id}`);
+  return response.data.event;
+};
+
+// Create event
+const createEvent = async (data: CreateEventData): Promise<Event> => {
+  const response = await api.post('/api/events', data);
+  return response.data.event;
+};
+
+// Update event
+const updateEvent = async (data: UpdateEventData): Promise<Event> => {
+  const { id, ...updateData } = data;
+  const response = await api.put(`/api/events/${id}`, updateData);
+  return response.data.event;
+};
+
+// Delete event
+const deleteEvent = async (id: string): Promise<void> => {
+  await api.delete(`/api/events/${id}`);
+};
+
+// Join event
+const joinEvent = async (eventId: string): Promise<Event> => {
+  const response = await api.post(`/api/events/${eventId}/join`);
+  return response.data.event;
+};
+
+// Leave event
+const leaveEvent = async (eventId: string): Promise<Event> => {
+  const response = await api.delete(`/api/events/${eventId}/leave`);
+  return response.data.event;
+};
+
+// Get user's events
+const fetchUserEvents = async (userId: string, type: 'all' | 'created' | 'attending' | 'past' = 'all'): Promise<Event[]> => {
+  const response = await api.get(`/api/events/user/${userId}?type=${type}`);
+  return response.data.events;
+};
+
+// Get nearby events
+const fetchNearbyEvents = async (coordinates: [number, number], radius: number = 50): Promise<Event[]> => {
+  const response = await api.get(`/api/events/nearby?lat=${coordinates[0]}&lng=${coordinates[1]}&radius=${radius}`);
+  return response.data.events;
+};
+
+// Get event recommendations
+const fetchEventRecommendations = async (userId: string): Promise<Event[]> => {
+  const response = await api.get(`/api/events/recommendations`);
+  return response.data.events;
+};
+
+export const useEvents = (filters: EventFilters = {}) => {
+  const queryClient = useQueryClient();
 
   // Main events query
   const {
     data: eventsData,
     isLoading,
     error,
-    refetch
-  } = useQuery({
-    queryKey: ['events', location, localFilters, pagination],
-    queryFn: () => fetchEvents(location, localFilters, pagination),
-    enabled: enabled && !!location,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false
-  })
-
-  // AI recommendations query
-  const {
-    data: recommendations,
-    isLoading: recommendationsLoading
-  } = useQuery({
-    queryKey: ['event-recommendations', location],
-    queryFn: () => fetchEventRecommendations(location),
-    enabled: enabled && !!location,
-    staleTime: 10 * 60 * 1000 // 10 minutes
-  })
+    refetch,
+  } = useQuery(
+    ['events', filters],
+    () => fetchEvents(filters),
+    {
+      keepPreviousData: true,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+    }
+  );
 
   // Create event mutation
-  const createEventMutation = useMutation({
-    mutationFn: (eventData: any) => apiClient.post('/events', eventData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['event-recommendations'] })
-    }
-  })
+  const createEventMutation = useMutation(createEvent, {
+    onSuccess: (newEvent) => {
+      // Invalidate and refetch events
+      queryClient.invalidateQueries(['events']);
+      queryClient.invalidateQueries(['user', newEvent.host.id, 'events']);
+      
+      // Add new event to cache
+      queryClient.setQueryData(['events', newEvent.id], newEvent);
+    },
+  });
 
   // Update event mutation
-  const updateEventMutation = useMutation({
-    mutationFn: ({ id, eventData }: { id: string; eventData: any }) =>
-      apiClient.put(`/events/${id}`, eventData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-    }
-  })
+  const updateEventMutation = useMutation(updateEvent, {
+    onSuccess: (updatedEvent) => {
+      // Update event in cache
+      queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
+      queryClient.invalidateQueries(['events']);
+      queryClient.invalidateQueries(['user', updatedEvent.host.id, 'events']);
+    },
+  });
 
   // Delete event mutation
-  const deleteEventMutation = useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/events/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-    }
-  })
+  const deleteEventMutation = useMutation(deleteEvent, {
+    onSuccess: (_, eventId) => {
+      // Remove event from cache
+      queryClient.removeQueries(['events', eventId]);
+      queryClient.invalidateQueries(['events']);
+    },
+  });
 
   // Join event mutation
-  const joinEventMutation = useMutation({
-    mutationFn: (id: string) => apiClient.post(`/events/${id}/join`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['user-events'] })
-    }
-  })
+  const joinEventMutation = useMutation(joinEvent, {
+    onSuccess: (updatedEvent) => {
+      // Update event in cache
+      queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
+      queryClient.invalidateQueries(['events']);
+      queryClient.invalidateQueries(['user', 'events']);
+    },
+  });
 
   // Leave event mutation
-  const leaveEventMutation = useMutation({
-    mutationFn: (id: string) => apiClient.post(`/events/${id}/leave`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['user-events'] })
-    }
-  })
-
-  // Search events mutation
-  const searchEventsMutation = useMutation({
-    mutationFn: (query: string) => searchEventsByQuery(query, location),
-    onSuccess: (data) => {
-      // Update local state with search results
-      queryClient.setQueryData(['events', location, localFilters, pagination], data)
-    }
-  })
-
-  // Update filters when they change
-  useEffect(() => {
-    setLocalFilters(filters)
-  }, [filters])
-
-  // Fetch events function
-  const fetchEvents = useCallback(async (
-    userLocation: Location | null,
-    searchFilters: SearchFilters,
-    paginationParams: PaginationParams
-  ): Promise<Event[]> => {
-    if (!userLocation) {
-      return []
-    }
-
-    try {
-      const params = new URLSearchParams({
-        lat: userLocation.latitude.toString(),
-        lng: userLocation.longitude.toString(),
-        page: paginationParams.page.toString(),
-        limit: paginationParams.limit.toString(),
-        ...searchFilters
-      })
-
-      const response = await apiClient.get(`/events/nearby?${params}`)
-      return response.data.data || []
-    } catch (error) {
-      console.error('Error fetching events:', error)
-      throw new Error('Error al cargar eventos')
-    }
-  }, [])
-
-  // Fetch AI recommendations
-  const fetchEventRecommendations = useCallback(async (userLocation: Location | null): Promise<Event[]> => {
-    if (!userLocation) {
-      return []
-    }
-
-    try {
-      const response = await apiClient.get(`/events/recommendations?lat=${userLocation.latitude}&lng=${userLocation.longitude}`)
-      return response.data.data || []
-    } catch (error) {
-      console.error('Error fetching recommendations:', error)
-      return []
-    }
-  }, [])
-
-  // Search events by query
-  const searchEventsByQuery = useCallback(async (query: string, userLocation: Location | null): Promise<Event[]> => {
-    if (!userLocation || !query.trim()) {
-      return eventsData || []
-    }
-
-    try {
-      const params = new URLSearchParams({
-        q: query,
-        lat: userLocation.latitude.toString(),
-        lng: userLocation.longitude.toString(),
-        page: '1',
-        limit: '50'
-      })
-
-      const response = await apiClient.get(`/events/search?${params}`)
-      return response.data.data || []
-    } catch (error) {
-      console.error('Error searching events:', error)
-      return eventsData || []
-    }
-  }, [eventsData])
-
-  // Action functions
-  const createEvent = useCallback(async (eventData: any) => {
-    await createEventMutation.mutateAsync(eventData)
-  }, [createEventMutation])
-
-  const updateEvent = useCallback(async (id: string, eventData: any) => {
-    await updateEventMutation.mutateAsync({ id, eventData })
-  }, [updateEventMutation])
-
-  const deleteEvent = useCallback(async (id: string) => {
-    await deleteEventMutation.mutateAsync(id)
-  }, [deleteEventMutation])
-
-  const joinEvent = useCallback(async (id: string) => {
-    await joinEventMutation.mutateAsync(id)
-  }, [joinEventMutation])
-
-  const leaveEvent = useCallback(async (id: string) => {
-    await leaveEventMutation.mutateAsync(id)
-  }, [leaveEventMutation])
-
-  const searchEvents = useCallback(async (query: string) => {
-    setSearchQuery(query)
-    await searchEventsMutation.mutateAsync(query)
-  }, [searchEventsMutation])
-
-  const clearFilters = useCallback(() => {
-    setLocalFilters({})
-    setSearchQuery('')
-    refetch()
-  }, [refetch])
-
-  // Combine regular events with AI recommendations
-  const allEvents = [...(eventsData || []), ...(recommendations || [])]
-  
-  // Remove duplicates and sort by AI score and popularity
-  const uniqueEvents = allEvents
-    .filter((event, index, self) => 
-      index === self.findIndex(e => e.id === event.id)
-    )
-    .sort((a, b) => {
-      // Sort by AI score first, then by popularity
-      if (a.aiScore !== b.aiScore) {
-        return b.aiScore - a.aiScore
-      }
-      return b.popularity - a.popularity
-    })
+  const leaveEventMutation = useMutation(leaveEvent, {
+    onSuccess: (updatedEvent) => {
+      // Update event in cache
+      queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
+      queryClient.invalidateQueries(['events']);
+      queryClient.invalidateQueries(['user', 'events']);
+    },
+  });
 
   return {
-    events: uniqueEvents,
-    isLoading: isLoading || recommendationsLoading,
-    error: error?.message || null,
+    // Data
+    events: eventsData?.events || [],
+    pagination: eventsData?.pagination,
+    
+    // State
+    isLoading,
+    error,
+    
+    // Actions
     refetch,
-    createEvent,
-    updateEvent,
-    deleteEvent,
-    joinEvent,
-    leaveEvent,
-    searchEvents,
-    clearFilters
-  }
-}
+    createEvent: createEventMutation.mutateAsync,
+    updateEvent: updateEventMutation.mutateAsync,
+    deleteEvent: deleteEventMutation.mutateAsync,
+    joinEvent: joinEventMutation.mutateAsync,
+    leaveEvent: leaveEventMutation.mutateAsync,
+    
+    // Mutations state
+    isCreating: createEventMutation.isLoading,
+    isUpdating: updateEventMutation.isLoading,
+    isDeleting: deleteEventMutation.isLoading,
+    isJoining: joinEventMutation.isLoading,
+    isLeaving: leaveEventMutation.isLoading,
+  };
+};
 
-// Hook for user's own events
-export function useUserEvents(userId?: string) {
-  return useQuery({
-    queryKey: ['user-events', userId],
-    queryFn: () => apiClient.get(`/users/${userId}/events`).then(res => res.data.data),
-    enabled: !!userId,
-    staleTime: 2 * 60 * 1000 // 2 minutes
-  })
-}
+// Hook for single event
+export const useEvent = (id: string) => {
+  const queryClient = useQueryClient();
 
-// Hook for event details
-export function useEventDetails(eventId: string) {
-  return useQuery({
-    queryKey: ['event', eventId],
-    queryFn: () => apiClient.get(`/events/${eventId}`).then(res => res.data.data),
-    enabled: !!eventId,
-    staleTime: 5 * 60 * 1000 // 5 minutes
-  })
-}
+  const {
+    data: event,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery(
+    ['events', id],
+    () => fetchEvent(id),
+    {
+      enabled: !!id,
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+    }
+  );
 
-// Hook for event categories
-export function useEventCategories() {
-  return useQuery({
-    queryKey: ['event-categories'],
-    queryFn: () => apiClient.get('/events/categories').then(res => res.data.data),
-    staleTime: 60 * 60 * 1000 // 1 hour
-  })
-}
+  return {
+    event,
+    isLoading,
+    error,
+    refetch,
+  };
+};
 
-// Hook for trending events
-export function useTrendingEvents(location?: Location | null) {
-  return useQuery({
-    queryKey: ['trending-events', location],
-    queryFn: () => {
-      if (!location) return Promise.resolve([])
-      return apiClient.get(`/events/trending?lat=${location.latitude}&lng=${location.longitude}`)
-        .then(res => res.data.data)
-    },
-    enabled: !!location,
-    staleTime: 10 * 60 * 1000 // 10 minutes
-  })
-}
+// Hook for user events
+export const useUserEvents = (userId: string, type: 'all' | 'created' | 'attending' | 'past' = 'all') => {
+  const {
+    data: events,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery(
+    ['user', userId, 'events', type],
+    () => fetchUserEvents(userId, type),
+    {
+      enabled: !!userId,
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+    }
+  );
+
+  return {
+    events: events || [],
+    isLoading,
+    error,
+    refetch,
+  };
+};
+
+// Hook for nearby events
+export const useNearbyEvents = (coordinates: [number, number], radius: number = 50) => {
+  const {
+    data: events,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery(
+    ['events', 'nearby', coordinates, radius],
+    () => fetchNearbyEvents(coordinates, radius),
+    {
+      enabled: !!coordinates,
+      staleTime: 5 * 60 * 1000,
+      cacheTime: 10 * 60 * 1000,
+    }
+  );
+
+  return {
+    events: events || [],
+    isLoading,
+    error,
+    refetch,
+  };
+};
+
+// Hook for event recommendations
+export const useEventRecommendations = (userId: string) => {
+  const {
+    data: events,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery(
+    ['events', 'recommendations', userId],
+    () => fetchEventRecommendations(userId),
+    {
+      enabled: !!userId,
+      staleTime: 10 * 60 * 1000, // 10 minutes
+      cacheTime: 15 * 60 * 1000, // 15 minutes
+    }
+  );
+
+  return {
+    events: events || [],
+    isLoading,
+    error,
+    refetch,
+  };
+};
+
+export type { Event, EventFilters, CreateEventData, UpdateEventData };

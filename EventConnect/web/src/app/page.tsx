@@ -1,273 +1,184 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Radar, MapPin, Users, Calendar, Star, Filter, Search, Plus } from 'lucide-react'
-import { EventRadar } from '@/components/EventRadar'
-import { EventCard } from '@/components/EventCard'
-import { TribeCard } from '@/components/TribeCard'
-import { FilterPanel } from '@/components/FilterPanel'
-import { SearchBar } from '@/components/SearchBar'
-import { useEvents } from '@/hooks/useEvents'
-import { useTribes } from '@/hooks/useTribes'
-import { useLocation } from '@/hooks/useLocation'
+import HeroSection from '@/components/sections/HeroSection';
+import EventDiscovery from '@/components/sections/EventDiscovery';
+import SocialFeed from '@/components/feed/SocialFeed';
+import InteractiveMap from '@/components/maps/InteractiveMap';
 
 export default function HomePage() {
-  const [view, setView] = useState<'radar' | 'list'>('radar')
-  const [filters, setFilters] = useState({
-    category: 'all',
-    distance: 10,
-    popularity: 'all'
-  })
-  const [searchQuery, setSearchQuery] = useState('')
-  
-  const { userLocation } = useLocation()
-  const { events, isLoading: eventsLoading } = useEvents(userLocation, filters)
-  const { tribes, isLoading: tribesLoading } = useTribes(userLocation, filters)
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  }
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 }
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Header Section */}
-      <motion.header 
-        className="container-responsive py-8"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="text-center space-y-4">
-          <motion.h1 
-            className="text-4xl md:text-6xl font-display font-bold bg-gradient-to-r from-primary via-tribe-500 to-pulse-500 bg-clip-text text-transparent"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            EventConnect AI
-          </motion.h1>
-          <motion.p 
-            className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            Descubre eventos, actividades y comunidades cercanas con recomendaciones inteligentes
-          </motion.p>
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <HeroSection />
+
+      {/* Event Discovery Section */}
+      <EventDiscovery
+        title="Eventos Destacados"
+        subtitle="Descubre los eventos más populares y trending cerca de ti"
+        showFilters={true}
+        limit={8}
+      />
+
+      {/* Interactive Map Section */}
+      <section className="py-16 bg-white dark:bg-gray-800">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+              Explora en el Mapa
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+              Visualiza eventos y tribus en tiempo real. Encuentra experiencias increíbles cerca de tu ubicación.
+            </p>
+          </div>
           
-          {/* View Toggle */}
-          <motion.div 
-            className="flex justify-center space-x-2 bg-muted/50 rounded-full p-1 max-w-xs mx-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            <button
-              onClick={() => setView('radar')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                view === 'radar' 
-                  ? 'bg-primary text-primary-foreground shadow-lg' 
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Radar className="w-4 h-4 inline mr-2" />
-              Radar
-            </button>
-            <button
-              onClick={() => setView('list')}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                view === 'list' 
-                  ? 'bg-primary text-primary-foreground shadow-lg' 
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Calendar className="w-4 h-4 inline mr-2" />
-              Lista
-            </button>
-          </motion.div>
+          <div className="h-96 lg:h-[600px] rounded-2xl overflow-hidden shadow-2xl">
+            <InteractiveMap
+              showEvents={true}
+              showTribes={true}
+              showUsers={false}
+            />
+          </div>
         </div>
-      </motion.header>
+      </section>
 
-      {/* Search and Filters */}
-      <motion.section 
-        className="container-responsive mb-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.8 }}
-      >
-        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <SearchBar 
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Buscar eventos, tribus o actividades..."
-            className="flex-1 max-w-md"
-          />
-          <FilterPanel 
-            filters={filters}
-            onFiltersChange={setFilters}
+      {/* Social Feed Section */}
+      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+              Feed Social
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+              Mantente al día con las últimas publicaciones, eventos y actividades de la comunidad EventConnect.
+            </p>
+          </div>
+          
+          <SocialFeed
+            showCreatePost={true}
+            filterType="all"
           />
         </div>
-      </motion.section>
+      </section>
 
-      {/* Main Content */}
-      <main className="container-responsive pb-16">
-        {view === 'radar' ? (
-          /* Radar View - Interactive Map */
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-8"
-          >
-            <motion.div variants={itemVariants}>
-              <EventRadar 
-                events={events}
-                tribes={tribes}
-                userLocation={userLocation}
-                isLoading={eventsLoading || tribesLoading}
-              />
-            </motion.div>
-            
-            {/* Quick Stats */}
-            <motion.div 
-              variants={itemVariants}
-              className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      {/* Features Section */}
+      <section className="py-16 bg-white dark:bg-gray-800">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+              ¿Por qué EventConnect?
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+              Descubre las características que hacen de EventConnect la plataforma líder para conectar personas a través de eventos.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="text-center p-8 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-2xl border border-primary-200 dark:border-primary-700">
+              <div className="w-16 h-16 bg-primary-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl">🎯</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Descubrimiento Inteligente
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Nuestro algoritmo de IA aprende de tus preferencias para recomendarte eventos y tribus que realmente te interesan.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="text-center p-8 bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900/20 dark:to-secondary-800/20 rounded-2xl border border-secondary-200 dark:border-secondary-700">
+              <div className="w-16 h-16 bg-secondary-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl">🌍</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Geolocalización Precisa
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Encuentra eventos y comunidades cerca de ti con nuestro sistema de geolocalización avanzado y mapas interactivos.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="text-center p-8 bg-gradient-to-br from-accent-50 to-accent-100 dark:from-accent-900/20 dark:to-accent-800/20 rounded-2xl border border-accent-200 dark:border-accent-700">
+              <div className="w-16 h-16 bg-accent-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl">⚡</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Tiempo Real
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Chat en vivo, notificaciones instantáneas y actualizaciones en tiempo real para mantenerte conectado siempre.
+              </p>
+            </div>
+
+            {/* Feature 4 */}
+            <div className="text-center p-8 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl border border-green-200 dark:border-green-700">
+              <div className="w-16 h-16 bg-green-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl">🔒</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Seguridad y Privacidad
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Tu información está protegida con los más altos estándares de seguridad y control total sobre tu privacidad.
+              </p>
+            </div>
+
+            {/* Feature 5 */}
+            <div className="text-center p-8 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl border border-purple-200 dark:border-purple-700">
+              <div className="w-16 h-16 bg-purple-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl">🏆</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Sistema de Gamificación
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Gana badges, sube de nivel y compite con otros usuarios mientras participas en eventos y comunidades.
+              </p>
+            </div>
+
+            {/* Feature 6 */}
+            <div className="text-center p-8 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-2xl border border-orange-200 dark:border-orange-700">
+              <div className="w-16 h-16 bg-orange-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl">📱</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+                Multiplataforma
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                Accede desde cualquier dispositivo: web, móvil, tablet. Tu experiencia se sincroniza perfectamente.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 bg-gradient-to-r from-primary-600 to-secondary-600">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
+            ¿Listo para Conectar?
+          </h2>
+          <p className="text-xl text-primary-100 mb-8 max-w-3xl mx-auto">
+            Únete a miles de personas que ya están descubriendo eventos increíbles y formando conexiones significativas en EventConnect.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/auth/register"
+              className="px-8 py-4 bg-white text-primary-600 rounded-xl hover:bg-gray-100 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
             >
-              <div className="bg-card border border-border rounded-lg p-6 text-center">
-                <Calendar className="w-8 h-8 text-primary mx-auto mb-2" />
-                <h3 className="text-2xl font-bold text-foreground">{events?.length || 0}</h3>
-                <p className="text-muted-foreground">Eventos Cercanos</p>
-              </div>
-              <div className="bg-card border border-border rounded-lg p-6 text-center">
-                <Users className="w-8 h-8 text-tribe-500 mx-auto mb-2" />
-                <h3 className="text-2xl font-bold text-foreground">{tribes?.length || 0}</h3>
-                <p className="text-muted-foreground">Tribus Activas</p>
-              </div>
-              <div className="bg-card border border-border rounded-lg p-6 text-center">
-                <MapPin className="w-8 h-8 text-pulse-500 mx-auto mb-2" />
-                <h3 className="text-2xl font-bold text-foreground">
-                  {userLocation ? `${filters.distance}km` : '--'}
-                </h3>
-                <p className="text-muted-foreground">Radio de Búsqueda</p>
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : (
-          /* List View - Grid Layout */
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            className="space-y-12"
-          >
-            {/* Events Section */}
-            <motion.section variants={itemVariants}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-display font-bold text-foreground">
-                  Eventos Cercanos
-                </h2>
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Star className="w-4 h-4" />
-                  <span>Recomendados por IA</span>
-                </div>
-              </div>
-              
-              {eventsLoading ? (
-                <div className="events-grid">
-                  {[...Array(8)].map((_, i) => (
-                    <div key={i} className="event-card animate-pulse">
-                      <div className="h-48 bg-muted rounded-lg mb-4" />
-                      <div className="h-4 bg-muted rounded mb-2" />
-                      <div className="h-3 bg-muted rounded w-3/4" />
-                    </div>
-                  ))}
-                </div>
-              ) : events?.length > 0 ? (
-                <div className="events-grid">
-                  {events.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-muted-foreground mb-2">
-                    No hay eventos cercanos
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Intenta ajustar los filtros o expandir el radio de búsqueda
-                  </p>
-                </div>
-              )}
-            </motion.section>
-
-            {/* Tribes Section */}
-            <motion.section variants={itemVariants}>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-3xl font-display font-bold text-foreground">
-                  Tribus y Comunidades
-                </h2>
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                  <Users className="w-4 h-4" />
-                  <span>Conecta con personas afines</span>
-                </div>
-              </div>
-              
-              {tribesLoading ? (
-                <div className="tribes-grid">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="tribe-card animate-pulse">
-                      <div className="h-32 bg-muted rounded-lg mb-4" />
-                      <div className="h-5 bg-muted rounded mb-2" />
-                      <div className="h-3 bg-muted rounded w-2/3" />
-                    </div>
-                  ))}
-                </div>
-              ) : tribes?.length > 0 ? (
-                <div className="tribes-grid">
-                  {tribes.map((tribe) => (
-                    <TribeCard key={tribe.id} tribe={tribe} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-medium text-muted-foreground mb-2">
-                    No hay tribus cercanas
-                  </h3>
-                  <p className="text-muted-foreground">
-                    ¡Sé el primero en crear una tribu en tu área!
-                  </p>
-                </div>
-              )}
-            </motion.section>
-          </motion.div>
-        )}
-      </main>
-
-      {/* Floating Action Button */}
-      <motion.button
-        className="fixed bottom-6 right-6 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, delay: 1 }}
-      >
-        <Plus className="w-6 h-6" />
-      </motion.button>
+              Comenzar Gratis
+            </a>
+            <a
+              href="/about"
+              className="px-8 py-4 border-2 border-white text-white rounded-xl hover:bg-white hover:text-primary-600 transition-colors font-semibold text-lg"
+            >
+              Conoce Más
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
-  )
+  );
 }
