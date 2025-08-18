@@ -1,0 +1,96 @@
+{
+  "name": "eventconnect",
+  "version": "1.0.0",
+  "description": "La Revolución Universal de Conexiones - Plataforma universal de eventos que conecta personas con intereses similares",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend:dev\" \"npm run web:dev\" \"npm run mobile:dev\"",
+    "build": "npm run backend:build && npm run web:build && npm run mobile:build",
+    "test": "npm run backend:test && npm run web:test && npm run mobile:test",
+    "lint": "npm run backend:lint && npm run web:lint && npm run mobile:lint",
+    
+    "backend:dev": "cd backend && npm run dev",
+    "backend:build": "cd backend && npm run build",
+    "backend:test": "cd backend && npm run test",
+    "backend:lint": "cd backend && npm run lint",
+    
+    "web:dev": "cd web && npm run dev",
+    "web:build": "cd web && npm run build",
+    "web:test": "cd web && npm run test",
+    "web:lint": "cd web && npm run lint",
+    
+    "mobile:dev": "cd mobile && npm run start",
+    "mobile:ios": "cd mobile && npm run ios",
+    "mobile:android": "cd mobile && npm run android",
+    "mobile:build": "cd mobile && npm run build",
+    "mobile:test": "cd mobile && npm run test",
+    "mobile:lint": "cd mobile && npm run lint",
+    
+    "ai:dev": "cd ai && npm run dev",
+    "ai:build": "cd ai && npm run build",
+    "ai:test": "cd ai && npm run test",
+    
+    "blockchain:dev": "cd blockchain && npm run dev",
+    "blockchain:build": "cd blockchain && npm run build",
+    "blockchain:test": "cd blockchain && npm run test",
+    
+    "db:migrate": "cd backend && npm run db:migrate",
+    "db:seed": "cd backend && npm run db:seed",
+    "db:reset": "cd backend && npm run db:reset",
+    
+    "install:all": "npm install && cd backend && npm install && cd ../web && npm install && cd ../mobile && npm install && cd ../ai && npm install && cd ../blockchain && npm install",
+    
+    "setup": "npm run install:all && npm run db:migrate && npm run db:seed",
+    
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build",
+    
+    "deploy:staging": "npm run build && npm run docker:build && docker-compose -f docker-compose.staging.yml up -d",
+    "deploy:production": "npm run build && npm run docker:build && docker-compose -f docker-compose.production.yml up -d"
+  },
+  "keywords": [
+    "events",
+    "social",
+    "ai",
+    "blockchain",
+    "react-native",
+    "react",
+    "nodejs",
+    "typescript",
+    "universal",
+    "tribes",
+    "dna",
+    "pulse",
+    "metaverse"
+  ],
+  "author": "EventConnect Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.0.2",
+    "prettier": "^3.0.3",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eventconnect/eventconnect.git"
+  },
+  "bugs": {
+    "url": "https://github.com/eventconnect/eventconnect/issues"
+  },
+  "homepage": "https://eventconnect.com",
+  "workspaces": [
+    "backend",
+    "web",
+    "mobile",
+    "ai",
+    "blockchain"
+  ]
+} 
