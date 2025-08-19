@@ -10,7 +10,6 @@ import MapScreen from '../screens/main/MapScreen';
 import EventsScreen from '../screens/main/EventsScreen';
 import TribesScreen from '../screens/main/TribesScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
-import ChatScreen from '../screens/main/ChatScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -47,7 +46,6 @@ export default function AppNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Main" component={MainTabs} options={{ headerShown: false }} />
-      <Stack.Screen name="Chat" component={ChatScreen} />
     </Stack.Navigator>
   );
 }

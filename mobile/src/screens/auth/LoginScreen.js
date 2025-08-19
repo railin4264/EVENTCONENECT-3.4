@@ -9,12 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -23,8 +21,9 @@ export default function LoginScreen({ navigation }) {
     }
 
     try {
-      await login(email, password);
-      navigation.replace('Main');
+      // TODO: Implementar login real
+      Alert.alert('Éxito', 'Login implementado próximamente');
+      // navigation.replace('Main');
     } catch (error) {
       Alert.alert('Error', error.message);
     }

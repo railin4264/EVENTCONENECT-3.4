@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function MapScreen() {
   const [location, setLocation] = useState(null);
@@ -117,13 +116,13 @@ export default function MapScreen() {
             style={styles.closeButton}
             onPress={() => setSelectedEvent(null)}
           >
-            <Ionicons name="close" size={24} color="#ffffff" />
+            <Text style={styles.closeButtonText}>✕</Text>
           </TouchableOpacity>
         </View>
       )}
 
       <TouchableOpacity style={styles.locationButton} onPress={getCurrentLocation}>
-        <Ionicons name="locate" size={24} color="#ffffff" />
+        <Text style={styles.locationButtonText}>📍</Text>
       </TouchableOpacity>
     </View>
   );
@@ -182,6 +181,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  closeButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   locationButton: {
     position: 'absolute',
     top: 100,
@@ -193,5 +197,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
+  },
+  locationButtonText: {
+    fontSize: 20,
   },
 });
