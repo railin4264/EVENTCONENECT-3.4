@@ -1,181 +1,447 @@
-'use client'
+'use client';
 
-import HeroSection from '@/components/sections/HeroSection';
-import EventDiscovery from '@/components/sections/EventDiscovery';
-import SocialFeed from '@/components/feed/SocialFeed';
-import InteractiveMap from '@/components/maps/InteractiveMap';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  MapIcon, 
+  CalendarIcon, 
+  UserGroupIcon, 
+  ChatBubbleLeftRightIcon,
+  BellIcon,
+  MagnifyingGlassIcon,
+  ArrowRightIcon,
+  StarIcon,
+  UsersIcon,
+  ClockIcon,
+  MapPinIcon
+} from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
 
 export default function HomePage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Mock data for demonstration
+  const featuredEvents = [
+    {
+      id: 1,
+      title: 'Meetup de Desarrolladores',
+      description: 'Conecta con otros desarrolladores y comparte experiencias',
+      date: '2024-01-15',
+      time: '19:00',
+      location: 'Centro de Innovación',
+      attendees: 45,
+      category: 'Tecnología',
+      image: '/images/event-dev.jpg'
+    },
+    {
+      id: 2,
+      title: 'Clase de Yoga al Aire Libre',
+      description: 'Disfruta de una sesión de yoga en el parque central',
+      date: '2024-01-16',
+      time: '08:00',
+      location: 'Parque Central',
+      attendees: 23,
+      category: 'Bienestar',
+      image: '/images/event-yoga.jpg'
+    },
+    {
+      id: 3,
+      title: 'Noche de Networking',
+      description: 'Amplía tu red profesional en un ambiente relajado',
+      date: '2024-01-17',
+      time: '20:00',
+      location: 'Bar Downtown',
+      attendees: 67,
+      category: 'Negocios',
+      image: '/images/event-networking.jpg'
+    }
+  ];
+
+  const popularTribes = [
+    {
+      id: 1,
+      name: 'Tech Enthusiasts',
+      description: 'Apasionados por la tecnología y la innovación',
+      members: 1247,
+      category: 'Tecnología',
+      image: '/images/tribe-tech.jpg'
+    },
+    {
+      id: 2,
+      name: 'Fitness & Wellness',
+      description: 'Comunidad enfocada en salud y bienestar',
+      members: 892,
+      category: 'Salud',
+      image: '/images/tribe-fitness.jpg'
+    },
+    {
+      id: 3,
+      name: 'Art & Culture',
+      description: 'Amantes del arte, música y cultura',
+      members: 567,
+      category: 'Arte',
+      image: '/images/tribe-art.jpg'
+    }
+  ];
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      toast.error('Por favor ingresa un término de búsqueda');
+    }
+  };
+
+  const handleEventClick = (eventId: number) => {
+    router.push(`/events/${eventId}`);
+  };
+
+  const handleTribeClick = (tribeId: number) => {
+    router.push(`/tribes/${tribeId}`);
+  };
+
+  const handleFeatureClick = (feature: string) => {
+    switch (feature) {
+      case 'map':
+        router.push('/map');
+        break;
+      case 'events':
+        router.push('/events');
+        break;
+      case 'tribes':
+        router.push('/tribes');
+        break;
+      case 'chat':
+        router.push('/chat');
+        break;
+      case 'notifications':
+        router.push('/notifications');
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Hero Section */}
-      <HeroSection />
-
-      {/* Event Discovery Section */}
-      <EventDiscovery
-        title="Eventos Destacados"
-        subtitle="Descubre los eventos más populares y trending cerca de ti"
-        showFilters={true}
-        limit={8}
-      />
-
-      {/* Interactive Map Section */}
-      <section className="py-16 bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Explora en el Mapa
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-              Visualiza eventos y tribus en tiempo real. Encuentra experiencias increíbles cerca de tu ubicación.
+      <section className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              Descubre Eventos y Tribus
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto">
+              Conecta con personas que comparten tus intereses. Únete a eventos increíbles y forma parte de tribus únicas cerca de ti.
             </p>
-          </div>
-          
-          <div className="h-96 lg:h-[600px] rounded-2xl overflow-hidden shadow-2xl">
-            <InteractiveMap
-              showEvents={true}
-              showTribes={true}
-              showUsers={false}
-            />
-          </div>
-        </div>
-      </section>
+            
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar eventos, tribus o personas..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 text-lg text-gray-900 bg-white rounded-full shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full transition-colors"
+                >
+                  Buscar
+                </button>
+              </div>
+            </form>
 
-      {/* Social Feed Section */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-900">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              Feed Social
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-              Mantente al día con las últimas publicaciones, eventos y actividades de la comunidad EventConnect.
-            </p>
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() => router.push('/events/create')}
+                className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-full font-semibold text-lg transition-colors"
+              >
+                Crear Evento
+              </button>
+              <button
+                onClick={() => router.push('/tribes/create')}
+                className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 rounded-full font-semibold text-lg transition-colors"
+              >
+                Crear Tribu
+              </button>
+            </div>
           </div>
-          
-          <SocialFeed
-            showCreatePost={true}
-            filterType="all"
-          />
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-white dark:bg-gray-800">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-              ¿Por qué EventConnect?
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Todo lo que necesitas para conectar
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-              Descubre las características que hacen de EventConnect la plataforma líder para conectar personas a través de eventos.
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              EventConnect te ofrece todas las herramientas para descubrir, conectar y vivir experiencias únicas
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="text-center p-8 bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-900/20 dark:to-primary-800/20 rounded-2xl border border-primary-200 dark:border-primary-700">
-              <div className="w-16 h-16 bg-primary-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">🎯</span>
+            {/* Interactive Map */}
+            <div 
+              onClick={() => handleFeatureClick('map')}
+              className="group p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 hover:border-blue-300 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <MapIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Descubrimiento Inteligente
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Nuestro algoritmo de IA aprende de tus preferencias para recomendarte eventos y tribus que realmente te interesan.
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Mapa Interactivo</h3>
+              <p className="text-gray-600 mb-4">
+                Descubre eventos y tribus cerca de ti con nuestro mapa inteligente
               </p>
+              <div className="flex items-center text-blue-600 font-medium group-hover:text-blue-700">
+                Explorar mapa
+                <ArrowRightIcon className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
 
-            {/* Feature 2 */}
-            <div className="text-center p-8 bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-900/20 dark:to-secondary-800/20 rounded-2xl border border-secondary-200 dark:border-secondary-700">
-              <div className="w-16 h-16 bg-secondary-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">🌍</span>
+            {/* Events Management */}
+            <div 
+              onClick={() => handleFeatureClick('events')}
+              className="group p-6 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-100 hover:border-green-300 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <CalendarIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Geolocalización Precisa
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Encuentra eventos y comunidades cerca de ti con nuestro sistema de geolocalización avanzado y mapas interactivos.
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Gestión de Eventos</h3>
+              <p className="text-gray-600 mb-4">
+                Crea, gestiona y únete a eventos increíbles de todo tipo
               </p>
+              <div className="flex items-center text-green-600 font-medium group-hover:text-green-700">
+                Ver eventos
+                <ArrowRightIcon className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
 
-            {/* Feature 3 */}
-            <div className="text-center p-8 bg-gradient-to-br from-accent-50 to-accent-100 dark:from-accent-900/20 dark:to-accent-800/20 rounded-2xl border border-accent-200 dark:border-accent-700">
-              <div className="w-16 h-16 bg-accent-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">⚡</span>
+            {/* Tribes */}
+            <div 
+              onClick={() => handleFeatureClick('tribes')}
+              className="group p-6 bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl border border-purple-100 hover:border-purple-300 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <UserGroupIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Tiempo Real
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Chat en vivo, notificaciones instantáneas y actualizaciones en tiempo real para mantenerte conectado siempre.
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Sistema de Tribus</h3>
+              <p className="text-gray-600 mb-4">
+                Únete a comunidades con intereses similares y forma conexiones duraderas
               </p>
+              <div className="flex items-center text-purple-600 font-medium group-hover:text-purple-700">
+                Explorar tribus
+                <ArrowRightIcon className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
 
-            {/* Feature 4 */}
-            <div className="text-center p-8 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl border border-green-200 dark:border-green-700">
-              <div className="w-16 h-16 bg-green-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">🔒</span>
+            {/* Real-time Chat */}
+            <div 
+              onClick={() => handleFeatureClick('chat')}
+              className="group p-6 bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl border border-orange-100 hover:border-orange-300 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-orange-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <ChatBubbleLeftRightIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Seguridad y Privacidad
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Tu información está protegida con los más altos estándares de seguridad y control total sobre tu privacidad.
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Chat en Tiempo Real</h3>
+              <p className="text-gray-600 mb-4">
+                Comunícate instantáneamente con otros miembros de la comunidad
               </p>
+              <div className="flex items-center text-orange-600 font-medium group-hover:text-orange-700">
+                Ir al chat
+                <ArrowRightIcon className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
 
-            {/* Feature 5 */}
-            <div className="text-center p-8 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-2xl border border-purple-200 dark:border-purple-700">
-              <div className="w-16 h-16 bg-purple-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">🏆</span>
+            {/* Push Notifications */}
+            <div 
+              onClick={() => handleFeatureClick('notifications')}
+              className="group p-6 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl border border-red-100 hover:border-red-300 hover:shadow-lg transition-all cursor-pointer"
+            >
+              <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <BellIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Sistema de Gamificación
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Gana badges, sube de nivel y compite con otros usuarios mientras participas en eventos y comunidades.
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Notificaciones Push</h3>
+              <p className="text-gray-600 mb-4">
+                Mantente al día con eventos y actividades que te interesan
               </p>
+              <div className="flex items-center text-red-600 font-medium group-hover:text-red-700">
+                Configurar
+                <ArrowRightIcon className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
 
-            {/* Feature 6 */}
-            <div className="text-center p-8 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-2xl border border-orange-200 dark:border-orange-700">
-              <div className="w-16 h-16 bg-orange-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-2xl">📱</span>
+            {/* PWA Features */}
+            <div className="group p-6 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl border border-indigo-100 hover:border-indigo-300 hover:shadow-lg transition-all cursor-pointer">
+              <div className="w-12 h-12 bg-indigo-600 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <StarIcon className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                Multiplataforma
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400">
-                Accede desde cualquier dispositivo: web, móvil, tablet. Tu experiencia se sincroniza perfectamente.
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">App Nativa</h3>
+              <p className="text-gray-600 mb-4">
+                Instala EventConnect como una app nativa y disfruta de funcionalidad offline
               </p>
+              <div className="flex items-center text-indigo-600 font-medium group-hover:text-indigo-700">
+                Instalar app
+                <ArrowRightIcon className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Events Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Eventos Destacados
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Descubre los eventos más populares y únete a la diversión
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredEvents.map((event) => (
+              <div
+                key={event.id}
+                onClick={() => handleEventClick(event.id)}
+                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow cursor-pointer overflow-hidden"
+              >
+                <div className="h-48 bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center">
+                  <CalendarIcon className="w-16 h-16 text-white opacity-80" />
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                      {event.category}
+                    </span>
+                    <div className="flex items-center text-gray-500 text-sm">
+                      <UsersIcon className="w-4 h-4 mr-1" />
+                      {event.attendees}
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {event.title}
+                  </h3>
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {event.description}
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center text-gray-500 text-sm">
+                      <ClockIcon className="w-4 h-4 mr-2" />
+                      {event.date} • {event.time}
+                    </div>
+                    <div className="flex items-center text-gray-500 text-sm">
+                      <MapPinIcon className="w-4 h-4 mr-2" />
+                      {event.location}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <button
+              onClick={() => router.push('/events')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold text-lg transition-colors"
+            >
+              Ver Todos los Eventos
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Popular Tribes Section */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Tribus Populares
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Únete a las comunidades más activas y conecta con personas que comparten tus intereses
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {popularTribes.map((tribe) => (
+              <div
+                key={tribe.id}
+                onClick={() => handleTribeClick(tribe.id)}
+                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-shadow cursor-pointer overflow-hidden border border-gray-100"
+              >
+                <div className="h-48 bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center">
+                  <UserGroupIcon className="w-16 h-16 text-white opacity-80" />
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                      {tribe.category}
+                    </span>
+                    <div className="flex items-center text-gray-500 text-sm">
+                      <UsersIcon className="w-4 h-4 mr-1" />
+                      {tribe.members}
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {tribe.name}
+                  </h3>
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {tribe.description}
+                  </p>
+                  <button className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-medium transition-colors">
+                    Unirse a la Tribu
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <button
+              onClick={() => router.push('/tribes')}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-full font-semibold text-lg transition-colors"
+            >
+              Explorar Todas las Tribus
+            </button>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gradient-to-r from-primary-600 to-secondary-600">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6">
-            ¿Listo para Conectar?
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-indigo-700 text-white">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+            ¿Listo para conectar?
           </h2>
-          <p className="text-xl text-primary-100 mb-8 max-w-3xl mx-auto">
-            Únete a miles de personas que ya están descubriendo eventos increíbles y formando conexiones significativas en EventConnect.
+          <p className="text-xl mb-8 text-blue-100">
+            Únete a EventConnect hoy mismo y comienza a descubrir eventos increíbles y conectar con personas que comparten tus pasiones.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
-              href="/auth/register"
-              className="px-8 py-4 bg-white text-primary-600 rounded-xl hover:bg-gray-100 transition-colors font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            <button
+              onClick={() => router.push('/auth/register')}
+              className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3 rounded-full font-semibold text-lg transition-colors"
             >
-              Comenzar Gratis
-            </a>
-            <a
-              href="/about"
-              className="px-8 py-4 border-2 border-white text-white rounded-xl hover:bg-white hover:text-primary-600 transition-colors font-semibold text-lg"
+              Crear Cuenta Gratis
+            </button>
+            <button
+              onClick={() => router.push('/auth/login')}
+              className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 rounded-full font-semibold text-lg transition-colors"
             >
-              Conoce Más
-            </a>
+              Iniciar Sesión
+            </button>
           </div>
         </div>
       </section>

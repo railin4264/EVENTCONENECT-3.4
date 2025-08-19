@@ -1,937 +1,1008 @@
-const Tribe = require('../models/Tribe');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
+const { Tribe, User, Post } = require('../models');
+const { cloudinary } = require('../config');
+const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { validateTribeCreation, validateTribeUpdate } = require('../middleware/validation');
 
-// @desc    Get all tribes
-// @route   GET /api/tribes
-// @access  Public
-const getTribes = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      category,
-      status = 'active',
-      search,
-      sort = 'createdAt',
-      order = 'desc',
-      location,
-      radius = 10000,
-      tags,
-      privacy = 'public'
-    } = req.query;
+class TribeController {
+  // Create new tribe
+  createTribe = asyncHandler(async (req, res, next) => {
+    try {
+      const tribeData = req.body;
+      const userId = req.user.id;
 
-    const skip = (page - 1) * limit;
-    const query = {};
+      // Add creator information
+      tribeData.creator = userId;
+      tribeData.members = [userId];
+      tribeData.moderators = [userId];
+      tribeData.status = 'active';
 
-    // Status filter
-    if (status) {
-      query.status = status;
-    }
-
-    // Category filter
-    if (category) {
-      query.category = category;
-    }
-
-    // Search filter
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
-      ];
-    }
-
-    // Location filter
-    if (location && location.coordinates) {
-      query.location = {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: location.coordinates
-          },
-          $maxDistance: parseInt(radius)
-        }
-      };
-    }
-
-    // Tags filter
-    if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      query.tags = { $in: tagArray };
-    }
-
-    // Privacy filter
-    if (privacy) {
-      query['settings.privacy'] = privacy;
-    }
-
-    // Sort options
-    const sortOptions = {};
-    if (sort === 'createdAt') {
-      sortOptions.createdAt = order === 'desc' ? -1 : 1;
-    } else if (sort === 'members') {
-      sortOptions['stats.totalMembers'] = order === 'desc' ? -1 : 1;
-    } else if (sort === 'popularity') {
-      sortOptions['social.likes'] = order === 'desc' ? -1 : 1;
-    } else if (sort === 'name') {
-      sortOptions.name = order === 'desc' ? -1 : 1;
-    }
-
-    const tribes = await Tribe.find(query)
-      .populate('creator', 'username firstName lastName avatar')
-      .populate('admins', 'username firstName lastName avatar')
-      .populate('moderators', 'username firstName lastName avatar')
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Tribe.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        tribes,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+      // Handle location coordinates
+      if (tribeData.location && tribeData.location.coordinates) {
+        tribeData.location.type = 'Point';
+        tribeData.location.coordinates = [
+          tribeData.location.coordinates.longitude,
+          tribeData.location.coordinates.latitude
+        ];
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo tribus:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Create tribe
+      const tribe = new Tribe(tribeData);
+      await tribe.save();
 
-// @desc    Get single tribe
-// @route   GET /api/tribes/:id
-// @access  Public
-const getTribe = async (req, res) => {
-  try {
-    const tribe = await Tribe.findById(req.params.id)
-      .populate('creator', 'username firstName lastName avatar bio')
-      .populate('admins', 'username firstName lastName avatar')
-      .populate('moderators', 'username firstName lastName avatar')
-      .populate('members.user', 'username firstName lastName avatar')
-      .populate('discussions.author', 'username firstName lastName avatar')
-      .populate('resources.uploadedBy', 'username firstName lastName avatar');
+      // Populate creator information
+      await tribe.populate('creator', 'username firstName lastName avatar');
+      await tribe.populate('members', 'username firstName lastName avatar');
 
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
+      res.status(201).json({
+        success: true,
+        message: 'Tribu creada exitosamente',
+        data: { tribe }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check privacy settings
-    if (tribe.settings.privacy === 'secret' && 
-        !tribe.members.some(m => m.user._id.toString() === req.user?.id) &&
-        tribe.creator.toString() !== req.user?.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a esta tribu'
-      });
-    }
+  // Get all tribes with filtering and pagination
+  getTribes = asyncHandler(async (req, res, next) => {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        category,
+        subcategory,
+        location,
+        isPublic,
+        tags,
+        search,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        radius = 50,
+        latitude,
+        longitude
+      } = req.query;
 
-    // Increment views
-    await tribe.incrementViews();
+      // Build query
+      const query = { status: 'active' };
 
-    // Check if user is authenticated and get their status
-    let userRole = null;
-    let userStatus = null;
-    if (req.user) {
-      const member = tribe.members.find(m => 
-        m.user._id.toString() === req.user.id
-      );
-      if (member) {
-        userRole = member.role;
-        userStatus = member.status;
+      // Category filter
+      if (category) {
+        query.category = category;
       }
-    }
 
-    res.json({
-      success: true,
-      data: {
-        tribe,
-        userRole,
-        userStatus
+      // Subcategory filter
+      if (subcategory) {
+        query.subcategory = subcategory;
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Public/private filter
+      if (isPublic !== undefined) {
+        query.isPublic = isPublic === 'true';
+      }
 
-// @desc    Create new tribe
-// @route   POST /api/tribes
-// @access  Private
-const createTribe = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
+      // Tags filter
+      if (tags) {
+        const tagArray = tags.split(',').map(tag => tag.trim());
+        query.tags = { $in: tagArray };
+      }
 
-    const {
-      name,
-      description,
-      category,
-      subcategory,
-      location,
-      images,
-      tags,
-      rules,
-      settings,
-      features
-    } = req.body;
+      // Search filter
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { tags: { $in: [new RegExp(search, 'i')] } }
+        ];
+      }
 
-    // Check if tribe name already exists
-    const existingTribe = await Tribe.findOne({ name });
-    if (existingTribe) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya existe una tribu con ese nombre'
-      });
-    }
-
-    // Create new tribe
-    const tribe = new Tribe({
-      name,
-      description,
-      category,
-      subcategory,
-      creator: req.user.id,
-      location: location || {
-        type: 'Point',
-        coordinates: [0, 0]
-      },
-      images: images || {},
-      tags: tags || [],
-      rules: rules || [],
-      settings: settings || {},
-      features: features || {}
-    });
-
-    await tribe.save();
-
-    // Add creator as member and admin
-    await tribe.addMember(req.user.id, 'admin');
-    await tribe.addAdmin(req.user.id);
-
-    // Update user stats
-    const user = await User.findById(req.user.id);
-    if (user) {
-      user.updateStats('tribesCreated');
-      await user.save();
-    }
-
-    // Populate creator info for response
-    await tribe.populate('creator', 'username firstName lastName avatar');
-
-    res.status(201).json({
-      success: true,
-      message: 'Tribu creada exitosamente',
-      data: { tribe }
-    });
-
-  } catch (error) {
-    console.error('Error creando tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Update tribe
-// @route   PUT /api/tribes/:id
-// @access  Private
-const updateTribe = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const tribe = await Tribe.findById(req.params.id);
-
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
-
-    // Check if user is creator or admin
-    if (tribe.creator.toString() !== req.user.id && 
-        !tribe.admins.some(a => a.toString() === req.user.id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para editar esta tribu'
-      });
-    }
-
-    // Check if tribe can be edited
-    if (tribe.status === 'deleted' || tribe.status === 'suspended') {
-      return res.status(400).json({
-        success: false,
-        message: 'No se puede editar una tribu eliminada o suspendida'
-      });
-    }
-
-    const updateFields = req.body;
-    
-    // Remove fields that shouldn't be updated
-    delete updateFields.creator;
-    delete updateFields.status;
-    delete updateFields.members;
-
-    const updatedTribe = await Tribe.findByIdAndUpdate(
-      req.params.id,
-      updateFields,
-      { new: true, runValidators: true }
-    )
-    .populate('creator', 'username firstName lastName avatar')
-    .populate('admins', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Tribu actualizada exitosamente',
-      data: { tribe: updatedTribe }
-    });
-
-  } catch (error) {
-    console.error('Error actualizando tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Delete tribe
-// @route   DELETE /api/tribes/:id
-// @access  Private
-const deleteTribe = async (req, res) => {
-  try {
-    const tribe = await Tribe.findById(req.params.id);
-
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
-
-    // Check if user is creator
-    if (tribe.creator.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Solo el creador puede eliminar la tribu'
-      });
-    }
-
-    // Soft delete - change status to deleted
-    tribe.status = 'deleted';
-    await tribe.save();
-
-    res.json({
-      success: true,
-      message: 'Tribu eliminada exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error eliminando tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Join tribe
-// @route   POST /api/tribes/:id/join
-// @access  Private
-const joinTribe = async (req, res) => {
-  try {
-    const { role = 'member' } = req.body;
-    const tribe = await Tribe.findById(req.params.id);
-
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
-
-    // Check if tribe is active
-    if (tribe.status !== 'active') {
-      return res.status(400).json({
-        success: false,
-        message: 'No se puede unir a una tribu inactiva'
-      });
-    }
-
-    // Check membership settings
-    if (tribe.settings.membership === 'invite_only') {
-      return res.status(400).json({
-        success: false,
-        message: 'Esta tribu solo acepta invitaciones'
-      });
-    }
-
-    // Check if user is already a member
-    const existingMember = tribe.members.find(m => 
-      m.user.toString() === req.user.id
-    );
-
-    if (existingMember) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya eres miembro de esta tribu'
-      });
-    }
-
-    // Add user to tribe
-    await tribe.addMember(req.user.id, role);
-
-    // Update user stats
-    const user = await User.findById(req.user.id);
-    if (user) {
-      user.updateStats('tribesJoined');
-      await user.save();
-    }
-
-    // Send notification to creator and admins
-    const notificationRecipients = [tribe.creator, ...tribe.admins];
-    
-    for (const recipientId of notificationRecipients) {
-      if (recipientId.toString() !== req.user.id) {
-        const notification = new Notification({
-          recipient: recipientId,
-          sender: req.user.id,
-          type: 'tribe_joined',
-          title: 'Nuevo miembro en la tribu',
-          message: `${req.user.firstName} ${req.user.lastName} se ha unido a tu tribu "${tribe.name}"`,
-          category: 'tribe',
-          data: {
-            tribe: tribe._id,
-            tribeName: tribe.name,
-            user: req.user.id,
-            userName: `${req.user.firstName} ${req.user.lastName}`
+      // Location filter with geospatial query
+      if (latitude && longitude && radius) {
+        query.location = {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+            },
+            $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
           }
-        });
-        await notification.save();
+        };
       }
-    }
 
-    // Populate tribe for response
-    await tribe.populate('creator', 'username firstName lastName avatar');
-    await tribe.populate('members.user', 'username firstName lastName avatar');
+      // Build sort object
+      const sort = {};
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-    res.json({
-      success: true,
-      message: 'Te has unido a la tribu exitosamente',
-      data: { tribe }
-    });
+      // Execute query with pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      
+      const tribes = await Tribe.find(query)
+        .populate('creator', 'username firstName lastName avatar')
+        .populate('members', 'username firstName lastName avatar')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-  } catch (error) {
-    console.error('Error uniéndose a la tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Get total count for pagination
+      const total = await Tribe.countDocuments(query);
 
-// @desc    Leave tribe
-// @route   POST /api/tribes/:id/leave
-// @access  Private
-const leaveTribe = async (req, res) => {
-  try {
-    const tribe = await Tribe.findById(req.params.id);
+      // Calculate pagination info
+      const totalPages = Math.ceil(total / parseInt(limit));
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
 
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
-
-    // Check if user is a member
-    const member = tribe.members.find(m => 
-      m.user.toString() === req.user.id
-    );
-
-    if (!member) {
-      return res.status(400).json({
-        success: false,
-        message: 'No eres miembro de esta tribu'
-      });
-    }
-
-    // Check if user is creator
-    if (tribe.creator.toString() === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'El creador no puede abandonar la tribu. Transfiere la propiedad o elimina la tribu.'
-      });
-    }
-
-    // Remove user from tribe
-    await tribe.removeMember(req.user.id);
-
-    // Update user stats
-    const user = await User.findById(req.user.id);
-    if (user) {
-      user.updateStats('tribesJoined', -1);
-      await user.save();
-    }
-
-    // Send notification to creator and admins
-    const notificationRecipients = [tribe.creator, ...tribe.admins];
-    
-    for (const recipientId of notificationRecipients) {
-      if (recipientId.toString() !== req.user.id) {
-        const notification = new Notification({
-          recipient: recipientId,
-          sender: req.user.id,
-          type: 'tribe_left',
-          title: 'Miembro abandonó la tribu',
-          message: `${req.user.firstName} ${req.user.lastName} ha abandonado tu tribu "${tribe.name}"`,
-          category: 'tribe',
-          data: {
-            tribe: tribe._id,
-            tribeName: tribe.name,
-            user: req.user.id,
-            userName: `${req.user.firstName} ${req.user.lastName}`
+      res.status(200).json({
+        success: true,
+        data: {
+          tribes,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage,
+            hasPrevPage,
+            limit: parseInt(limit)
           }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get tribe by ID
+  getTribeById = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user?.id;
+
+      const tribe = await Tribe.findById(tribeId)
+        .populate('creator', 'username firstName lastName avatar bio')
+        .populate('members', 'username firstName lastName avatar')
+        .populate('moderators', 'username firstName lastName avatar')
+        .populate('tags');
+
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      // Check if user is member
+      let isMember = false;
+      let isModerator = false;
+      let isCreator = false;
+      let userRole = null;
+
+      if (userId) {
+        isMember = tribe.members.some(member => member._id.toString() === userId);
+        isModerator = tribe.moderators.some(moderator => moderator._id.toString() === userId);
+        isCreator = tribe.creator._id.toString() === userId;
+        
+        if (isCreator) {
+          userRole = 'creator';
+        } else if (isModerator) {
+          userRole = 'moderator';
+        } else if (isMember) {
+          userRole = 'member';
+        } else {
+          userRole = 'guest';
+        }
+      }
+
+      // Increment view count
+      tribe.views = (tribe.views || 0) + 1;
+      await tribe.save();
+
+      res.status(200).json({
+        success: true,
+        data: {
+          tribe,
+          userInteraction: {
+            isMember,
+            isModerator,
+            isCreator,
+            userRole
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update tribe
+  updateTribe = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
+
+      // Find tribe and check permissions
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      if (tribe.creator.toString() !== userId && 
+          !tribe.moderators.includes(userId) && 
+          req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para editar esta tribu', 403);
+      }
+
+      // Handle location coordinates
+      if (updateData.location && updateData.location.coordinates) {
+        updateData.location.type = 'Point';
+        updateData.location.coordinates = [
+          updateData.location.coordinates.longitude,
+          updateData.location.coordinates.latitude
+        ];
+      }
+
+      // Update tribe
+      const updatedTribe = await Tribe.findByIdAndUpdate(
+        tribeId,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate('creator', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Tribu actualizada exitosamente',
+        data: { tribe: updatedTribe }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete tribe
+  deleteTribe = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user.id;
+
+      // Find tribe and check ownership
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      if (tribe.creator.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar esta tribu', 403);
+      }
+
+      // Delete tribe
+      await Tribe.findByIdAndDelete(tribeId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Tribu eliminada exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Join tribe
+  joinTribe = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user.id;
+
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      // Check if tribe is public
+      if (!tribe.isPublic && !tribe.requiresApproval) {
+        throw new AppError('Esta tribu es privada y no acepta nuevos miembros', 400);
+      }
+
+      // Check if user is already a member
+      if (tribe.members.includes(userId)) {
+        throw new AppError('Ya eres miembro de esta tribu', 400);
+      }
+
+      // Check capacity
+      if (tribe.maxMembers && tribe.members.length >= tribe.maxMembers) {
+        throw new AppError('La tribu ha alcanzado su capacidad máxima', 400);
+      }
+
+      // Add user to members
+      tribe.members.push(userId);
+      tribe.memberCount = tribe.members.length;
+      await tribe.save();
+
+      // Populate tribe data
+      await tribe.populate('creator', 'username firstName lastName avatar');
+      await tribe.populate('members', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Te has unido a la tribu exitosamente',
+        data: { tribe }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Leave tribe
+  leaveTribe = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user.id;
+
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      // Check if user is a member
+      if (!tribe.members.includes(userId)) {
+        throw new AppError('No eres miembro de esta tribu', 400);
+      }
+
+      // Check if user is creator
+      if (tribe.creator.toString() === userId) {
+        throw new AppError('El creador no puede dejar la tribu. Transfiere la propiedad o elimina la tribu', 400);
+      }
+
+      // Remove user from members and moderators
+      tribe.members = tribe.members.filter(member => member.toString() !== userId);
+      tribe.moderators = tribe.moderators.filter(moderator => moderator.toString() !== userId);
+      tribe.memberCount = tribe.members.length;
+      await tribe.save();
+
+      // Populate tribe data
+      await tribe.populate('creator', 'username firstName lastName avatar');
+      await tribe.populate('members', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Has dejado la tribu exitosamente',
+        data: { tribe }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Request to join tribe (for private tribes)
+  requestJoinTribe = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user.id;
+      const { message } = req.body;
+
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      // Check if tribe requires approval
+      if (!tribe.requiresApproval) {
+        throw new AppError('Esta tribu no requiere aprobación para unirse', 400);
+      }
+
+      // Check if user is already a member
+      if (tribe.members.includes(userId)) {
+        throw new AppError('Ya eres miembro de esta tribu', 400);
+      }
+
+      // Check if request already exists
+      if (tribe.joinRequests && tribe.joinRequests.some(req => req.user.toString() === userId)) {
+        throw new AppError('Ya has enviado una solicitud para unirte a esta tribu', 400);
+      }
+
+      // Add join request
+      if (!tribe.joinRequests) {
+        tribe.joinRequests = [];
+      }
+
+      tribe.joinRequests.push({
+        user: userId,
+        message: message || '',
+        status: 'pending',
+        requestedAt: new Date()
+      });
+
+      await tribe.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Solicitud enviada exitosamente. Espera la aprobación de los moderadores.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Approve/deny join request
+  handleJoinRequest = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId, requestId } = req.params;
+      const { action } = req.body; // 'approve' or 'deny'
+      const userId = req.user.id;
+
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
+
+      // Check if user is moderator or creator
+      if (tribe.creator.toString() !== userId && 
+          !tribe.moderators.includes(userId) && 
+          req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para manejar solicitudes', 403);
+      }
+
+      // Find join request
+      const joinRequest = tribe.joinRequests.id(requestId);
+      if (!joinRequest) {
+        throw new AppError('Solicitud no encontrada', 404);
+      }
+
+      if (action === 'approve') {
+        // Add user to members
+        if (!tribe.members.includes(joinRequest.user)) {
+          tribe.members.push(joinRequest.user);
+          tribe.memberCount = tribe.members.length;
+        }
+        
+        // Update request status
+        joinRequest.status = 'approved';
+        joinRequest.processedBy = userId;
+        joinRequest.processedAt = new Date();
+
+        // Remove request
+        tribe.joinRequests = tribe.joinRequests.filter(req => req._id.toString() !== requestId);
+
+        await tribe.save();
+
+        res.status(200).json({
+          success: true,
+          message: 'Solicitud aprobada exitosamente'
         });
-        await notification.save();
+      } else if (action === 'deny') {
+        // Update request status
+        joinRequest.status = 'denied';
+        joinRequest.processedBy = userId;
+        joinRequest.processedAt = new Date();
+
+        // Remove request
+        tribe.joinRequests = tribe.joinRequests.filter(req => req._id.toString() !== requestId);
+
+        await tribe.save();
+
+        res.status(200).json({
+          success: true,
+          message: 'Solicitud denegada exitosamente'
+        });
+      } else {
+        throw new AppError('Acción inválida. Debe ser "approve" o "deny"', 400);
       }
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Populate tribe for response
-    await tribe.populate('creator', 'username firstName lastName avatar');
-    await tribe.populate('members.user', 'username firstName lastName avatar');
+  // Add moderator
+  addModerator = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const { userId: newModeratorId } = req.body;
+      const currentUserId = req.user.id;
 
-    res.json({
-      success: true,
-      message: 'Has abandonado la tribu exitosamente',
-      data: { tribe }
-    });
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
 
-  } catch (error) {
-    console.error('Error abandonando la tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Check if current user is creator or admin
+      if (tribe.creator.toString() !== currentUserId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para agregar moderadores', 403);
+      }
 
-// @desc    Toggle tribe like
-// @route   POST /api/tribes/:id/like
-// @access  Private
-const toggleTribeLike = async (req, res) => {
-  try {
-    const tribe = await Tribe.findById(req.params.id);
+      // Check if user is already a moderator
+      if (tribe.moderators.includes(newModeratorId)) {
+        throw new AppError('El usuario ya es moderador de esta tribu', 400);
+      }
 
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
+      // Check if user is a member
+      if (!tribe.members.includes(newModeratorId)) {
+        throw new AppError('El usuario debe ser miembro de la tribu para ser moderador', 400);
+      }
+
+      // Add user to moderators
+      tribe.moderators.push(newModeratorId);
+      await tribe.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Moderador agregado exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Toggle like
-    await tribe.toggleLike(req.user.id);
+  // Remove moderator
+  removeModerator = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId, moderatorId } = req.params;
+      const currentUserId = req.user.id;
 
-    // Populate tribe for response
-    await tribe.populate('creator', 'username firstName lastName avatar');
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
 
-    res.json({
-      success: true,
-      message: tribe.social.likes.some(l => l.user.toString() === req.user.id) ? 
-        'Tribu marcada como me gusta' : 'Me gusta removido',
-      data: { tribe }
-    });
+      // Check if current user is creator or admin
+      if (tribe.creator.toString() !== currentUserId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para remover moderadores', 403);
+      }
 
-  } catch (error) {
-    console.error('Error marcando me gusta:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Check if user is a moderator
+      if (!tribe.moderators.includes(moderatorId)) {
+        throw new AppError('El usuario no es moderador de esta tribu', 400);
+      }
 
-// @desc    Share tribe
-// @route   POST /api/tribes/:id/share
-// @access  Private
-const shareTribe = async (req, res) => {
-  try {
-    const { platform } = req.body;
-    const tribe = await Tribe.findById(req.params.id);
+      // Remove user from moderators
+      tribe.moderators = tribe.moderators.filter(moderator => moderator.toString() !== moderatorId);
+      await tribe.save();
 
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
+      res.status(200).json({
+        success: true,
+        message: 'Moderador removido exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Add share
-    await tribe.addShare(req.user.id, platform);
+  // Get tribe members
+  getTribeMembers = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const { page = 1, limit = 20, role } = req.query;
 
-    res.json({
-      success: true,
-      message: 'Tribu compartida exitosamente',
-      data: { tribe }
-    });
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
 
-  } catch (error) {
-    console.error('Error compartiendo tribu:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      let members = [];
 
-// @desc    Add tribe rule
-// @route   POST /api/tribes/:id/rules
-// @access  Private
-const addTribeRule = async (req, res) => {
-  try {
-    const { title, description } = req.body;
-    const tribe = await Tribe.findById(req.params.id);
+      if (role === 'moderators') {
+        members = await User.find({ _id: { $in: tribe.moderators } })
+          .select('username firstName lastName avatar bio createdAt')
+          .lean();
+      } else if (role === 'creator') {
+        members = await User.find({ _id: tribe.creator })
+          .select('username firstName lastName avatar bio createdAt')
+          .lean();
+      } else {
+        // Get all members with pagination
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        
+        members = await User.find({ _id: { $in: tribe.members } })
+          .select('username firstName lastName avatar bio createdAt')
+          .sort({ createdAt: 1 })
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean();
+      }
 
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
+      const total = tribe.members.length;
+      const totalPages = Math.ceil(total / parseInt(limit));
 
-    // Check if user is creator or admin
-    if (tribe.creator.toString() !== req.user.id && 
-        !tribe.admins.some(a => a.toString() === req.user.id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para agregar reglas'
-      });
-    }
-
-    // Add rule
-    await tribe.addRule(title, description);
-
-    res.json({
-      success: true,
-      message: 'Regla agregada exitosamente',
-      data: { tribe }
-    });
-
-  } catch (error) {
-    console.error('Error agregando regla:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Update tribe rule
-// @route   PUT /api/tribes/:id/rules/:ruleId
-// @access  Private
-const updateTribeRule = async (req, res) => {
-  try {
-    const { title, description, isActive } = req.body;
-    const tribe = await Tribe.findById(req.params.id);
-
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
-
-    // Check if user is creator or admin
-    if (tribe.creator.toString() !== req.user.id && 
-        !tribe.admins.some(a => a.toString() === req.user.id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para editar reglas'
-      });
-    }
-
-    // Update rule
-    await tribe.updateRule(req.params.ruleId, { title, description, isActive });
-
-    res.json({
-      success: true,
-      message: 'Regla actualizada exitosamente',
-      data: { tribe }
-    });
-
-  } catch (error) {
-    console.error('Error actualizando regla:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Remove tribe rule
-// @route   DELETE /api/tribes/:id/rules/:ruleId
-// @access  Private
-const removeTribeRule = async (req, res) => {
-  try {
-    const tribe = await Tribe.findById(req.params.id);
-
-    if (!tribe) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tribu no encontrada'
-      });
-    }
-
-    // Check if user is creator or admin
-    if (tribe.creator.toString() !== req.user.id && 
-        !tribe.admins.some(a => a.toString() === req.user.id)) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para eliminar reglas'
-      });
-    }
-
-    // Remove rule
-    await tribe.removeRule(req.params.ruleId);
-
-    res.json({
-      success: true,
-      message: 'Regla eliminada exitosamente',
-      data: { tribe }
-    });
-
-  } catch (error) {
-    console.error('Error eliminando regla:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get nearby tribes
-// @route   GET /api/tribes/nearby
-// @access  Public
-const getNearbyTribes = async (req, res) => {
-  try {
-    const { coordinates, maxDistance = 10000, limit = 20 } = req.query;
-
-    if (!coordinates) {
-      return res.status(400).json({
-        success: false,
-        message: 'Coordenadas son requeridas'
-      });
-    }
-
-    const coordArray = coordinates.split(',').map(Number);
-    if (coordArray.length !== 2) {
-      return res.status(400).json({
-        success: false,
-        message: 'Formato de coordenadas inválido'
-      });
-    }
-
-    const tribes = await Tribe.findNearby(coordArray, parseInt(maxDistance), parseInt(limit));
-
-    res.json({
-      success: true,
-      data: { tribes }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo tribus cercanas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get tribes by category
-// @route   GET /api/tribes/category/:category
-// @access  Public
-const getTribesByCategory = async (req, res) => {
-  try {
-    const { category } = req.params;
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const tribes = await Tribe.findByCategory(category, parseInt(limit));
-    const total = await Tribe.countDocuments({ 
-      category, 
-      status: 'active',
-      'settings.privacy': { $ne: 'secret' }
-    });
-
-    res.json({
-      success: true,
-      data: {
-        tribes,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      res.status(200).json({
+        success: true,
+        data: {
+          members,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get tribe posts
+  getTribePosts = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo tribus por categoría:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      const skip = (parseInt(page) - 1) * parseInt(limit);
 
-// @desc    Get popular tribes
-// @route   GET /api/tribes/popular
-// @access  Public
-const getPopularTribes = async (req, res) => {
-  try {
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
+      const posts = await Post.find({ tribe: tribeId, status: 'active' })
+        .populate('author', 'username firstName lastName avatar')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-    const tribes = await Tribe.findPopular(parseInt(limit));
-    const total = await Tribe.countDocuments({ 
-      status: 'active',
-      'settings.privacy': { $ne: 'secret' }
-    });
+      const total = await Post.countDocuments({ tribe: tribeId, status: 'active' });
+      const totalPages = Math.ceil(total / parseInt(limit));
 
-    res.json({
-      success: true,
-      data: {
-        tribes,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      res.status(200).json({
+        success: true,
+        data: {
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Upload tribe images
+  uploadTribeImages = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const userId = req.user.id;
+      const files = req.files;
+
+      if (!files || files.length === 0) {
+        throw new AppError('No se proporcionaron archivos', 400);
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo tribus populares:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Check tribe permissions
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
 
-// @desc    Get tribes by creator
-// @route   GET /api/tribes/creator/:creatorId
-// @access  Public
-const getTribesByCreator = async (req, res) => {
-  try {
-    const { creatorId } = req.params;
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
+      if (tribe.creator.toString() !== userId && 
+          !tribe.moderators.includes(userId) && 
+          req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para subir imágenes a esta tribu', 403);
+      }
 
-    const tribes = await Tribe.findByCreator(creatorId, parseInt(limit));
-    const total = await Tribe.countDocuments({ 
-      $or: [
-        { creator: creatorId },
-        { admins: creatorId },
-        { moderators: creatorId }
-      ],
-      status: 'active'
-    });
+      // Upload images to Cloudinary
+      const uploadResults = await cloudinary.uploadTribeImages(files, tribeId);
 
-    res.json({
-      success: true,
-      data: {
-        tribes,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      if (uploadResults.failureCount > 0) {
+        console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
+      }
+
+      // Update tribe with new images
+      const newImages = uploadResults.successful.map(result => ({
+        url: result.url,
+        publicId: result.public_id,
+        width: result.width,
+        height: result.height,
+        format: result.format
+      }));
+
+      tribe.images = [...(tribe.images || []), ...newImages];
+      await tribe.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Imágenes subidas exitosamente',
+        data: {
+          uploadedImages: newImages,
+          totalImages: tribe.images.length,
+          uploadResults
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete tribe image
+  deleteTribeImage = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId, imageId } = req.params;
+      const userId = req.user.id;
+
+      // Check tribe permissions
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo tribus por creador:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      if (tribe.creator.toString() !== userId && 
+          !tribe.moderators.includes(userId) && 
+          req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar imágenes de esta tribu', 403);
+      }
 
-module.exports = {
-  getTribes,
-  getTribe,
-  createTribe,
-  updateTribe,
-  deleteTribe,
-  joinTribe,
-  leaveTribe,
-  toggleTribeLike,
-  shareTribe,
-  addTribeRule,
-  updateTribeRule,
-  removeTribeRule,
-  getNearbyTribes,
-  getTribesByCategory,
-  getPopularTribes,
-  getTribesByCreator
-};
+      // Find image
+      const image = tribe.images.id(imageId);
+      if (!image) {
+        throw new AppError('Imagen no encontrada', 404);
+      }
+
+      // Delete from Cloudinary
+      if (image.publicId) {
+        await cloudinary.deleteFile(image.publicId, 'image');
+      }
+
+      // Remove from tribe
+      tribe.images = tribe.images.filter(img => img._id.toString() !== imageId);
+      await tribe.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Imagen eliminada exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get user's tribes
+  getUserTribes = asyncHandler(async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const { type = 'all', page = 1, limit = 20 } = req.query;
+
+      let query = {};
+
+      switch (type) {
+        case 'created':
+          query.creator = userId;
+          break;
+        case 'member':
+          query.members = userId;
+          break;
+        case 'moderator':
+          query.moderators = userId;
+          break;
+        case 'all':
+          query.$or = [
+            { creator: userId },
+            { members: userId },
+            { moderators: userId }
+          ];
+          break;
+        default:
+          throw new AppError('Tipo de tribu inválido', 400);
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const tribes = await Tribe.find(query)
+        .populate('creator', 'username firstName lastName avatar')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Tribe.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          tribes,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get trending tribes
+  getTrendingTribes = asyncHandler(async (req, res, next) => {
+    try {
+      const { limit = 10, days = 7 } = req.query;
+
+      const dateFrom = new Date();
+      dateFrom.setDate(dateFrom.getDate() - parseInt(days));
+
+      const tribes = await Tribe.aggregate([
+        {
+          $match: {
+            status: 'active',
+            createdAt: { $gte: dateFrom }
+          }
+        },
+        {
+          $addFields: {
+            score: {
+              $add: [
+                { $multiply: ['$views', 0.3] },
+                { $multiply: ['$memberCount', 0.5] },
+                { $multiply: ['$postCount', 0.2] }
+              ]
+            }
+          }
+        },
+        {
+          $sort: { score: -1 }
+        },
+        {
+          $limit: parseInt(limit)
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'creator',
+            foreignField: '_id',
+            as: 'creator'
+          }
+        },
+        {
+          $unwind: '$creator'
+        },
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            description: 1,
+            category: 1,
+            subcategory: 1,
+            images: 1,
+            tags: 1,
+            memberCount: 1,
+            postCount: 1,
+            views: 1,
+            score: 1,
+            isPublic: 1,
+            'creator.username': 1,
+            'creator.firstName': 1,
+            'creator.lastName': 1,
+            'creator.avatar': 1
+          }
+        }
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data: { tribes }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get nearby tribes
+  getNearbyTribes = asyncHandler(async (req, res, next) => {
+    try {
+      const { latitude, longitude, radius = 50, limit = 20 } = req.query;
+
+      if (!latitude || !longitude) {
+        throw new AppError('Latitud y longitud son requeridas', 400);
+      }
+
+      const tribes = await Tribe.find({
+        status: 'active',
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+            },
+            $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
+          }
+        }
+      })
+        .populate('creator', 'username firstName lastName avatar')
+        .sort({ memberCount: -1 })
+        .limit(parseInt(limit))
+        .lean();
+
+      res.status(200).json({
+        success: true,
+        data: { tribes }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Search tribes
+  searchTribes = asyncHandler(async (req, res, next) => {
+    try {
+      const {
+        query,
+        category,
+        location,
+        tags,
+        page = 1,
+        limit = 20,
+        sortBy = 'relevance'
+      } = req.body;
+
+      // Build search query
+      const searchQuery = { status: 'active' };
+
+      // Text search
+      if (query) {
+        searchQuery.$text = { $search: query };
+      }
+
+      // Apply other filters
+      if (category) searchQuery.category = category;
+      if (tags && tags.length > 0) {
+        searchQuery.tags = { $in: tags };
+      }
+
+      // Build sort
+      let sort = {};
+      switch (sortBy) {
+        case 'memberCount':
+          sort = { memberCount: -1 };
+          break;
+        case 'createdAt':
+          sort = { createdAt: -1 };
+          break;
+        case 'popularity':
+          sort = { memberCount: -1, postCount: -1 };
+          break;
+        case 'relevance':
+        default:
+          if (query) {
+            sort = { score: { $meta: 'textScore' } };
+          } else {
+            sort = { memberCount: -1 };
+          }
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const tribes = await Tribe.find(searchQuery)
+        .populate('creator', 'username firstName lastName avatar')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Tribe.countDocuments(searchQuery);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          tribes,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+
+module.exports = new TribeController();

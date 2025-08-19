@@ -1,1009 +1,1020 @@
-const Post = require('../models/Post');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const { validationResult } = require('express-validator');
+const { Post, User, Event, Tribe } = require('../models');
+const { cloudinary } = require('../config');
+const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { validatePostCreation, validatePostUpdate } = require('../middleware/validation');
 
-// @desc    Get all posts
-// @route   GET /api/posts
-// @access  Public
-const getPosts = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      type,
-      author,
-      category,
-      search,
-      sort = 'createdAt',
-      order = 'desc',
-      tags,
-      hashtags,
-      location,
-      radius = 10000,
-      relatedEvent,
-      relatedTribe
-    } = req.query;
+class PostController {
+  // Create new post
+  createPost = asyncHandler(async (req, res, next) => {
+    try {
+      const postData = req.body;
+      const userId = req.user.id;
 
-    const skip = (page - 1) * limit;
-    const query = { status: 'published', visibility: 'public' };
+      // Add author information
+      postData.author = userId;
+      postData.status = 'active';
 
-    // Type filter
-    if (type) {
-      query.type = type;
-    }
-
-    // Author filter
-    if (author) {
-      query.author = author;
-    }
-
-    // Category filter (for event/tribe posts)
-    if (category) {
-      query.category = category;
-    }
-
-    // Search filter
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { content: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } },
-        { hashtags: { $in: [new RegExp(search, 'i')] } }
-      ];
-    }
-
-    // Tags filter
-    if (tags) {
-      const tagArray = tags.split(',').map(tag => tag.trim());
-      query.tags = { $in: tagArray };
-    }
-
-    // Hashtags filter
-    if (hashtags) {
-      const hashtagArray = hashtags.split(',').map(hashtag => hashtag.trim());
-      query.hashtags = { $in: hashtagArray };
-    }
-
-    // Location filter
-    if (location && location.coordinates) {
-      query.location = {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: location.coordinates
-          },
-          $maxDistance: parseInt(radius)
+      // Handle media uploads if any
+      if (req.files && req.files.length > 0) {
+        const uploadResults = await cloudinary.uploadPostMedia(req.files, 'temp');
+        
+        if (uploadResults.failureCount > 0) {
+          console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
         }
-      };
-    }
 
-    // Related event filter
-    if (relatedEvent) {
-      query.relatedEvent = relatedEvent;
-    }
-
-    // Related tribe filter
-    if (relatedTribe) {
-      query.relatedTribe = relatedTribe;
-    }
-
-    // Sort options
-    const sortOptions = {};
-    if (sort === 'createdAt') {
-      sortOptions.createdAt = order === 'desc' ? -1 : 1;
-    } else if (sort === 'popularity') {
-      sortOptions['social.likes'] = order === 'desc' ? -1 : 1;
-    } else if (sort === 'views') {
-      sortOptions['social.views'] = order === 'desc' ? -1 : 1;
-    } else if (sort === 'comments') {
-      sortOptions['comments.length'] = order === 'desc' ? -1 : 1;
-    }
-
-    const posts = await Post.find(query)
-      .populate('author', 'username firstName lastName avatar')
-      .populate('relatedEvent', 'title dateTime')
-      .populate('relatedTribe', 'name')
-      .populate('mentions', 'username firstName lastName avatar')
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    const total = await Post.countDocuments(query);
-
-    res.json({
-      success: true,
-      data: {
-        posts,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        postData.media = uploadResults.successful.map(result => ({
+          url: result.url,
+          publicId: result.public_id,
+          type: result.resource_type,
+          width: result.width,
+          height: result.height,
+          format: result.format
+        }));
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo posts:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Create post
+      const post = new Post(postData);
+      await post.save();
 
-// @desc    Get single post
-// @route   GET /api/posts/:id
-// @access  Public
-const getPost = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id)
-      .populate('author', 'username firstName lastName avatar bio')
-      .populate('relatedEvent', 'title dateTime location')
-      .populate('relatedTribe', 'name location')
-      .populate('mentions', 'username firstName lastName avatar')
-      .populate('comments.author', 'username firstName lastName avatar')
-      .populate('comments.replies.author', 'username firstName lastName avatar');
+      // Populate author information
+      await post.populate('author', 'username firstName lastName avatar');
 
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
+      res.status(201).json({
+        success: true,
+        message: 'Post creado exitosamente',
+        data: { post }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check visibility
-    if (post.visibility === 'private' && 
-        post.author._id.toString() !== req.user?.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este post'
-      });
-    }
+  // Get all posts with filtering and pagination
+  getPosts = asyncHandler(async (req, res, next) => {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        type,
+        category,
+        author,
+        event,
+        tribe,
+        tags,
+        search,
+        sortBy = 'createdAt',
+        sortOrder = 'desc',
+        following = false
+      } = req.query;
 
-    // Increment views
-    await post.incrementViews();
+      const userId = req.user?.id;
 
-    // Check if user is authenticated and get their interactions
-    let userLiked = false;
-    let userSaved = false;
-    if (req.user) {
-      userLiked = post.social.likes.some(l => l.user.toString() === req.user.id);
-      userSaved = post.social.saves.some(s => s.user.toString() === req.user.id);
-    }
+      // Build query
+      const query = { status: 'active' };
 
-    res.json({
-      success: true,
-      data: {
-        post,
-        userLiked,
-        userSaved
+      // Type filter
+      if (type) {
+        query.type = type;
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Category filter
+      if (category) {
+        query.category = category;
+      }
 
-// @desc    Create new post
-// @route   POST /api/posts
-// @access  Private
-const createPost = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
+      // Author filter
+      if (author) {
+        query.author = author;
+      }
 
-    const {
-      type = 'text',
-      title,
-      content,
-      media,
-      location,
-      tags,
-      hashtags,
-      relatedEvent,
-      relatedTribe,
-      poll,
-      link,
-      visibility = 'public',
-      audience
-    } = req.body;
+      // Event filter
+      if (event) {
+        query.event = event;
+      }
 
-    // Create new post
-    const post = new Post({
-      type,
-      title,
-      content,
-      author: req.user.id,
-      media: media || [],
-      location: location || null,
-      tags: tags || [],
-      hashtags: hashtags || [],
-      relatedEvent,
-      relatedTribe,
-      poll: poll || null,
-      link: link || null,
-      visibility,
-      audience: audience || {}
-    });
+      // Tribe filter
+      if (tribe) {
+        query.tribe = tribe;
+      }
 
-    await post.save();
+      // Tags filter
+      if (tags) {
+        const tagArray = tags.split(',').map(tag => tag.trim());
+        query.tags = { $in: tagArray };
+      }
 
-    // Update user stats
-    const user = await User.findById(req.user.id);
-    if (user) {
-      user.updateStats('postsCreated');
-      await user.save();
-    }
+      // Search filter
+      if (search) {
+        query.$or = [
+          { content: { $regex: search, $options: 'i' } },
+          { title: { $regex: search, $options: 'i' } },
+          { tags: { $in: [new RegExp(search, 'i')] } }
+        ];
+      }
 
-    // Send notifications to mentioned users
-    if (post.mentions && post.mentions.length > 0) {
-      for (const mention of post.mentions) {
-        if (mention.toString() !== req.user.id) {
-          const notification = new Notification({
-            recipient: mention,
-            sender: req.user.id,
-            type: 'mention',
-            title: 'Mencionado en un post',
-            message: `${req.user.firstName} ${req.user.lastName} te mencionó en un post`,
-            category: 'social',
+      // Following filter (posts from users the current user follows)
+      if (following === 'true' && userId) {
+        const user = await User.findById(userId).select('following');
+        if (user && user.following && user.following.length > 0) {
+          query.author = { $in: user.following };
+        } else {
+          // If user doesn't follow anyone, return empty result
+          return res.status(200).json({
+            success: true,
             data: {
-              post: post._id,
-              postContent: post.content.substring(0, 100),
-              user: req.user.id,
-              userName: `${req.user.firstName} ${req.user.lastName}`
+              posts: [],
+              pagination: {
+                currentPage: parseInt(page),
+                totalPages: 0,
+                total: 0,
+                hasNextPage: false,
+                hasPrevPage: false,
+                limit: parseInt(limit)
+              }
             }
           });
-          await notification.save();
         }
       }
-    }
 
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
+      // Build sort object
+      const sort = {};
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-    res.status(201).json({
-      success: true,
-      message: 'Post creado exitosamente',
-      data: { post }
-    });
+      // Execute query with pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      
+      const posts = await Post.find(query)
+        .populate('author', 'username firstName lastName avatar')
+        .populate('event', 'title category')
+        .populate('tribe', 'name category')
+        .populate('likes', 'username firstName lastName avatar')
+        .populate('comments.author', 'username firstName lastName avatar')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-  } catch (error) {
-    console.error('Error creando post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Get total count for pagination
+      const total = await Post.countDocuments(query);
 
-// @desc    Update post
-// @route   PUT /api/posts/:id
-// @access  Private
-const updatePost = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
+      // Calculate pagination info
+      const totalPages = Math.ceil(total / parseInt(limit));
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
 
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Check if user is author
-    if (post.author.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para editar este post'
-      });
-    }
-
-    // Check if post can be edited
-    if (post.status === 'deleted' || post.status === 'moderated') {
-      return res.status(400).json({
-        success: false,
-        message: 'No se puede editar este post'
-      });
-    }
-
-    const updateFields = req.body;
-    
-    // Remove fields that shouldn't be updated
-    delete updateFields.author;
-    delete updateFields.status;
-    delete updateFields.social;
-    delete updateFields.comments;
-
-    const updatedPost = await Post.findByIdAndUpdate(
-      req.params.id,
-      updateFields,
-      { new: true, runValidators: true }
-    )
-    .populate('author', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Post actualizado exitosamente',
-      data: { post: updatedPost }
-    });
-
-  } catch (error) {
-    console.error('Error actualizando post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Delete post
-// @route   DELETE /api/posts/:id
-// @access  Private
-const deletePost = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Check if user is author
-    if (post.author.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para eliminar este post'
-      });
-    }
-
-    // Soft delete - change status to deleted
-    post.status = 'deleted';
-    await post.save();
-
-    // Update user stats
-    const user = await User.findById(req.user.id);
-    if (user) {
-      user.updateStats('postsCreated', -1);
-      await user.save();
-    }
-
-    res.json({
-      success: true,
-      message: 'Post eliminado exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error eliminando post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Toggle post like
-// @route   POST /api/posts/:id/like
-// @access  Private
-const togglePostLike = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Toggle like
-    await post.toggleLike(req.user.id);
-
-    // Send notification to author if liked
-    if (post.social.likes.some(l => l.user.toString() === req.user.id) &&
-        post.author.toString() !== req.user.id) {
-      const notification = new Notification({
-        recipient: post.author,
-        sender: req.user.id,
-        type: 'post_liked',
-        title: 'Post marcado como me gusta',
-        message: `${req.user.firstName} ${req.user.lastName} marcó tu post como me gusta`,
-        category: 'social',
+      res.status(200).json({
+        success: true,
         data: {
-          post: post._id,
-          postContent: post.content.substring(0, 100),
-          user: req.user.id,
-          userName: `${req.user.firstName} ${req.user.lastName}`
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage,
+            hasPrevPage,
+            limit: parseInt(limit)
+          }
         }
       });
-      await notification.save();
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
+  // Get post by ID
+  getPostById = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.user?.id;
 
-    res.json({
-      success: true,
-      message: post.social.likes.some(l => l.user.toString() === req.user.id) ? 
-        'Post marcado como me gusta' : 'Me gusta removido',
-      data: { post }
-    });
+      const post = await Post.findById(postId)
+        .populate('author', 'username firstName lastName avatar bio')
+        .populate('event', 'title category startDate endDate')
+        .populate('tribe', 'name category')
+        .populate('likes', 'username firstName lastName avatar')
+        .populate('comments.author', 'username firstName lastName avatar')
+        .populate('shares.author', 'username firstName lastName avatar')
+        .populate('tags');
 
-  } catch (error) {
-    console.error('Error marcando me gusta:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
 
-// @desc    Toggle post save
-// @route   POST /api/posts/:id/save
-// @access  Private
-const togglePostSave = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
+      // Check if user has liked, saved, or shared the post
+      let isLiked = false;
+      let isSaved = false;
+      let isShared = false;
+      let userRole = null;
 
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
+      if (userId) {
+        isLiked = post.likes.some(like => like._id.toString() === userId);
+        isSaved = post.saves && post.saves.some(save => save.toString() === userId);
+        isShared = post.shares && post.shares.some(share => share.author._id.toString() === userId);
+        
+        if (post.author._id.toString() === userId) {
+          userRole = 'author';
+        } else {
+          userRole = 'viewer';
+        }
+      }
 
-    // Toggle save
-    await post.toggleSave(req.user.id);
+      // Increment view count
+      post.views = (post.views || 0) + 1;
+      await post.save();
 
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: post.social.saves.some(s => s.user.toString() === req.user.id) ? 
-        'Post guardado' : 'Post removido de guardados',
-      data: { post }
-    });
-
-  } catch (error) {
-    console.error('Error guardando post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Share post
-// @route   POST /api/posts/:id/share
-// @access  Private
-const sharePost = async (req, res) => {
-  try {
-    const { platform } = req.body;
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Add share
-    await post.addShare(req.user.id, platform);
-
-    res.json({
-      success: true,
-      message: 'Post compartido exitosamente',
-      data: { post }
-    });
-
-  } catch (error) {
-    console.error('Error compartiendo post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Add comment to post
-// @route   POST /api/posts/:id/comments
-// @access  Private
-const addComment = async (req, res) => {
-  try {
-    const { content } = req.body;
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Add comment
-    await post.addComment(req.user.id, content);
-
-    // Send notification to author
-    if (post.author.toString() !== req.user.id) {
-      const notification = new Notification({
-        recipient: post.author,
-        sender: req.user.id,
-        type: 'post_commented',
-        title: 'Nuevo comentario en tu post',
-        message: `${req.user.firstName} ${req.user.lastName} comentó en tu post`,
-        category: 'social',
+      res.status(200).json({
+        success: true,
         data: {
-          post: post._id,
-          postContent: post.content.substring(0, 100),
-          user: req.user.id,
-          userName: `${req.user.firstName} ${req.user.lastName}`
+          post,
+          userInteraction: {
+            isLiked,
+            isSaved,
+            isShared,
+            userRole
+          }
         }
       });
-      await notification.save();
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-    await post.populate('comments.author', 'username firstName lastName avatar');
+  // Update post
+  updatePost = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
 
-    res.json({
-      success: true,
-      message: 'Comentario agregado exitosamente',
-      data: { post }
-    });
+      // Find post and check ownership
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
 
-  } catch (error) {
-    console.error('Error agregando comentario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      if (post.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para editar este post', 403);
+      }
 
-// @desc    Update comment
-// @route   PUT /api/posts/:id/comments/:commentId
-// @access  Private
-const updateComment = async (req, res) => {
-  try {
-    const { content } = req.body;
-    const post = await Post.findById(req.params.id);
+      // Handle media uploads if any
+      if (req.files && req.files.length > 0) {
+        const uploadResults = await cloudinary.uploadPostMedia(req.files, postId);
+        
+        if (uploadResults.failureCount > 0) {
+          console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
+        }
 
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
+        const newMedia = uploadResults.successful.map(result => ({
+          url: result.url,
+          publicId: result.public_id,
+          type: result.resource_type,
+          width: result.width,
+          height: result.height,
+          format: result.format
+        }));
+
+        // Add new media to existing media
+        updateData.media = [...(post.media || []), ...newMedia];
+      }
+
+      // Update post
+      const updatedPost = await Post.findByIdAndUpdate(
+        postId,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate('author', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Post actualizado exitosamente',
+        data: { post: updatedPost }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Update comment
-    await post.updateComment(req.params.commentId, req.user.id, content);
+  // Delete post
+  deletePost = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.user.id;
 
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-    await post.populate('comments.author', 'username firstName lastName avatar');
+      // Find post and check ownership
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
 
-    res.json({
-      success: true,
-      message: 'Comentario actualizado exitosamente',
-      data: { post }
-    });
+      if (post.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar este post', 403);
+      }
 
-  } catch (error) {
-    console.error('Error actualizando comentario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Delete comment
-// @route   DELETE /api/posts/:id/comments/:commentId
-// @access  Private
-const deleteComment = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Delete comment
-    await post.deleteComment(req.params.commentId, req.user.id);
-
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-    await post.populate('comments.author', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Comentario eliminado exitosamente',
-      data: { post }
-    });
-
-  } catch (error) {
-    console.error('Error eliminando comentario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Toggle comment like
-// @route   POST /api/posts/:id/comments/:commentId/like
-// @access  Private
-const toggleCommentLike = async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Toggle comment like
-    await post.toggleCommentLike(req.params.commentId, req.user.id);
-
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-    await post.populate('comments.author', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Like del comentario actualizado',
-      data: { post }
-    });
-
-  } catch (error) {
-    console.error('Error marcando like del comentario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Add reply to comment
-// @route   POST /api/posts/:id/comments/:commentId/replies
-// @access  Private
-const addReply = async (req, res) => {
-  try {
-    const { content } = req.body;
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    // Add reply
-    await post.addReply(req.params.commentId, req.user.id, content);
-
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-    await post.populate('comments.author', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Respuesta agregada exitosamente',
-      data: { post }
-    });
-
-  } catch (error) {
-    console.error('Error agregando respuesta:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Vote in poll
-// @route   POST /api/posts/:id/poll/vote
-// @access  Private
-const voteInPoll = async (req, res) => {
-  try {
-    const { optionIndex } = req.body;
-    const post = await Post.findById(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post no encontrado'
-      });
-    }
-
-    if (!post.poll) {
-      return res.status(400).json({
-        success: false,
-        message: 'Este post no tiene una encuesta'
-      });
-    }
-
-    // Vote in poll
-    await post.voteInPoll(optionIndex, req.user.id);
-
-    // Populate post for response
-    await post.populate('author', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Voto registrado exitosamente',
-      data: { post }
-    });
-
-  } catch (error) {
-    console.error('Error votando en encuesta:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get trending posts
-// @route   GET /api/posts/trending
-// @access  Public
-const getTrendingPosts = async (req, res) => {
-  try {
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const posts = await Post.findTrending(parseInt(limit));
-    const total = await Post.countDocuments({ 
-      status: 'published',
-      visibility: 'public',
-      createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
-    });
-
-    res.json({
-      success: true,
-      data: {
-        posts,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      // Delete media from Cloudinary if any
+      if (post.media && post.media.length > 0) {
+        for (const media of post.media) {
+          if (media.publicId) {
+            await cloudinary.deleteFile(media.publicId, media.type);
+          }
         }
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo posts trending:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Delete post
+      await Post.findByIdAndDelete(postId);
 
-// @desc    Get posts by author
-// @route   GET /api/posts/author/:authorId
-// @access  Public
-const getPostsByAuthor = async (req, res) => {
-  try {
-    const { authorId } = req.params;
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const posts = await Post.findByAuthor(authorId, parseInt(limit));
-    const total = await Post.countDocuments({ 
-      author: authorId,
-      status: 'published'
-    });
-
-    res.json({
-      success: true,
-      data: {
-        posts,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo posts por autor:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get posts by tags
-// @route   GET /api/posts/tags/:tags
-// @access  Public
-const getPostsByTags = async (req, res) => {
-  try {
-    const { tags } = req.params;
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const tagArray = tags.split(',').map(tag => tag.trim());
-    const posts = await Post.findByTags(tagArray, parseInt(limit));
-    const total = await Post.countDocuments({ 
-      tags: { $in: tagArray },
-      status: 'published',
-      visibility: 'public'
-    });
-
-    res.json({
-      success: true,
-      data: {
-        posts,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo posts por tags:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get posts by hashtags
-// @route   GET /api/posts/hashtags/:hashtags
-// @access  Public
-const getPostsByHashtags = async (req, res) => {
-  try {
-    const { hashtags } = req.params;
-    const { limit = 20, page = 1 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const hashtagArray = hashtags.split(',').map(hashtag => hashtag.trim());
-    const posts = await Post.findByHashtags(hashtagArray, parseInt(limit));
-    const total = await Post.countDocuments({ 
-      hashtags: { $in: hashtagArray },
-      status: 'published',
-      visibility: 'public'
-    });
-
-    res.json({
-      success: true,
-      data: {
-        posts,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo posts por hashtags:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get nearby posts
-// @route   GET /api/posts/nearby
-// @access  Public
-const getNearbyPosts = async (req, res) => {
-  try {
-    const { coordinates, maxDistance = 10000, limit = 20 } = req.query;
-
-    if (!coordinates) {
-      return res.status(400).json({
-        success: false,
-        message: 'Coordenadas son requeridas'
+      res.status(200).json({
+        success: true,
+        message: 'Post eliminado exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const coordArray = coordinates.split(',').map(Number);
-    if (coordArray.length !== 2) {
-      return res.status(400).json({
-        success: false,
-        message: 'Formato de coordenadas inválido'
+  // Like/unlike post
+  toggleLike = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.user.id;
+
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      const isLiked = post.likes.some(like => like._id.toString() === userId);
+
+      if (isLiked) {
+        // Unlike
+        post.likes = post.likes.filter(like => like._id.toString() !== userId);
+        post.likeCount = Math.max(0, (post.likeCount || 0) - 1);
+      } else {
+        // Like
+        post.likes.push(userId);
+        post.likeCount = (post.likeCount || 0) + 1;
+      }
+
+      await post.save();
+
+      res.status(200).json({
+        success: true,
+        message: isLiked ? 'Post deslikeado' : 'Post likeado',
+        data: {
+          isLiked: !isLiked,
+          likeCount: post.likeCount
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const posts = await Post.findNearby(coordArray, parseInt(maxDistance), parseInt(limit));
+  // Save/unsave post
+  toggleSave = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.user.id;
 
-    res.json({
-      success: true,
-      data: { posts }
-    });
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
 
-  } catch (error) {
-    console.error('Error obteniendo posts cercanos:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Initialize saves array if it doesn't exist
+      if (!post.saves) {
+        post.saves = [];
+      }
 
-module.exports = {
-  getPosts,
-  getPost,
-  createPost,
-  updatePost,
-  deletePost,
-  togglePostLike,
-  togglePostSave,
-  sharePost,
-  addComment,
-  updateComment,
-  deleteComment,
-  toggleCommentLike,
-  addReply,
-  voteInPoll,
-  getTrendingPosts,
-  getPostsByAuthor,
-  getPostsByTags,
-  getPostsByHashtags,
-  getNearbyPosts
-};
+      const isSaved = post.saves.includes(userId);
+
+      if (isSaved) {
+        // Unsave
+        post.saves = post.saves.filter(save => save.toString() !== userId);
+        post.saveCount = Math.max(0, (post.saveCount || 0) - 1);
+      } else {
+        // Save
+        post.saves.push(userId);
+        post.saveCount = (post.saveCount || 0) + 1;
+      }
+
+      await post.save();
+
+      res.status(200).json({
+        success: true,
+        message: isSaved ? 'Post removido de guardados' : 'Post guardado',
+        data: {
+          isSaved: !isSaved,
+          saveCount: post.saveCount
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Share post
+  sharePost = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const { platform, message } = req.body;
+      const userId = req.user.id;
+
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      // Initialize shares array if it doesn't exist
+      if (!post.shares) {
+        post.shares = [];
+      }
+
+      // Add share
+      post.shares.push({
+        author: userId,
+        platform: platform || 'internal',
+        message: message || '',
+        sharedAt: new Date()
+      });
+
+      post.shareCount = (post.shareCount || 0) + 1;
+      await post.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Post compartido exitosamente',
+        data: {
+          shareCount: post.shareCount
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Add comment to post
+  addComment = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const { content, parentCommentId } = req.body;
+      const userId = req.user.id;
+
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      // Initialize comments array if it doesn't exist
+      if (!post.comments) {
+        post.comments = [];
+      }
+
+      const comment = {
+        author: userId,
+        content,
+        parentComment: parentCommentId || null,
+        createdAt: new Date()
+      };
+
+      post.comments.push(comment);
+      post.commentCount = (post.commentCount || 0) + 1;
+      await post.save();
+
+      // Populate comment author
+      await post.populate('comments.author', 'username firstName lastName avatar');
+
+      // Get the newly added comment
+      const newComment = post.comments[post.comments.length - 1];
+
+      res.status(201).json({
+        success: true,
+        message: 'Comentario agregado exitosamente',
+        data: {
+          comment: newComment,
+          commentCount: post.commentCount
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Update comment
+  updateComment = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId, commentId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.id;
+
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      // Find comment
+      const comment = post.comments.id(commentId);
+      if (!comment) {
+        throw new AppError('Comentario no encontrado', 404);
+      }
+
+      // Check ownership
+      if (comment.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para editar este comentario', 403);
+      }
+
+      // Update comment
+      comment.content = content;
+      comment.updatedAt = new Date();
+      comment.isEdited = true;
+
+      await post.save();
+
+      // Populate comment author
+      await post.populate('comments.author', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Comentario actualizado exitosamente',
+        data: { comment }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete comment
+  deleteComment = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId, commentId } = req.params;
+      const userId = req.user.id;
+
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      // Find comment
+      const comment = post.comments.id(commentId);
+      if (!comment) {
+        throw new AppError('Comentario no encontrado', 404);
+      }
+
+      // Check ownership or admin
+      if (comment.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar este comentario', 403);
+      }
+
+      // Remove comment
+      post.comments = post.comments.filter(c => c._id.toString() !== commentId);
+      post.commentCount = Math.max(0, (post.commentCount || 0) - 1);
+      await post.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Comentario eliminado exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get user's posts
+  getUserPosts = asyncHandler(async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const { type = 'all', page = 1, limit = 20 } = req.query;
+
+      let query = { author: userId, status: 'active' };
+
+      // Type filter
+      if (type && type !== 'all') {
+        query.type = type;
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const posts = await Post.find(query)
+        .populate('author', 'username firstName lastName avatar')
+        .populate('event', 'title category')
+        .populate('tribe', 'name category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Post.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get user's saved posts
+  getSavedPosts = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { page = 1, limit = 20 } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const posts = await Post.find({
+        saves: userId,
+        status: 'active'
+      })
+        .populate('author', 'username firstName lastName avatar')
+        .populate('event', 'title category')
+        .populate('tribe', 'name category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Post.countDocuments({ saves: userId, status: 'active' });
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get trending posts
+  getTrendingPosts = asyncHandler(async (req, res, next) => {
+    try {
+      const { limit = 10, days = 7 } = req.query;
+
+      const dateFrom = new Date();
+      dateFrom.setDate(dateFrom.getDate() - parseInt(days));
+
+      const posts = await Post.aggregate([
+        {
+          $match: {
+            status: 'active',
+            createdAt: { $gte: dateFrom }
+          }
+        },
+        {
+          $addFields: {
+            score: {
+              $add: [
+                { $multiply: ['$views', 0.2] },
+                { $multiply: ['$likeCount', 0.4] },
+                { $multiply: ['$commentCount', 0.3] },
+                { $multiply: ['$shareCount', 0.1] }
+              ]
+            }
+          }
+        },
+        {
+          $sort: { score: -1 }
+        },
+        {
+          $limit: parseInt(limit)
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'author',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        {
+          $unwind: '$author'
+        },
+        {
+          $project: {
+            _id: 1,
+            type: 1,
+            title: 1,
+            content: 1,
+            media: 1,
+            tags: 1,
+            likeCount: 1,
+            commentCount: 1,
+            shareCount: 1,
+            views: 1,
+            score: 1,
+            createdAt: 1,
+            'author.username': 1,
+            'author.firstName': 1,
+            'author.lastName': 1,
+            'author.avatar': 1
+          }
+        }
+      ]);
+
+      res.status(200).json({
+        success: true,
+        data: { posts }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get posts by event
+  getEventPosts = asyncHandler(async (req, res, next) => {
+    try {
+      const { eventId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const posts = await Post.find({
+        event: eventId,
+        status: 'active'
+      })
+        .populate('author', 'username firstName lastName avatar')
+        .populate('event', 'title category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Post.countDocuments({ event: eventId, status: 'active' });
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get posts by tribe
+  getTribePosts = asyncHandler(async (req, res, next) => {
+    try {
+      const { tribeId } = req.params;
+      const { page = 1, limit = 20 } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const posts = await Post.find({
+        tribe: tribeId,
+        status: 'active'
+      })
+        .populate('author', 'username firstName lastName avatar')
+        .populate('tribe', 'name category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Post.countDocuments({ tribe: tribeId, status: 'active' });
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Search posts
+  searchPosts = asyncHandler(async (req, res, next) => {
+    try {
+      const {
+        query,
+        type,
+        category,
+        author,
+        event,
+        tribe,
+        tags,
+        dateFrom,
+        dateTo,
+        page = 1,
+        limit = 20,
+        sortBy = 'relevance'
+      } = req.body;
+
+      // Build search query
+      const searchQuery = { status: 'active' };
+
+      // Text search
+      if (query) {
+        searchQuery.$text = { $search: query };
+      }
+
+      // Apply other filters
+      if (type) searchQuery.type = type;
+      if (category) searchQuery.category = category;
+      if (author) searchQuery.author = author;
+      if (event) searchQuery.event = event;
+      if (tribe) searchQuery.tribe = tribe;
+      if (tags && tags.length > 0) {
+        searchQuery.tags = { $in: tags };
+      }
+      if (dateFrom || dateTo) {
+        searchQuery.createdAt = {};
+        if (dateFrom) searchQuery.createdAt.$gte = new Date(dateFrom);
+        if (dateTo) searchQuery.createdAt.$lte = new Date(dateTo);
+      }
+
+      // Build sort
+      let sort = {};
+      switch (sortBy) {
+        case 'date':
+          sort = { createdAt: -1 };
+          break;
+        case 'likes':
+          sort = { likeCount: -1 };
+          break;
+        case 'comments':
+          sort = { commentCount: -1 };
+          break;
+        case 'views':
+          sort = { views: -1 };
+          break;
+        case 'relevance':
+        default:
+          if (query) {
+            sort = { score: { $meta: 'textScore' } };
+          } else {
+            sort = { createdAt: -1 };
+          }
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const posts = await Post.find(searchQuery)
+        .populate('author', 'username firstName lastName avatar')
+        .populate('event', 'title category')
+        .populate('tribe', 'name category')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Post.countDocuments(searchQuery);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          posts,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Upload post media
+  uploadPostMedia = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId } = req.params;
+      const userId = req.user.id;
+      const files = req.files;
+
+      if (!files || files.length === 0) {
+        throw new AppError('No se proporcionaron archivos', 400);
+      }
+
+      // Check post ownership
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      if (post.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para subir medios a este post', 403);
+      }
+
+      // Upload media to Cloudinary
+      const uploadResults = await cloudinary.uploadPostMedia(files, postId);
+
+      if (uploadResults.failureCount > 0) {
+        console.warn('Algunos archivos no se pudieron subir:', uploadResults.failed);
+      }
+
+      // Update post with new media
+      const newMedia = uploadResults.successful.map(result => ({
+        url: result.url,
+        publicId: result.public_id,
+        type: result.resource_type,
+        width: result.width,
+        height: result.height,
+        format: result.format
+      }));
+
+      post.media = [...(post.media || []), ...newMedia];
+      await post.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Medios subidos exitosamente',
+        data: {
+          uploadedMedia: newMedia,
+          totalMedia: post.media.length,
+          uploadResults
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete post media
+  deletePostMedia = asyncHandler(async (req, res, next) => {
+    try {
+      const { postId, mediaId } = req.params;
+      const userId = req.user.id;
+
+      // Check post ownership
+      const post = await Post.findById(postId);
+      if (!post) {
+        throw new AppError('Post no encontrado', 404);
+      }
+
+      if (post.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar medios de este post', 403);
+      }
+
+      // Find media
+      const media = post.media.id(mediaId);
+      if (!media) {
+        throw new AppError('Medio no encontrado', 404);
+      }
+
+      // Delete from Cloudinary
+      if (media.publicId) {
+        await cloudinary.deleteFile(media.publicId, media.type);
+      }
+
+      // Remove from post
+      post.media = post.media.filter(m => m._id.toString() !== mediaId);
+      await post.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Medio eliminado exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+
+module.exports = new PostController();

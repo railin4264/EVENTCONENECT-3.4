@@ -1,0 +1,169 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+
+export default function RegisterScreen({ navigation }) {
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+  });
+
+  const handleRegister = async () => {
+    if (!formData.username || !formData.email || !formData.password || !formData.confirmPassword) {
+      Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
+      return;
+    }
+
+    try {
+      // TODO: Implementar registro real
+      Alert.alert('Éxito', 'Registro implementado próximamente');
+      // navigation.replace('Main');
+    } catch (error) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <View style={styles.content}>
+        <Text style={styles.title}>Crear Cuenta</Text>
+        <Text style={styles.subtitle}>Únete a EventConnect</Text>
+        
+        <View style={styles.form}>
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre de usuario"
+            value={formData.username}
+            onChangeText={(text) => setFormData({...formData, username: text})}
+            autoCapitalize="none"
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={formData.email}
+            onChangeText={(text) => setFormData({...formData, email: text})}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Nombre"
+            value={formData.firstName}
+            onChangeText={(text) => setFormData({...formData, firstName: text})}
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Apellido"
+            value={formData.lastName}
+            onChangeText={(text) => setFormData({...formData, lastName: text})}
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Contraseña"
+            value={formData.password}
+            onChangeText={(text) => setFormData({...formData, password: text})}
+            secureTextEntry
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Confirmar contraseña"
+            value={formData.confirmPassword}
+            onChangeText={(text) => setFormData({...formData, confirmPassword: text})}
+            secureTextEntry
+          />
+          
+          <TouchableOpacity style={styles.button} onPress={handleRegister}>
+            <Text style={styles.buttonText}>Crear Cuenta</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.linkButton}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.linkText}>¿Ya tienes cuenta? Inicia sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#888888',
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+  form: {
+    width: '100%',
+  },
+  input: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    color: '#ffffff',
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#3b82f6',
+    borderRadius: 8,
+    padding: 15,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  linkButton: {
+    alignItems: 'center',
+  },
+  linkText: {
+    color: '#3b82f6',
+    fontSize: 14,
+  },
+});

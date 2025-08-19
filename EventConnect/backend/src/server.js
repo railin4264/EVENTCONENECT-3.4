@@ -5,27 +5,50 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
-const slowDown = require('express-slow-down');
 const compression = require('compression');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
 const xss = require('xss-clean');
 const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+
+// Load environment variables
 require('dotenv').config();
 
-const authRoutes = require('./routes/auth');
-const eventRoutes = require('./routes/events');
-const tribeRoutes = require('./routes/tribes');
-const postRoutes = require('./routes/posts');
-const chatRoutes = require('./routes/chat');
-const notificationRoutes = require('./routes/notifications');
-const reviewRoutes = require('./routes/reviews');
+// Import configurations
+const { database, redis: redisConfig, socket } = require('./config');
 
-const { authenticateSocket } = require('./middleware/auth');
-const { errorHandler } = require('./middleware/errorHandler');
+// Import middleware
+const { 
+  errorHandler, 
+  notFound, 
+  handleUnhandledRejection, 
+  handleUncaughtException,
+  gracefulShutdown 
+} = require('./middleware/errorHandler');
 
+// Import routes
+const {
+  authRoutes,
+  eventRoutes,
+  tribeRoutes,
+  postRoutes,
+  reviewRoutes,
+  chatRoutes,
+  notificationRoutes,
+  searchRoutes,
+  userRoutes,
+  locationRoutes
+} = require('./routes');
+
+// Create Express app
 const app = express();
 const server = http.createServer(app);
+
+// Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
     origin: process.env.CORS_ORIGIN || "http://localhost:3000",
@@ -33,153 +56,117 @@ const io = socketIo(server, {
   }
 });
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
-  message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.'
-});
+// Initialize socket manager
+socket.initialize(server, { io });
 
-const speedLimiter = slowDown({
-  windowMs: 15 * 60 * 1000,
-  delayAfter: 100,
-  delayMs: 500
-});
+// Connect to MongoDB
+database.connectDB();
 
-// Middleware
+// Connect to Redis
+redisConfig.connect();
+
+// Security middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || "http://localhost:3000",
   credentials: true
 }));
-app.use(limiter);
-app.use(speedLimiter);
-app.use(compression());
-app.use(morgan('combined'));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 100, // limit each IP to 100 requests per windowMs
+  message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.'
+});
+app.use('/api/', limiter);
+
+// Speed limiting
+const speedLimiter = slowDown({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  delayAfter: 50, // allow 50 requests per 15 minutes, then...
+  delayMs: 500 // begin adding 500ms of delay per request above 50
+});
+app.use('/api/', speedLimiter);
+
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
+
+// Data sanitization
 app.use(xss());
 app.use(mongoSanitize());
+app.use(hpp());
 
-// Routes
+// Compression middleware
+app.use(compression());
+
+// Logging middleware
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined'));
+}
+
+// Static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV,
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    redis: redisConfig.isConnected() ? 'connected' : 'disconnected'
+  });
+});
+
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/tribes', tribeRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/reviews', reviewRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/reviews', reviewRoutes);
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
-// Socket.IO connection handling
-io.use(authenticateSocket);
-
-io.on('connection', (socket) => {
-  console.log('Usuario conectado:', socket.userId);
-  
-  // Join user to their personal room
-  socket.join(`user:${socket.userId}`);
-  
-  // Handle chat messages
-  socket.on('send_message', async (data) => {
-    try {
-      const { chatId, message, type } = data;
-      // Save message to database and emit to chat room
-      io.to(`chat:${chatId}`).emit('new_message', {
-        chatId,
-        message,
-        userId: socket.userId,
-        timestamp: new Date()
-      });
-    } catch (error) {
-      socket.emit('error', { message: 'Error al enviar mensaje' });
-    }
-  });
-  
-  // Join chat room
-  socket.on('join_chat', (chatId) => {
-    socket.join(`chat:${chatId}`);
-  });
-  
-  // Leave chat room
-  socket.on('leave_chat', (chatId) => {
-    socket.leave(`chat:${chatId}`);
-  });
-  
-  // Handle typing indicators
-  socket.on('typing_start', (chatId) => {
-    socket.to(`chat:${chatId}`).emit('user_typing', {
-      userId: socket.userId,
-      chatId
-    });
-  });
-  
-  socket.on('typing_stop', (chatId) => {
-    socket.to(`chat:${chatId}`).emit('user_stop_typing', {
-      userId: socket.userId,
-      chatId
-    });
-  });
-  
-  socket.on('disconnect', () => {
-    console.log('Usuario desconectado:', socket.userId);
-  });
-});
-
-// Error handling middleware
-app.use(errorHandler);
+app.use('/api/search', searchRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/location', locationRoutes);
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Ruta no encontrada' });
-});
+app.use(notFound);
 
-// Database connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ Conectado a MongoDB');
-})
-.catch((err) => {
-  console.error('❌ Error conectando a MongoDB:', err);
-  process.exit(1);
-});
+// Global error handler
+app.use(errorHandler);
 
-// Redis connection
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL
-});
+// Handle unhandled promise rejections
+process.on('unhandledRejection', handleUnhandledRejection);
 
-redisClient.on('error', (err) => {
-  console.error('❌ Error de Redis:', err);
-});
+// Handle uncaught exceptions
+process.on('uncaughtException', handleUncaughtException);
 
-redisClient.on('connect', () => {
-  console.log('✅ Conectado a Redis');
+// Graceful shutdown
+process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  console.log('Usuario conectado:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('Usuario desconectado:', socket.id);
+  });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-  console.log(`🌍 Ambiente: ${process.env.NODE_ENV}`);
+  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
+  console.log(`📱 Entorno: ${process.env.NODE_ENV}`);
+  console.log(`🔗 API: http://localhost:${PORT}/api`);
+  console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM recibido, cerrando servidor...');
-  server.close(() => {
-    console.log('Servidor cerrado');
-    mongoose.connection.close();
-    redisClient.quit();
-    process.exit(0);
-  });
-});
-
-module.exports = { app, server, io, redisClient };
+module.exports = app;

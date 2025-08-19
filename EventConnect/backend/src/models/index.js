@@ -6,6 +6,8 @@ const Post = require('./Post');
 const Chat = require('./Chat');
 const Notification = require('./Notification');
 const Review = require('./Review');
+const InAppNotification = require('./InAppNotification');
+const ScheduledNotification = require('./ScheduledNotification');
 
 // Export all models
 module.exports = {
@@ -15,5 +17,7 @@ module.exports = {
   Post,
   Chat,
   Notification,
-  Review
+  Review,
+  InAppNotification,
+  ScheduledNotification
 };

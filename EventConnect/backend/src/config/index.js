@@ -4,6 +4,8 @@ const jwt = require('./jwt');
 const cloudinary = require('./cloudinary');
 const socket = require('./socket');
 const validation = require('./validation');
+const googleMaps = require('./googleMaps');
+const pushNotifications = require('./pushNotifications');
 
 module.exports = {
   database,
@@ -11,5 +13,7 @@ module.exports = {
   jwt,
   cloudinary,
   socket,
-  validation
+  validation,
+  googleMaps,
+  pushNotifications
 };

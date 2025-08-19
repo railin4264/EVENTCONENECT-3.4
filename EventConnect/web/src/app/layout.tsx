@@ -1,16 +1,17 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import Providers from './providers';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
+import { Toaster } from 'react-hot-toast';
+import { QueryProvider } from '@/components/providers/QueryProvider';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { AuthProvider } from '@/components/providers/AuthProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'EventConnect - Conecta con Eventos Increíbles',
-  description: 'Descubre, únete y vive experiencias únicas cerca de ti. La plataforma social que conecta personas a través de eventos y pasiones compartidas.',
-  keywords: 'eventos, tribus, social, comunidad, experiencias, actividades, networking, geolocalización',
+  title: 'EventConnect - Descubre Eventos y Tribus',
+  description: 'Plataforma para descubrir eventos y conectar con tribus cerca de ti. Únete a comunidades con intereses similares y vive experiencias únicas.',
+  keywords: 'eventos, tribus, comunidad, social, networking, experiencias, actividades',
   authors: [{ name: 'EventConnect Team' }],
   creator: 'EventConnect',
   publisher: 'EventConnect',
@@ -19,33 +20,31 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: new URL('https://eventconnect.com'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'EventConnect - Conecta con Eventos Increíbles',
-    description: 'Descubre, únete y vive experiencias únicas cerca de ti. La plataforma social que conecta personas a través de eventos y pasiones compartidas.',
-    url: '/',
+    title: 'EventConnect - Descubre Eventos y Tribus',
+    description: 'Plataforma para descubrir eventos y conectar con tribus cerca de ti',
+    url: 'https://eventconnect.com',
     siteName: 'EventConnect',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'EventConnect - Plataforma de eventos sociales',
+        alt: 'EventConnect - Descubre Eventos y Tribus',
       },
     ],
-    locale: 'es_MX',
+    locale: 'es_ES',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'EventConnect - Conecta con Eventos Increíbles',
-    description: 'Descubre, únete y vive experiencias únicas cerca de ti. La plataforma social que conecta personas a través de eventos y pasiones compartidas.',
+    title: 'EventConnect - Descubre Eventos y Tribus',
+    description: 'Plataforma para descubrir eventos y conectar con tribus cerca de ti',
     images: ['/og-image.jpg'],
-    creator: '@eventconnect',
-    site: '@eventconnect',
   },
   robots: {
     index: true,
@@ -60,8 +59,6 @@ export const metadata: Metadata = {
   },
   verification: {
     google: 'your-google-verification-code',
-    yandex: 'your-yandex-verification-code',
-    yahoo: 'your-yahoo-verification-code',
   },
 };
 
@@ -73,42 +70,26 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* Preconnect to external domains */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
-        {/* Favicon */}
         <link rel="icon" href="/favicon.ico" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/site.webmanifest" />
-        
-        {/* PWA Meta Tags */}
-        <meta name="application-name" content="EventConnect" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#3B82F6" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="EventConnect" />
-        <meta name="description" content="Descubre, únete y vive experiencias únicas cerca de ti" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-config" content="/browserconfig.xml" />
         <meta name="msapplication-TileColor" content="#3B82F6" />
-        <meta name="msapplication-tap-highlight" content="no" />
-        <meta name="theme-color" content="#3B82F6" />
+        <meta name="msapplication-config" content="/browserconfig.xml" />
         
-        {/* Viewport */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        {/* Preconnect to external domains */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://maps.googleapis.com" />
+        <link rel="preconnect" href="https://maps.gstatic.com" />
         
-        {/* Security Headers */}
-        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
-        <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
-        <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-        
-        {/* Performance Optimizations */}
+        {/* DNS prefetch */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="//api.eventconnect.mx" />
+        <link rel="dns-prefetch" href="//maps.googleapis.com" />
         
         {/* Structured Data */}
         <script
@@ -116,35 +97,46 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "WebApplication",
+              "@type": "WebSite",
               "name": "EventConnect",
-              "description": "Plataforma social para descubrir y conectar con eventos increíbles",
-              "url": "https://eventconnect.mx",
-              "applicationCategory": "SocialNetworkingApplication",
-              "operatingSystem": "Web",
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "MXN"
+              "description": "Plataforma para descubrir eventos y conectar con tribus cerca de ti",
+              "url": "https://eventconnect.com",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": "https://eventconnect.com/search?q={search_term_string}",
+                "query-input": "required name=search_term_string"
               },
-              "author": {
+              "publisher": {
                 "@type": "Organization",
-                "name": "EventConnect"
+                "name": "EventConnect",
+                "logo": {
+                  "@type": "ImageObject",
+                  "url": "https://eventconnect.com/logo.png"
+                }
               }
             })
           }}
         />
       </head>
-      <body className={`${inter.className} antialiased`}>
-        <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-1">
+      <body className={inter.className}>
+        <QueryProvider>
+          <ThemeProvider>
+            <AuthProvider>
               {children}
-            </main>
-            <Footer />
-          </div>
-        </Providers>
+              <Toaster
+                position="bottom-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: 'var(--background)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--border)',
+                  },
+                }}
+              />
+            </AuthProvider>
+          </ThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

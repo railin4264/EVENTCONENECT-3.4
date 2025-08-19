@@ -130,7 +130,113 @@ const userSchema = new mongoose.Schema({
     expiresAt: Date,
     device: String,
     ip: String
-  }]
+  }],
+  pushTokens: [{
+    token: {
+      type: String,
+      required: true
+    },
+    platform: {
+      type: String,
+      enum: ['ios', 'android', 'web'],
+      required: true
+    },
+    deviceId: String,
+    appVersion: String,
+    osVersion: String,
+    registeredAt: {
+      type: Date,
+      default: Date.now
+    },
+    lastUsed: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  notificationPreferences: {
+    push: {
+      enabled: { type: Boolean, default: true },
+      types: {
+        event_invite: { type: Boolean, default: true },
+        event_reminder: { type: Boolean, default: true },
+        event_update: { type: Boolean, default: true },
+        event_cancelled: { type: Boolean, default: true },
+        tribe_invite: { type: Boolean, default: true },
+        tribe_update: { type: Boolean, default: true },
+        new_message: { type: Boolean, default: true },
+        mention: { type: Boolean, default: true },
+        like: { type: Boolean, default: true },
+        comment: { type: Boolean, default: true },
+        follow: { type: Boolean, default: true },
+        system: { type: Boolean, default: true },
+        security: { type: Boolean, default: true },
+        promotional: { type: Boolean, default: false }
+      },
+      quietHours: {
+        enabled: { type: Boolean, default: false },
+        start: { type: String, default: '22:00' },
+        end: { type: String, default: '08:00' },
+        timezone: { type: String, default: 'UTC' }
+      }
+    },
+    email: {
+      enabled: { type: Boolean, default: true },
+      types: {
+        event_invite: { type: Boolean, default: true },
+        event_reminder: { type: Boolean, default: true },
+        event_update: { type: Boolean, default: true },
+        event_cancelled: { type: Boolean, default: true },
+        tribe_invite: { type: Boolean, default: true },
+        tribe_update: { type: Boolean, default: true },
+        new_message: { type: Boolean, default: false },
+        mention: { type: Boolean, default: true },
+        like: { type: Boolean, default: false },
+        comment: { type: Boolean, default: false },
+        follow: { type: Boolean, default: false },
+        system: { type: Boolean, default: true },
+        security: { type: Boolean, default: true },
+        promotional: { type: Boolean, default: false }
+      },
+      frequency: {
+        type: String,
+        enum: ['immediate', 'hourly', 'daily', 'weekly'],
+        default: 'immediate'
+      }
+    },
+    sms: {
+      enabled: { type: Boolean, default: false },
+      types: {
+        event_reminder: { type: Boolean, default: true },
+        security: { type: Boolean, default: true }
+      }
+    },
+    in_app: {
+      enabled: { type: Boolean, default: true },
+      types: {
+        event_invite: { type: Boolean, default: true },
+        event_reminder: { type: Boolean, default: true },
+        event_update: { type: Boolean, default: true },
+        event_cancelled: { type: Boolean, default: true },
+        tribe_invite: { type: Boolean, default: true },
+        tribe_update: { type: Boolean, default: true },
+        new_message: { type: Boolean, default: true },
+        mention: { type: Boolean, default: true },
+        like: { type: Boolean, default: true },
+        comment: { type: Boolean, default: true },
+        follow: { type: Boolean, default: true },
+        system: { type: Boolean, default: true },
+        security: { type: Boolean, default: true },
+        promotional: { type: Boolean, default: true }
+      },
+      sound: { type: Boolean, default: true },
+      vibration: { type: Boolean, default: true },
+      badge: { type: Boolean, default: true }
+    }
+  },
+  lastActiveAt: {
+    type: Date,
+    default: Date.now
+  }
 }, {
   timestamps: true,
   toJSON: { virtuals: true },
