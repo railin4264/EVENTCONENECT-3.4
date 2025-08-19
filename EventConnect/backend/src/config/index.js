@@ -5,6 +5,7 @@ const cloudinary = require('./cloudinary');
 const socket = require('./socket');
 const validation = require('./validation');
 const googleMaps = require('./googleMaps');
+const pushNotifications = require('./pushNotifications');
 
 module.exports = {
   database,
@@ -13,5 +14,6 @@ module.exports = {
   cloudinary,
   socket,
   validation,
-  googleMaps
+  googleMaps,
+  pushNotifications
 };
