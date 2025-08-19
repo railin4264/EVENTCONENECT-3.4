@@ -4,8 +4,9 @@ const tribeController = require('./tribeController');
 const postController = require('./postController');
 const reviewController = require('./reviewController');
 const chatController = require('./chatController');
-const notificationController = require('./notificationController');
+const notificationController = require('./NotificationController');
 const searchController = require('./searchController');
+const userController = require('./userController');
 
 module.exports = {
   authController,
@@ -14,6 +15,7 @@ module.exports = {
   postController,
   reviewController,
   chatController,
-  notificationController,
-  searchController
+  notificationController: new notificationController(),
+  searchController,
+  userController
 };

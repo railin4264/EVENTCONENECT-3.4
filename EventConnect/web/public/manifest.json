@@ -1,25 +1,335 @@
 {
+  "name": "EventConnect - Descubre Eventos y Tribus",
   "short_name": "EventConnect",
-  "name": "EventConnect - Conectando Experiencias",
+  "description": "Plataforma para descubrir eventos increíbles y conectar con tribus cerca de ti. Encuentra eventos, únete a comunidades y vive experiencias únicas.",
+  "version": "1.0.0",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": [
+    "social",
+    "lifestyle",
+    "entertainment",
+    "business",
+    "education"
+  ],
   "icons": [
     {
-      "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "/images/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
     },
     {
-      "src": "logo192.png",
+      "src": "/images/icon-96.png",
+      "sizes": "96x96",
       "type": "image/png",
-      "sizes": "192x192"
+      "purpose": "maskable any"
     },
     {
-      "src": "logo512.png",
+      "src": "/images/icon-128.png",
+      "sizes": "128x128",
       "type": "image/png",
-      "sizes": "512x512"
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/images/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/images/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/images/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "screenshots": [
+    {
+      "src": "/images/screenshot-home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Página principal de EventConnect"
+    },
+    {
+      "src": "/images/screenshot-map.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Mapa interactivo de eventos"
+    },
+    {
+      "src": "/images/screenshot-events.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Lista de eventos disponibles"
+    },
+    {
+      "src": "/images/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vista móvil de EventConnect"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Buscar Eventos",
+      "short_name": "Buscar",
+      "description": "Buscar eventos cercanos",
+      "url": "/events?shortcut=1",
+      "icons": [
+        {
+          "src": "/images/icon-search.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Mapa de Eventos",
+      "short_name": "Mapa",
+      "description": "Ver eventos en el mapa",
+      "url": "/map?shortcut=1",
+      "icons": [
+        {
+          "src": "/images/icon-map.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Mis Tribus",
+      "short_name": "Tribus",
+      "description": "Ver mis tribus activas",
+      "url": "/tribes?shortcut=1",
+      "icons": [
+        {
+          "src": "/images/icon-tribes.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Crear Evento",
+      "short_name": "Crear",
+      "description": "Crear nuevo evento",
+      "url": "/events/create?shortcut=1",
+      "icons": [
+        {
+          "src": "/images/icon-create.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://eventconnect.com/manifest.json"
+    }
+  ],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "capture_links": "new-client",
+  "file_handlers": [
+    {
+      "action": "/upload",
+      "accept": {
+        "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+        "video/*": [".mp4", ".avi", ".mov", ".wmv"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+eventconnect",
+      "url": "/?protocol=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "geolocation",
+    "notifications",
+    "camera",
+    "microphone",
+    "background-sync"
+  ],
+  "features": [
+    "Cross Platform",
+    "fast",
+    "simple",
+    "offline",
+    "notifications",
+    "geolocation"
+  ],
+  "developer": {
+    "name": "EventConnect Team",
+    "url": "https://eventconnect.com"
+  },
+  "author": "EventConnect",
+  "homepage_url": "https://eventconnect.com",
+  "repository": "https://github.com/eventconnect/web",
+  "bugs_url": "https://github.com/eventconnect/web/issues",
+  "support_url": "https://eventconnect.com/support",
+  "privacy_policy_url": "https://eventconnect.com/privacy",
+  "terms_of_service_url": "https://eventconnect.com/terms",
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "scope_extensions": [
+    {
+      "scope": "/events",
+      "extensions": [
+        {
+          "name": "Event Details",
+          "description": "Ver detalles completos de eventos"
+        }
+      ]
+    },
+    {
+      "scope": "/tribes",
+      "extensions": [
+        {
+          "name": "Tribe Management",
+          "description": "Gestionar tribus y comunidades"
+        }
+      ]
+    }
+  ],
+  "web_share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "display_override": [
+    "standalone",
+    "minimal-ui",
+    "window-controls-overlay"
+  ],
+  "display_override_standalone": {
+    "navigation_style": "minimal"
+  },
+  "window_controls_overlay": {
+    "title_bar_area": "0,0,0,0",
+    "color": "#3b82f6"
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "capture_links": "new-client",
+  "file_handlers": [
+    {
+      "action": "/upload",
+      "accept": {
+        "image/*": [".jpg", ".jpeg", ".png", ".gif", ".webp"],
+        "video/*": [".mp4", ".avi", ".mov", ".wmv"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+eventconnect",
+      "url": "/?protocol=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "video/*"]
+        }
+      ]
+    }
+  },
+  "permissions": [
+    "geolocation",
+    "notifications",
+    "camera",
+    "microphone",
+    "background-sync"
+  ],
+  "features": [
+    "Cross Platform",
+    "fast",
+    "simple",
+    "offline",
+    "notifications",
+    "geolocation"
+  ],
+  "developer": {
+    "name": "EventConnect Team",
+    "url": "https://eventconnect.com"
+  },
+  "author": "EventConnect",
+  "homepage_url": "https://eventconnect.com",
+  "repository": "https://github.com/eventconnect/web",
+  "bugs_url": "https://github.com/eventconnect/web/issues",
+  "support_url": "https://eventconnect.com/support",
+  "privacy_policy_url": "https://eventconnect.com/privacy",
+  "terms_of_service_url": "https://eventconnect.com/terms",
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7"
 } 

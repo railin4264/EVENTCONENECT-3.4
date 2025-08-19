@@ -1,42 +1,46 @@
 const express = require('express');
 const router = express.Router();
+const { protect } = require('../middleware/auth');
+const validators = require('../validators');
 const { notificationController } = require('../controllers');
-const { protect, adminOnly } = require('../middleware/auth');
-const { 
-  validateSearch,
-  validatePagination 
-} = require('../middleware/validation');
-const { cache } = require('../middleware/cache');
 
-// All notification routes require authentication
-router.use(protect);
+// Rutas para notificaciones in-app
+router.get('/in-app', protect, notificationController.getInAppNotifications);
+router.get('/in-app/unread', protect, notificationController.getUnreadNotifications);
+router.get('/in-app/stats', protect, notificationController.getNotificationStats);
+router.patch('/in-app/:id/read', protect, notificationController.markNotificationAsRead);
+router.patch('/in-app/read-all', protect, notificationController.markAllNotificationsAsRead);
+router.delete('/in-app/:id', protect, notificationController.deleteNotification);
+router.delete('/in-app', protect, notificationController.deleteAllNotifications);
 
-// Notification management
-router.get('/', validatePagination, cache(180), notificationController.getUserNotifications);
-router.get('/:notificationId', cache(300), notificationController.getNotificationById);
-router.post('/', notificationController.createNotification);
+// Rutas para notificaciones programadas
+router.get('/scheduled', protect, notificationController.getScheduledNotifications);
+router.post('/scheduled', protect, validators.validateScheduledNotification, notificationController.scheduleNotification);
+router.patch('/scheduled/:id', protect, validators.validateScheduledNotification, notificationController.updateScheduledNotification);
+router.delete('/scheduled/:id', protect, notificationController.cancelScheduledNotification);
+router.delete('/scheduled', protect, notificationController.cancelAllScheduledNotifications);
 
-// Notification interactions
-router.put('/:notificationId/read', notificationController.markAsRead);
-router.put('/read-multiple', notificationController.markMultipleAsRead);
-router.put('/read-all', notificationController.markAllAsRead);
-router.delete('/:notificationId', notificationController.deleteNotification);
-router.delete('/multiple', notificationController.deleteMultipleNotifications);
+// Rutas para preferencias de notificaciones
+router.get('/preferences', protect, notificationController.getUserPreferences);
+router.patch('/preferences', protect, validators.validateUserPreferences, notificationController.updateUserPreferences);
 
-// Notification preferences
-router.get('/preferences', notificationController.getNotificationPreferences);
-router.put('/preferences', notificationController.updateNotificationPreferences);
+// Rutas para tokens de push
+router.post('/push-token', protect, validators.validatePushToken, notificationController.registerPushToken);
+router.delete('/push-token/:token', protect, notificationController.unregisterPushToken);
+router.get('/push-tokens', protect, notificationController.getPushTokens);
 
-// Notification statistics
-router.get('/stats/analytics', notificationController.getNotificationStats);
+// Rutas para notificaciones del sistema
+router.get('/system', protect, notificationController.getSystemNotifications);
+router.post('/system/broadcast', protect, validators.validateSystemNotification, notificationController.broadcastSystemNotification);
 
-// Special notification types
-router.post('/event-invitation', notificationController.sendEventInvitation);
-router.post('/tribe-invitation', notificationController.sendTribeInvitation);
-router.post('/friend-request', notificationController.sendFriendRequest);
-router.post('/post-mention', notificationController.sendPostMention);
+// Rutas para analytics de notificaciones
+router.get('/analytics', protect, notificationController.getNotificationAnalytics);
+router.get('/analytics/engagement', protect, notificationController.getEngagementMetrics);
 
-// Admin routes
-router.get('/admin/analytics', adminOnly, validateSearch, notificationController.getNotificationStats);
+// Rutas para gestión de notificaciones (admin)
+router.get('/admin/all', protect, notificationController.getAllNotifications);
+router.get('/admin/users/:userId', protect, notificationController.getUserNotifications);
+router.post('/admin/send', protect, notificationController.sendAdminNotification);
+router.delete('/admin/cleanup', protect, notificationController.cleanupOldNotifications);
 
 module.exports = router;

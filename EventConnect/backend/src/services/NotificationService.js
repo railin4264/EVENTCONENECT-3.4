@@ -1,507 +1,830 @@
-const { Notification, User, Event, Tribe, Post } = require('../models');
-const { AppError } = require('../middleware/errorHandler');
+const { googleMaps } = require('../config');
+const User = require('../models/User');
+const Event = require('../models/Event');
+const Tribe = require('../models/Tribe');
+const Chat = require('../models/Chat');
 const { redis } = require('../config');
-const { notificationService: wsNotificationService } = require('../middleware/notifications');
 
 class NotificationService {
-  /**
-   * Send notification to one or multiple users
-   */
-  async sendNotification(notificationData) {
+  constructor() {
+    this.notificationTypes = {
+      EVENT_INVITE: 'event_invite',
+      EVENT_REMINDER: 'event_reminder',
+      EVENT_UPDATE: 'event_update',
+      EVENT_CANCELLED: 'event_cancelled',
+      TRIBE_INVITE: 'tribe_invite',
+      TRIBE_UPDATE: 'tribe_update',
+      NEW_MESSAGE: 'new_message',
+      MENTION: 'mention',
+      LIKE: 'like',
+      COMMENT: 'comment',
+      FOLLOW: 'follow',
+      SYSTEM: 'system',
+      SECURITY: 'security',
+      PROMOTIONAL: 'promotional'
+    };
+
+    this.priorityLevels = {
+      LOW: 'low',
+      NORMAL: 'normal',
+      HIGH: 'high',
+      URGENT: 'urgent'
+    };
+
+    this.channels = {
+      PUSH: 'push',
+      EMAIL: 'email',
+      SMS: 'sms',
+      IN_APP: 'in_app'
+    };
+  }
+
+  // Enviar notificación push
+  async sendPushNotification(userId, notification) {
     try {
-      const { recipients, type, title, message, data, priority = 'normal', channels = ['in_app'] } = notificationData;
-
-      if (!recipients || recipients.length === 0) {
-        throw new AppError('Se requieren destinatarios para la notificación', 400);
+      const user = await User.findById(userId);
+      if (!user || !user.pushTokens || user.pushTokens.length === 0) {
+        console.log(`Usuario ${userId} no tiene tokens de push`);
+        return false;
       }
 
-      const notifications = [];
-      const now = new Date();
+      const results = await Promise.allSettled(
+        user.pushTokens.map(token => this.sendToExpo(token, notification))
+      );
 
-      for (const recipientId of recipients) {
-        // Check user notification preferences
-        const user = await User.findById(recipientId).select('notificationPreferences');
-        if (!user) continue;
+      const successful = results.filter(result => result.status === 'fulfilled').length;
+      const failed = results.filter(result => result.status === 'rejected').length;
 
-        const preferences = user.notificationPreferences || {};
-        const typeEnabled = preferences[type] !== false; // Default to true if not set
+      console.log(`Push notifications enviadas: ${successful} exitosas, ${failed} fallidas`);
 
-        if (!typeEnabled) continue;
-
-        // Create notification record
-        const notification = new Notification({
-          recipient: recipientId,
-          type,
-          title,
-          message,
-          data,
-          priority,
-          channels,
-          status: 'pending',
-          scheduledFor: now
-        });
-
-        notifications.push(notification);
+      // Limpiar tokens inválidos
+      if (failed > 0) {
+        await this.cleanInvalidPushTokens(userId, results);
       }
 
-      if (notifications.length === 0) {
-        return { sent: 0, skipped: 0 };
-      }
-
-      // Save notifications to database
-      await Notification.insertMany(notifications);
-
-      // Send real-time notifications
-      const realTimeResults = await this.sendRealTimeNotifications(notifications);
-
-      // Send push notifications if enabled
-      const pushResults = await this.sendPushNotifications(notifications);
-
-      // Send email notifications if enabled
-      const emailResults = await this.sendEmailNotifications(notifications);
-
-      // Update notification status
-      await this.updateNotificationStatus(notifications.map(n => n._id), 'delivered');
-
-      return {
-        sent: notifications.length,
-        skipped: recipients.length - notifications.length,
-        realTime: realTimeResults,
-        push: pushResults,
-        email: emailResults
-      };
-
+      return successful > 0;
     } catch (error) {
-      throw new AppError(`Error al enviar notificación: ${error.message}`, 500);
+      console.error('Error enviando notificación push:', error);
+      return false;
     }
   }
 
-  /**
-   * Send event invitation notification
-   */
-  async sendEventInvitation(eventId, hostId, recipientIds, message = '') {
+  // Enviar a Expo Push Service
+  async sendToExpo(pushToken, notification) {
     try {
-      const event = await Event.findById(eventId).populate('host', 'username avatar');
-      if (!event) {
-        throw new AppError('Evento no encontrado', 404);
+      const message = {
+        to: pushToken,
+        sound: notification.sound || 'default',
+        title: notification.title,
+        body: notification.body,
+        data: notification.data || {},
+        priority: notification.priority || 'normal',
+        channelId: notification.channelId || 'default',
+        badge: notification.badge,
+        categoryId: notification.categoryId,
+        mutableContent: notification.mutableContent || false,
+        subtitle: notification.subtitle,
+        ttl: notification.ttl || 86400, // 24 horas
+        expiration: notification.expiration,
+        ...this.buildNotificationOptions(notification)
+      };
+
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const notificationData = {
-        recipients: recipientIds,
-        type: 'event_invitation',
-        title: `Invitación a evento: ${event.title}`,
-        message: message || `Te han invitado a ${event.title}`,
+      const result = await response.json();
+      
+      if (result.data && result.data.status === 'error') {
+        throw new Error(result.data.message);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error enviando a Expo:', error);
+      throw error;
+    }
+  }
+
+  // Construir opciones de notificación
+  buildNotificationOptions(notification) {
+    const options = {};
+
+    // Sonidos personalizados
+    if (notification.sound === 'custom') {
+      options.sound = notification.customSound;
+    }
+
+    // Vibración personalizada
+    if (notification.vibrate) {
+      options.vibrate = notification.vibrate;
+    }
+
+    // Imagen de notificación
+    if (notification.image) {
+      options.image = notification.image;
+    }
+
+    // Acciones personalizadas
+    if (notification.actions) {
+      options.actions = notification.actions;
+    }
+
+    // Configuración de Android
+    if (notification.android) {
+      options.android = {
+        channelId: notification.android.channelId || 'default',
+        priority: notification.android.priority || 'normal',
+        sound: notification.android.sound,
+        vibrate: notification.android.vibrate,
+        icon: notification.android.icon,
+        color: notification.android.color,
+        sticky: notification.android.sticky || false,
+        ...notification.android
+      };
+    }
+
+    // Configuración de iOS
+    if (notification.ios) {
+      options.ios = {
+        sound: notification.ios.sound,
+        badge: notification.ios.badge,
+        categoryId: notification.ios.categoryId,
+        threadId: notification.ios.threadId,
+        ...notification.ios
+      };
+    }
+
+    return options;
+  }
+
+  // Limpiar tokens de push inválidos
+  async cleanInvalidPushTokens(userId, results) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) return;
+
+      const invalidTokens = [];
+      results.forEach((result, index) => {
+        if (result.status === 'rejected' || 
+            (result.status === 'fulfilled' && result.value.data && result.value.data.status === 'error')) {
+          invalidTokens.push(user.pushTokens[index]);
+        }
+      });
+
+      if (invalidTokens.length > 0) {
+        user.pushTokens = user.pushTokens.filter(token => !invalidTokens.includes(token));
+        await user.save();
+        console.log(`Tokens inválidos limpiados para usuario ${userId}: ${invalidTokens.length}`);
+      }
+    } catch (error) {
+      console.error('Error limpiando tokens inválidos:', error);
+    }
+  }
+
+  // Enviar notificación por email
+  async sendEmailNotification(userId, notification) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.email) {
+        console.log(`Usuario ${userId} no tiene email`);
+        return false;
+      }
+
+      // Aquí implementarías el envío de email
+      // Por ejemplo, usando Nodemailer, SendGrid, etc.
+      console.log(`Email enviado a ${user.email}: ${notification.title}`);
+      
+      return true;
+    } catch (error) {
+      console.error('Error enviando notificación por email:', error);
+      return false;
+    }
+  }
+
+  // Enviar notificación por SMS
+  async sendSMSNotification(userId, notification) {
+    try {
+      const user = await User.findById(userId);
+      if (!user || !user.phone) {
+        console.log(`Usuario ${userId} no tiene teléfono`);
+        return false;
+      }
+
+      // Aquí implementarías el envío de SMS
+      // Por ejemplo, usando Twilio, AWS SNS, etc.
+      console.log(`SMS enviado a ${user.phone}: ${notification.body}`);
+      
+      return true;
+    } catch (error) {
+      console.error('Error enviando notificación por SMS:', error);
+      return false;
+    }
+  }
+
+  // Enviar notificación in-app
+  async sendInAppNotification(userId, notification) {
+    try {
+      // Guardar notificación en la base de datos
+      const inAppNotification = new InAppNotification({
+        userId,
+        type: notification.type,
+        title: notification.title,
+        body: notification.body,
+        data: notification.data,
+        priority: notification.priority,
+        read: false,
+        createdAt: new Date()
+      });
+
+      await inAppNotification.save();
+
+      // Enviar por WebSocket si el usuario está conectado
+      // Esto se maneja en el ChatWebSocketService
+      
+      return true;
+    } catch (error) {
+      console.error('Error enviando notificación in-app:', error);
+      return false;
+    }
+  }
+
+  // Enviar notificación por múltiples canales
+  async sendMultiChannelNotification(userId, notification, channels = ['push', 'in_app']) {
+    try {
+      const results = {};
+
+      for (const channel of channels) {
+        switch (channel) {
+          case 'push':
+            results.push = await this.sendPushNotification(userId, notification);
+            break;
+          case 'email':
+            results.email = await this.sendEmailNotification(userId, notification);
+            break;
+          case 'sms':
+            results.sms = await this.sendSMSNotification(userId, notification);
+            break;
+          case 'in_app':
+            results.in_app = await this.sendInAppNotification(userId, notification);
+            break;
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error enviando notificación multi-canal:', error);
+      return {};
+    }
+  }
+
+  // Notificaciones de eventos
+  async sendEventInvite(userId, eventId, inviterId) {
+    try {
+      const [user, event, inviter] = await Promise.all([
+        User.findById(userId),
+        Event.findById(eventId),
+        User.findById(inviterId)
+      ]);
+
+      if (!user || !event || !inviter) {
+        throw new Error('Usuario, evento o invitador no encontrado');
+      }
+
+      const notification = {
+        type: this.notificationTypes.EVENT_INVITE,
+        title: 'Invitación a Evento',
+        body: `${inviter.firstName} te ha invitado a "${event.title}"`,
+        data: {
+          eventId: event._id,
+          inviterId: inviter._id,
+          eventTitle: event.title,
+          eventDate: event.startDate
+        },
+        priority: this.priorityLevels.HIGH,
+        categoryId: 'event',
+        sound: 'default',
+        badge: 1
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando invitación a evento:', error);
+      return false;
+    }
+  }
+
+  async sendEventReminder(userId, eventId, minutesBefore = 60) {
+    try {
+      const [user, event] = await Promise.all([
+        User.findById(userId),
+        Event.findById(eventId)
+      ]);
+
+      if (!user || !event) {
+        throw new Error('Usuario o evento no encontrado');
+      }
+
+      const notification = {
+        type: this.notificationTypes.EVENT_REMINDER,
+        title: 'Recordatorio de Evento',
+        body: `"${event.title}" comienza en ${minutesBefore} minutos`,
         data: {
           eventId: event._id,
           eventTitle: event.title,
           eventDate: event.startDate,
-          eventLocation: event.location,
-          hostId: event.host._id,
-          hostName: event.host.username,
-          hostAvatar: event.host.avatar
+          minutesBefore
         },
-        priority: 'high',
-        channels: ['in_app', 'push', 'email']
+        priority: this.priorityLevels.HIGH,
+        categoryId: 'reminder',
+        sound: 'default',
+        badge: 1
       };
 
-      return await this.sendNotification(notificationData);
-
+      return await this.sendMultiChannelNotification(userId, notification);
     } catch (error) {
-      throw new AppError(`Error al enviar invitación: ${error.message}`, 500);
+      console.error('Error enviando recordatorio de evento:', error);
+      return false;
     }
   }
 
-  /**
-   * Send tribe invitation notification
-   */
-  async sendTribeInvitation(tribeId, creatorId, recipientIds, message = '') {
+  async sendEventUpdate(userId, eventId, updateType) {
     try {
-      const tribe = await Tribe.findById(tribeId).populate('creator', 'username avatar');
-      if (!tribe) {
-        throw new AppError('Tribu no encontrada', 404);
+      const [user, event] = await Promise.all([
+        User.findById(userId),
+        Event.findById(eventId)
+      ]);
+
+      if (!user || !event) {
+        throw new Error('Usuario o evento no encontrado');
       }
 
-      const notificationData = {
-        recipients: recipientIds,
-        type: 'tribe_invitation',
-        title: `Invitación a tribu: ${tribe.name}`,
-        message: message || `Te han invitado a unirte a ${tribe.name}`,
+      const updateMessages = {
+        'date': 'La fecha del evento ha cambiado',
+        'location': 'La ubicación del evento ha cambiado',
+        'cancelled': 'El evento ha sido cancelado',
+        'details': 'Los detalles del evento han sido actualizados'
+      };
+
+      const notification = {
+        type: this.notificationTypes.EVENT_UPDATE,
+        title: 'Evento Actualizado',
+        body: updateMessages[updateType] || 'El evento ha sido actualizado',
+        data: {
+          eventId: event._id,
+          eventTitle: event.title,
+          updateType
+        },
+        priority: this.priorityLevels.NORMAL,
+        categoryId: 'event',
+        sound: 'default'
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando actualización de evento:', error);
+      return false;
+    }
+  }
+
+  // Notificaciones de tribus
+  async sendTribeInvite(userId, tribeId, inviterId) {
+    try {
+      const [user, tribe, inviter] = await Promise.all([
+        User.findById(userId),
+        Tribe.findById(tribeId),
+        User.findById(inviterId)
+      ]);
+
+      if (!user || !tribe || !inviter) {
+        throw new Error('Usuario, tribu o invitador no encontrado');
+      }
+
+      const notification = {
+        type: this.notificationTypes.TRIBE_INVITE,
+        title: 'Invitación a Tribu',
+        body: `${inviter.firstName} te ha invitado a unirte a "${tribe.name}"`,
         data: {
           tribeId: tribe._id,
-          tribeName: tribe.name,
-          tribeDescription: tribe.description,
-          creatorId: tribe.creator._id,
-          creatorName: tribe.creator.username,
-          creatorAvatar: tribe.creator.avatar
+          inviterId: inviter._id,
+          tribeName: tribe.name
         },
-        priority: 'normal',
-        channels: ['in_app', 'push']
+        priority: this.priorityLevels.HIGH,
+        categoryId: 'tribe',
+        sound: 'default',
+        badge: 1
       };
 
-      return await this.sendNotification(notificationData);
-
+      return await this.sendMultiChannelNotification(userId, notification);
     } catch (error) {
-      throw new AppError(`Error al enviar invitación a tribu: ${error.message}`, 500);
+      console.error('Error enviando invitación a tribu:', error);
+      return false;
     }
   }
 
-  /**
-   * Send friend request notification
-   */
-  async sendFriendRequest(senderId, recipientId, message = '') {
+  // Notificaciones de chat
+  async sendNewMessageNotification(userId, chatId, senderId, messagePreview) {
     try {
-      const sender = await User.findById(senderId).select('username avatar');
-      if (!sender) {
-        throw new AppError('Usuario remitente no encontrado', 404);
+      const [user, sender] = await Promise.all([
+        User.findById(userId),
+        User.findById(senderId)
+      ]);
+
+      if (!user || !sender) {
+        throw new Error('Usuario o remitente no encontrado');
       }
 
-      const notificationData = {
-        recipients: [recipientId],
-        type: 'friend_request',
-        title: 'Nueva solicitud de amistad',
-        message: message || `${sender.username} quiere ser tu amigo`,
+      const notification = {
+        type: this.notificationTypes.NEW_MESSAGE,
+        title: `Nuevo mensaje de ${sender.firstName}`,
+        body: messagePreview,
         data: {
+          chatId,
           senderId: sender._id,
-          senderName: sender.username,
-          senderAvatar: sender.avatar
+          senderName: sender.firstName,
+          messagePreview
         },
-        priority: 'normal',
-        channels: ['in_app', 'push']
+        priority: this.priorityLevels.NORMAL,
+        categoryId: 'chat',
+        sound: 'default',
+        badge: 1
       };
 
-      return await this.sendNotification(notificationData);
-
+      return await this.sendMultiChannelNotification(userId, notification);
     } catch (error) {
-      throw new AppError(`Error al enviar solicitud de amistad: ${error.message}`, 500);
+      console.error('Error enviando notificación de nuevo mensaje:', error);
+      return false;
     }
   }
 
-  /**
-   * Send post mention notification
-   */
-  async sendPostMention(postId, authorId, mentionedUserIds) {
+  // Notificaciones de menciones
+  async sendMentionNotification(userId, mentionedBy, context, contextId) {
     try {
-      const post = await Post.findById(postId).populate('author', 'username avatar');
-      if (!post) {
-        throw new AppError('Post no encontrado', 404);
+      const [user, mentionedByUser] = await Promise.all([
+        User.findById(userId),
+        User.findById(mentionedBy)
+      ]);
+
+      if (!user || !mentionedByUser) {
+        throw new Error('Usuario no encontrado');
       }
 
-      const notificationData = {
-        recipients: mentionedUserIds,
-        type: 'post_mention',
-        title: 'Mencionado en un post',
-        message: `${post.author.username} te mencionó en un post`,
+      const notification = {
+        type: this.notificationTypes.MENTION,
+        title: 'Mencionado en EventConnect',
+        body: `${mentionedByUser.firstName} te ha mencionado en ${context}`,
         data: {
-          postId: post._id,
-          postContent: post.content.substring(0, 100),
-          authorId: post.author._id,
-          authorName: post.author.username,
-          authorAvatar: post.author.avatar
+          mentionedBy: mentionedByUser._id,
+          mentionedByName: mentionedByUser.firstName,
+          context,
+          contextId
         },
-        priority: 'low',
-        channels: ['in_app', 'push']
+        priority: this.priorityLevels.NORMAL,
+        categoryId: 'social',
+        sound: 'default'
       };
 
-      return await this.sendNotification(notificationData);
-
+      return await this.sendMultiChannelNotification(userId, notification);
     } catch (error) {
-      throw new AppError(`Error al enviar notificación de mención: ${error.message}`, 500);
+      console.error('Error enviando notificación de mención:', error);
+      return false;
     }
   }
 
-  /**
-   * Send event reminder notifications
-   */
-  async sendEventReminders() {
+  // Notificaciones de likes
+  async sendLikeNotification(userId, likedBy, contentType, contentId) {
     try {
-      const now = new Date();
-      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      const [user, likedByUser] = await Promise.all([
+        User.findById(userId),
+        User.findById(likedBy)
+      ]);
 
-      // Find events starting tomorrow
-      const upcomingEvents = await Event.find({
-        startDate: { $gte: tomorrow, $lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000) },
-        status: 'active'
-      }).populate('attendees', 'notificationPreferences');
+      if (!user || !likedByUser) {
+        throw new Error('Usuario no encontrado');
+      }
 
-      const reminderNotifications = [];
+      const notification = {
+        type: this.notificationTypes.LIKE,
+        title: 'Nuevo like',
+        body: `${likedByUser.firstName} le dio like a tu ${contentType}`,
+        data: {
+          likedBy: likedByUser._id,
+          likedByName: likedByUser.firstName,
+          contentType,
+          contentId
+        },
+        priority: this.priorityLevels.LOW,
+        categoryId: 'social',
+        sound: 'default'
+      };
 
-      for (const event of upcomingEvents) {
-        for (const attendee of event.attendees) {
-          const preferences = attendee.notificationPreferences || {};
-          if (preferences.event_reminders !== false) {
-            reminderNotifications.push({
-              recipients: [attendee._id],
-              type: 'event_reminder',
-              title: `Recordatorio: ${event.title} mañana`,
-              message: `Tu evento ${event.title} comienza mañana a las ${event.startDate.toLocaleTimeString()}`,
-              data: {
-                eventId: event._id,
-                eventTitle: event.title,
-                eventDate: event.startDate,
-                eventLocation: event.location
-              },
-              priority: 'high',
-              channels: ['in_app', 'push', 'email']
-            });
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando notificación de like:', error);
+      return false;
+    }
+  }
+
+  // Notificaciones de comentarios
+  async sendCommentNotification(userId, commentedBy, contentType, contentId, commentPreview) {
+    try {
+      const [user, commentedByUser] = await Promise.all([
+        User.findById(userId),
+        User.findById(commentedBy)
+      ]);
+
+      if (!user || !commentedByUser) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const notification = {
+        type: this.notificationTypes.COMMENT,
+        title: 'Nuevo comentario',
+        body: `${commentedByUser.firstName} comentó: "${commentPreview}"`,
+        data: {
+          commentedBy: commentedByUser._id,
+          commentedByName: commentedByUser.firstName,
+          contentType,
+          contentId,
+          commentPreview
+        },
+        priority: this.priorityLevels.NORMAL,
+        categoryId: 'social',
+        sound: 'default'
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando notificación de comentario:', error);
+      return false;
+    }
+  }
+
+  // Notificaciones de seguimiento
+  async sendFollowNotification(userId, followedBy) {
+    try {
+      const [user, followedByUser] = await Promise.all([
+        User.findById(userId),
+        User.findById(followedBy)
+      ]);
+
+      if (!user || !followedByUser) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const notification = {
+        type: this.notificationTypes.FOLLOW,
+        title: 'Nuevo seguidor',
+        body: `${followedByUser.firstName} comenzó a seguirte`,
+        data: {
+          followedBy: followedByUser._id,
+          followedByName: followedByUser.firstName
+        },
+        priority: this.priorityLevels.LOW,
+        categoryId: 'social',
+        sound: 'default'
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando notificación de seguimiento:', error);
+      return false;
+    }
+  }
+
+  // Notificaciones del sistema
+  async sendSystemNotification(userId, title, body, data = {}) {
+    try {
+      const notification = {
+        type: this.notificationTypes.SYSTEM,
+        title,
+        body,
+        data,
+        priority: this.priorityLevels.NORMAL,
+        categoryId: 'system',
+        sound: 'default'
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando notificación del sistema:', error);
+      return false;
+    }
+  }
+
+  // Notificaciones de seguridad
+  async sendSecurityNotification(userId, title, body, data = {}) {
+    try {
+      const notification = {
+        type: this.notificationTypes.SECURITY,
+        title,
+        body,
+        data,
+        priority: this.priorityLevels.HIGH,
+        categoryId: 'security',
+        sound: 'default',
+        badge: 1
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando notificación de seguridad:', error);
+      return false;
+    }
+  }
+
+  // Notificaciones promocionales
+  async sendPromotionalNotification(userId, title, body, data = {}) {
+    try {
+      const notification = {
+        type: this.notificationTypes.PROMOTIONAL,
+        title,
+        body,
+        data,
+        priority: this.priorityLevels.LOW,
+        categoryId: 'promotional',
+        sound: 'default'
+      };
+
+      return await this.sendMultiChannelNotification(userId, notification);
+    } catch (error) {
+      console.error('Error enviando notificación promocional:', error);
+      return false;
+    }
+  }
+
+  // Enviar notificación masiva
+  async sendBulkNotification(userIds, notification, channels = ['push', 'in_app']) {
+    try {
+      const results = await Promise.allSettled(
+        userIds.map(userId => this.sendMultiChannelNotification(userId, notification, channels))
+      );
+
+      const successful = results.filter(result => result.status === 'fulfilled').length;
+      const failed = results.filter(result => result.status === 'rejected').length;
+
+      console.log(`Notificaciones masivas enviadas: ${successful} exitosas, ${failed} fallidas`);
+
+      return {
+        total: userIds.length,
+        successful,
+        failed,
+        results: results.map((result, index) => ({
+          userId: userIds[index],
+          success: result.status === 'fulfilled',
+          error: result.status === 'rejected' ? result.reason : null
+        }))
+      };
+    } catch (error) {
+      console.error('Error enviando notificaciones masivas:', error);
+      return {
+        total: userIds.length,
+        successful: 0,
+        failed: userIds.length,
+        error: error.message
+      };
+    }
+  }
+
+  // Programar notificación
+  async scheduleNotification(userId, notification, scheduledTime) {
+    try {
+      const scheduledNotification = new ScheduledNotification({
+        userId,
+        notification,
+        scheduledTime,
+        status: 'pending'
+      });
+
+      await scheduledNotification.save();
+
+      // Aquí implementarías un job scheduler (como Bull, Agenda, etc.)
+      // para ejecutar la notificación en el tiempo programado
+
+      return scheduledNotification._id;
+    } catch (error) {
+      console.error('Error programando notificación:', error);
+      return null;
+    }
+  }
+
+  // Cancelar notificación programada
+  async cancelScheduledNotification(notificationId) {
+    try {
+      const scheduledNotification = await ScheduledNotification.findById(notificationId);
+      if (scheduledNotification) {
+        scheduledNotification.status = 'cancelled';
+        await scheduledNotification.save();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error cancelando notificación programada:', error);
+      return false;
+    }
+  }
+
+  // Obtener estadísticas de notificaciones
+  async getNotificationStats(userId, timeRange = '7d') {
+    try {
+      const startDate = new Date();
+      switch (timeRange) {
+        case '24h':
+          startDate.setDate(startDate.getDate() - 1);
+          break;
+        case '7d':
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(startDate.getDate() - 30);
+          break;
+        default:
+          startDate.setDate(startDate.getDate() - 7);
+      }
+
+      const stats = await InAppNotification.aggregate([
+        {
+          $match: {
+            userId: userId,
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: '$type',
+            count: { $sum: 1 },
+            read: { $sum: { $cond: ['$read', 1, 0] } },
+            unread: { $sum: { $cond: ['$read', 0, 1] } }
           }
         }
-      }
+      ]);
 
-      // Send all reminder notifications
-      let totalSent = 0;
-      for (const notification of reminderNotifications) {
-        const result = await this.sendNotification(notification);
-        totalSent += result.sent;
-      }
-
-      return { totalEvents: upcomingEvents.length, totalReminders: totalSent };
-
+      return stats;
     } catch (error) {
-      throw new AppError(`Error al enviar recordatorios: ${error.message}`, 500);
+      console.error('Error obteniendo estadísticas de notificaciones:', error);
+      return [];
     }
   }
 
-  /**
-   * Get notification analytics for a user
-   */
-  async getNotificationAnalytics(userId, timeRange = '30d') {
+  // Marcar notificación como leída
+  async markNotificationAsRead(notificationId) {
     try {
-      const startDate = this.getDateFromRange(timeRange);
-      
-      const notifications = await Notification.find({
-        recipient: userId,
-        createdAt: { $gte: startDate }
-      });
-
-      const analytics = {
-        total: notifications.length,
-        byType: {},
-        byStatus: {},
-        byPriority: {},
-        byChannel: {},
-        engagement: {
-          opened: 0,
-          clicked: 0,
-          dismissed: 0
-        },
-        timeDistribution: this.getTimeDistribution(notifications),
-        topTypes: this.getTopNotificationTypes(notifications)
-      };
-
-      notifications.forEach(notification => {
-        // Count by type
-        analytics.byType[notification.type] = (analytics.byType[notification.type] || 0) + 1;
-        
-        // Count by status
-        analytics.byStatus[notification.status] = (analytics.byStatus[notification.status] || 0) + 1;
-        
-        // Count by priority
-        analytics.byPriority[notification.priority] = (analytics.byPriority[notification.priority] || 0) + 1;
-        
-        // Count by channel
-        notification.channels.forEach(channel => {
-          analytics.byChannel[channel] = (analytics.byChannel[channel] || 0) + 1;
-        });
-
-        // Engagement metrics
-        if (notification.openedAt) analytics.engagement.opened++;
-        if (notification.clickedAt) analytics.engagement.clicked++;
-        if (notification.dismissedAt) analytics.engagement.dismissed++;
-      });
-
-      // Calculate engagement rates
-      analytics.engagement.openRate = (analytics.engagement.opened / analytics.total) * 100;
-      analytics.engagement.clickRate = (analytics.engagement.clicked / analytics.total) * 100;
-      analytics.engagement.dismissRate = (analytics.engagement.dismissed / analytics.total) * 100;
-
-      return analytics;
-
-    } catch (error) {
-      throw new AppError(`Error al obtener analytics: ${error.message}`, 500);
-    }
-  }
-
-  /**
-   * Update user notification preferences
-   */
-  async updateUserPreferences(userId, preferences) {
-    try {
-      const user = await User.findById(userId);
-      if (!user) {
-        throw new AppError('Usuario no encontrado', 404);
+      const notification = await InAppNotification.findById(notificationId);
+      if (notification) {
+        notification.read = true;
+        notification.readAt = new Date();
+        await notification.save();
+        return true;
       }
-
-      // Validate preferences
-      const validPreferences = this.validatePreferences(preferences);
-      
-      // Update user preferences
-      user.notificationPreferences = {
-        ...user.notificationPreferences,
-        ...validPreferences
-      };
-
-      await user.save();
-
-      // Cache preferences for quick access
-      await redis.set(`user:preferences:${userId}`, JSON.stringify(user.notificationPreferences), 3600);
-
-      return user.notificationPreferences;
-
+      return false;
     } catch (error) {
-      throw new AppError(`Error al actualizar preferencias: ${error.message}`, 500);
+      console.error('Error marcando notificación como leída:', error);
+      return false;
     }
   }
 
-  /**
-   * Bulk send notifications (for system announcements)
-   */
-  async sendBulkNotification(notificationData, userFilter = {}) {
+  // Marcar todas las notificaciones como leídas
+  async markAllNotificationsAsRead(userId) {
     try {
-      // Find users based on filter
-      const users = await User.find(userFilter).select('_id notificationPreferences');
-      
-      if (users.length === 0) {
-        return { sent: 0, skipped: 0 };
-      }
-
-      const recipientIds = users
-        .filter(user => {
-          const preferences = user.notificationPreferences || {};
-          return preferences[notificationData.type] !== false;
-        })
-        .map(user => user._id);
-
-      if (recipientIds.length === 0) {
-        return { sent: 0, skipped: users.length };
-      }
-
-      // Send notifications in batches to avoid memory issues
-      const batchSize = 100;
-      let totalSent = 0;
-
-      for (let i = 0; i < recipientIds.length; i += batchSize) {
-        const batch = recipientIds.slice(i, i + batchSize);
-        const batchData = { ...notificationData, recipients: batch };
-        
-        const result = await this.sendNotification(batchData);
-        totalSent += result.sent;
-      }
-
-      return { sent: totalSent, skipped: users.length - totalSent };
-
-    } catch (error) {
-      throw new AppError(`Error al enviar notificaciones masivas: ${error.message}`, 500);
-    }
-  }
-
-  // Helper methods
-  async sendRealTimeNotifications(notifications) {
-    try {
-      let sent = 0;
-      for (const notification of notifications) {
-        const isOnline = await wsNotificationService.isUserOnline(notification.recipient);
-        if (isOnline) {
-          await wsNotificationService.sendToUser(notification.recipient, 'notification', notification);
-          sent++;
-        }
-      }
-      return { sent, total: notifications.length };
-    } catch (error) {
-      console.error('Error sending real-time notifications:', error);
-      return { sent: 0, total: notifications.length, error: error.message };
-    }
-  }
-
-  async sendPushNotifications(notifications) {
-    try {
-      // Implementation for push notifications
-      // This would integrate with FCM, APNS, or other push services
-      return { sent: 0, total: notifications.length };
-    } catch (error) {
-      console.error('Error sending push notifications:', error);
-      return { sent: 0, total: notifications.length, error: error.message };
-    }
-  }
-
-  async sendEmailNotifications(notifications) {
-    try {
-      // Implementation for email notifications
-      // This would integrate with email services like SendGrid, AWS SES, etc.
-      return { sent: 0, total: notifications.length };
-    } catch (error) {
-      console.error('Error sending email notifications:', error);
-      return { sent: 0, total: notifications.length, error: error.message };
-    }
-  }
-
-  async updateNotificationStatus(notificationIds, status) {
-    try {
-      await Notification.updateMany(
-        { _id: { $in: notificationIds } },
-        { 
-          status,
-          deliveredAt: status === 'delivered' ? new Date() : undefined
-        }
+      const result = await InAppNotification.updateMany(
+        { userId, read: false },
+        { read: true, readAt: new Date() }
       );
+      return result.modifiedCount;
     } catch (error) {
-      console.error('Error updating notification status:', error);
+      console.error('Error marcando todas las notificaciones como leídas:', error);
+      return 0;
     }
   }
 
-  getDateFromRange(timeRange) {
-    const now = new Date();
-    switch (timeRange) {
-      case '7d':
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case '30d':
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      case '90d':
-        return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      case '1y':
-        return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-      default:
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // Limpiar notificaciones antiguas
+  async cleanupOldNotifications(daysOld = 30) {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+      const result = await InAppNotification.deleteMany({
+        createdAt: { $lt: cutoffDate },
+        read: true
+      });
+
+      console.log(`Notificaciones antiguas limpiadas: ${result.deletedCount}`);
+      return result.deletedCount;
+    } catch (error) {
+      console.error('Error limpiando notificaciones antiguas:', error);
+      return 0;
     }
-  }
-
-  getTimeDistribution(notifications) {
-    const distribution = {};
-    notifications.forEach(notification => {
-      const hour = notification.createdAt.getHours();
-      distribution[hour] = (distribution[hour] || 0) + 1;
-    });
-    return distribution;
-  }
-
-  getTopNotificationTypes(notifications) {
-    const typeCount = {};
-    notifications.forEach(notification => {
-      typeCount[notification.type] = (typeCount[notification.type] || 0) + 1;
-    });
-
-    return Object.entries(typeCount)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([type, count]) => ({ type, count }));
-  }
-
-  validatePreferences(preferences) {
-    const validPreferences = {};
-    const validTypes = [
-      'event_invitation', 'tribe_invitation', 'friend_request', 'post_mention',
-      'event_reminder', 'event_update', 'tribe_update', 'system_announcement'
-    ];
-
-    const validChannels = ['in_app', 'push', 'email', 'sms'];
-
-    Object.keys(preferences).forEach(key => {
-      if (validTypes.includes(key) || validChannels.includes(key)) {
-        validPreferences[key] = preferences[key];
-      }
-    });
-
-    return validPreferences;
   }
 }
 
-module.exports = new NotificationService();
+module.exports = NotificationService;
