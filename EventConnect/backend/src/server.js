@@ -40,7 +40,8 @@ const {
   chatRoutes,
   notificationRoutes,
   searchRoutes,
-  userRoutes
+  userRoutes,
+  locationRoutes
 } = require('./routes');
 
 // Create Express app
@@ -132,6 +133,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/location', locationRoutes);
 
 // 404 handler
 app.use(notFound);

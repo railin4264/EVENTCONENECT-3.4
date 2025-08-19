@@ -7,6 +7,7 @@ const chatRoutes = require('./chat');
 const notificationRoutes = require('./notifications');
 const searchRoutes = require('./search');
 const userRoutes = require('./users');
+const locationRoutes = require('./location');
 
 module.exports = {
   authRoutes,
@@ -17,5 +18,6 @@ module.exports = {
   chatRoutes,
   notificationRoutes,
   searchRoutes,
-  userRoutes
+  userRoutes,
+  locationRoutes
 };
