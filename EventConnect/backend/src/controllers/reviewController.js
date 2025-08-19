@@ -1,699 +1,903 @@
-const Review = require('../models/Review');
-const User = require('../models/User');
-const Event = require('../models/Event');
-const { validationResult } = require('express-validator');
+const { Review, User, Event } = require('../models');
+const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { validateReviewCreation } = require('../middleware/validation');
 
-// @desc    Get reviews for a user (host)
-// @route   GET /api/reviews/user/:userId
-// @access  Public
-const getUserReviews = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      rating,
-      sort = 'createdAt',
-      order = 'desc'
-    } = req.query;
+class ReviewController {
+  // Create new review
+  createReview = asyncHandler(async (req, res, next) => {
+    try {
+      const reviewData = req.body;
+      const userId = req.user.id;
 
-    const { userId } = req.params;
+      // Add reviewer information
+      reviewData.reviewer = userId;
+      reviewData.status = 'pending'; // Requires moderation
 
-    // Check if user exists
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
+      // Check if user has already reviewed this host for this event
+      const existingReview = await Review.findOne({
+        reviewer: userId,
+        host: reviewData.host,
+        event: reviewData.event
       });
+
+      if (existingReview) {
+        throw new AppError('Ya has revisado a este anfitrión para este evento', 400);
+      }
+
+      // Verify that the event exists and the user attended it
+      const event = await Event.findById(reviewData.event);
+      if (!event) {
+        throw new AppError('Evento no encontrado', 404);
+      }
+
+      // Check if user attended the event
+      if (!event.attendees.includes(userId)) {
+        throw new AppError('Solo puedes revisar eventos a los que hayas asistido', 400);
+      }
+
+      // Check if event has ended
+      if (event.endDate > new Date()) {
+        throw new AppError('Solo puedes revisar eventos que hayan terminado', 400);
+      }
+
+      // Create review
+      const review = new Review(reviewData);
+      await review.save();
+
+      // Populate review data
+      await review.populate('reviewer', 'username firstName lastName avatar');
+      await review.populate('host', 'username firstName lastName avatar');
+      await review.populate('event', 'title startDate endDate');
+
+      res.status(201).json({
+        success: true,
+        message: 'Review creada exitosamente. Está pendiente de moderación.',
+        data: { review }
+      });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const options = {
-      limit: parseInt(limit),
-      skip: (page - 1) * limit,
-      sort: { [sort]: order === 'desc' ? -1 : 1 }
-    };
+  // Get all reviews with filtering and pagination
+  getReviews = asyncHandler(async (req, res, next) => {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        host,
+        event,
+        rating,
+        status,
+        verified,
+        sortBy = 'createdAt',
+        sortOrder = 'desc'
+      } = req.query;
 
-    const reviews = await Review.findByHost(userId, options);
-    const total = await Review.countDocuments({ host: userId });
+      // Build query
+      const query = {};
 
-    // Calculate average rating
-    const ratingStats = await Review.aggregate([
-      { $match: { host: user._id } },
-      {
-        $group: {
-          _id: null,
-          averageRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 },
-          ratingDistribution: {
-            $push: '$rating'
+      // Host filter
+      if (host) {
+        query.host = host;
+      }
+
+      // Event filter
+      if (event) {
+        query.event = event;
+      }
+
+      // Rating filter
+      if (rating) {
+        query.rating = parseInt(rating);
+      }
+
+      // Status filter
+      if (status) {
+        query.status = status;
+      } else {
+        // Default to approved reviews only
+        query.status = 'approved';
+      }
+
+      // Verified filter
+      if (verified !== undefined) {
+        query.isVerified = verified === 'true';
+      }
+
+      // Build sort object
+      const sort = {};
+      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+      // Execute query with pagination
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      
+      const reviews = await Review.find(query)
+        .populate('reviewer', 'username firstName lastName avatar')
+        .populate('host', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate category')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      // Get total count for pagination
+      const total = await Review.countDocuments(query);
+
+      // Calculate pagination info
+      const totalPages = Math.ceil(total / parseInt(limit));
+      const hasNextPage = page < totalPages;
+      const hasPrevPage = page > 1;
+
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage,
+            hasPrevPage,
+            limit: parseInt(limit)
           }
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get review by ID
+  getReviewById = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+
+      const review = await Review.findById(reviewId)
+        .populate('reviewer', 'username firstName lastName avatar bio')
+        .populate('host', 'username firstName lastName avatar bio')
+        .populate('event', 'title startDate endDate category location')
+        .populate('helpful', 'username firstName lastName avatar')
+        .populate('notHelpful', 'username firstName lastName avatar')
+        .populate('replies.author', 'username firstName lastName avatar');
+
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
       }
-    ]);
 
-    const stats = ratingStats[0] || {
-      averageRating: 0,
-      totalReviews: 0,
-      ratingDistribution: []
-    };
+      res.status(200).json({
+        success: true,
+        data: { review }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
-    // Calculate rating distribution
-    const distribution = {
-      5: stats.ratingDistribution.filter(r => r === 5).length,
-      4: stats.ratingDistribution.filter(r => r === 4).length,
-      3: stats.ratingDistribution.filter(r => r === 3).length,
-      2: stats.ratingDistribution.filter(r => r === 2).length,
-      1: stats.ratingDistribution.filter(r => r === 1).length
-    };
+  // Update review
+  updateReview = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
 
-    res.json({
-      success: true,
-      data: {
-        reviews,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
-        },
-        stats: {
-          averageRating: Math.round(stats.averageRating * 10) / 10,
-          totalReviews: stats.totalReviews,
-          distribution
+      // Find review and check ownership
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      if (review.reviewer.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para editar esta review', 403);
+      }
+
+      // Check if review can be edited
+      if (review.status === 'approved' && req.user.role !== 'admin') {
+        throw new AppError('No puedes editar una review aprobada', 400);
+      }
+
+      // Reset status to pending for moderation
+      updateData.status = 'pending';
+      updateData.isVerified = false;
+      updateData.verifiedBy = undefined;
+      updateData.verifiedAt = undefined;
+
+      // Update review
+      const updatedReview = await Review.findByIdAndUpdate(
+        reviewId,
+        updateData,
+        { new: true, runValidators: true }
+      ).populate('reviewer', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Review actualizada exitosamente. Está pendiente de moderación.',
+        data: { review: updatedReview }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Delete review
+  deleteReview = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const userId = req.user.id;
+
+      // Find review and check ownership
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      if (review.reviewer.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar esta review', 403);
+      }
+
+      // Delete review
+      await Review.findByIdAndDelete(reviewId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Review eliminada exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Moderate review (admin/moderator only)
+  moderateReview = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const { action, reason } = req.body;
+      const moderatorId = req.user.id;
+
+      // Check if user is admin or moderator
+      if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
+        throw new AppError('No tienes permisos para moderar reviews', 403);
+      }
+
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      switch (action) {
+        case 'approve':
+          review.status = 'approved';
+          review.moderation.approvedBy = moderatorId;
+          review.moderation.approvedAt = new Date();
+          review.moderation.notes = reason || 'Review aprobada por moderador';
+          break;
+
+        case 'reject':
+          review.status = 'rejected';
+          review.moderation.rejectedBy = moderatorId;
+          review.moderation.rejectedAt = new Date();
+          review.moderation.notes = reason || 'Review rechazada por moderador';
+          break;
+
+        case 'flag':
+          review.status = 'flagged';
+          review.moderation.flaggedBy = moderatorId;
+          review.moderation.flaggedAt = new Date();
+          review.moderation.notes = reason || 'Review marcada por moderador';
+          break;
+
+        default:
+          throw new AppError('Acción de moderación inválida', 400);
+      }
+
+      await review.save();
+
+      // Populate review data
+      await review.populate('reviewer', 'username firstName lastName avatar');
+      await review.populate('host', 'username firstName lastName avatar');
+      await review.populate('event', 'title startDate endDate');
+
+      res.status(200).json({
+        success: true,
+        message: `Review ${action === 'approve' ? 'aprobada' : action === 'reject' ? 'rechazada' : 'marcada'} exitosamente`,
+        data: { review }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Verify review (admin only)
+  verifyReview = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const { verificationMethod, notes } = req.body;
+      const verifierId = req.user.id;
+
+      // Check if user is admin
+      if (req.user.role !== 'admin') {
+        throw new AppError('Solo los administradores pueden verificar reviews', 403);
+      }
+
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      // Check if review is approved
+      if (review.status !== 'approved') {
+        throw new AppError('Solo se pueden verificar reviews aprobadas', 400);
+      }
+
+      // Verify review
+      review.isVerified = true;
+      review.verificationMethod = verificationMethod;
+      review.verifiedBy = verifierId;
+      review.verifiedAt = new Date();
+      review.moderation.notes = notes || 'Review verificada por administrador';
+
+      await review.save();
+
+      // Populate review data
+      await review.populate('reviewer', 'username firstName lastName avatar');
+      await review.populate('host', 'username firstName lastName avatar');
+      await review.populate('event', 'title startDate endDate');
+
+      res.status(200).json({
+        success: true,
+        message: 'Review verificada exitosamente',
+        data: { review }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Mark review as helpful/not helpful
+  markReviewHelpful = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const { helpful } = req.body; // true for helpful, false for not helpful
+      const userId = req.user.id;
+
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      // Check if user is the reviewer
+      if (review.reviewer.toString() === userId) {
+        throw new AppError('No puedes marcar tu propia review como útil', 400);
+      }
+
+      if (helpful === true) {
+        // Mark as helpful
+        if (!review.helpful.includes(userId)) {
+          review.helpful.push(userId);
+          // Remove from not helpful if previously marked
+          review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId);
         }
+      } else if (helpful === false) {
+        // Mark as not helpful
+        if (!review.notHelpful.includes(userId)) {
+          review.notHelpful.push(userId);
+          // Remove from helpful if previously marked
+          review.helpful = review.helpful.filter(id => id.toString() !== userId);
+        }
+      } else {
+        // Remove both marks
+        review.helpful = review.helpful.filter(id => id.toString() !== userId);
+        review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId);
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo reviews del usuario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Calculate helpful score
+      review.analytics.helpfulScore = review.helpful.length - review.notHelpful.length;
 
-// @desc    Get review by ID
-// @route   GET /api/reviews/:id
-// @access  Public
-const getReview = async (req, res) => {
-  try {
-    const review = await Review.findById(req.params.id)
-      .populate('host', 'username firstName lastName avatar')
-      .populate('reviewer', 'username firstName lastName avatar')
-      .populate('event', 'title dateTime location');
+      await review.save();
 
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review no encontrado'
+      res.status(200).json({
+        success: true,
+        message: helpful === true ? 'Review marcada como útil' : 
+                helpful === false ? 'Review marcada como no útil' : 'Marcas removidas',
+        data: {
+          helpfulCount: review.helpful.length,
+          notHelpfulCount: review.notHelpful.length,
+          helpfulScore: review.analytics.helpfulScore
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    res.json({
-      success: true,
-      data: { review }
-    });
+  // Add reply to review
+  addReply = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.id;
 
-  } catch (error) {
-    console.error('Error obteniendo review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
 
-// @desc    Create new review
-// @route   POST /api/reviews
-// @access  Private
-const createReview = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Check if user is the host or admin/moderator
+      if (review.host.toString() !== userId && 
+          req.user.role !== 'admin' && 
+          req.user.role !== 'moderator') {
+        throw new AppError('Solo el anfitrión, administradores y moderadores pueden responder', 403);
+      }
+
+      // Initialize replies array if it doesn't exist
+      if (!review.replies) {
+        review.replies = [];
+      }
+
+      const reply = {
+        author: userId,
+        content,
+        createdAt: new Date()
+      };
+
+      review.replies.push(reply);
+      await review.save();
+
+      // Populate reply author
+      await review.populate('replies.author', 'username firstName lastName avatar');
+
+      // Get the newly added reply
+      const newReply = review.replies[review.replies.length - 1];
+
+      res.status(201).json({
+        success: true,
+        message: 'Respuesta agregada exitosamente',
+        data: { reply: newReply }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const {
-      host,
-      event,
-      rating,
-      title,
-      content,
-      categories,
-      isAnonymous = false
-    } = req.body;
+  // Update reply
+  updateReply = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId, replyId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.id;
 
-    // Check if user is trying to review themselves
-    if (host === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'No puedes hacer review de ti mismo'
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      // Find reply
+      const reply = review.replies.id(replyId);
+      if (!reply) {
+        throw new AppError('Respuesta no encontrada', 404);
+      }
+
+      // Check ownership or admin/moderator
+      if (reply.author.toString() !== userId && 
+          req.user.role !== 'admin' && 
+          req.user.role !== 'moderator') {
+        throw new AppError('No tienes permisos para editar esta respuesta', 403);
+      }
+
+      // Update reply
+      reply.content = content;
+      reply.updatedAt = new Date();
+      reply.isEdited = true;
+
+      await review.save();
+
+      // Populate reply author
+      await review.populate('replies.author', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Respuesta actualizada exitosamente',
+        data: { reply }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if user has already reviewed this host
-    const existingReview = await Review.findOne({
-      host,
-      reviewer: req.user.id
-    });
+  // Delete reply
+  deleteReply = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId, replyId } = req.params;
+      const userId = req.user.id;
 
-    if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya has hecho review de este usuario'
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      // Find reply
+      const reply = review.replies.id(replyId);
+      if (!reply) {
+        throw new AppError('Respuesta no encontrada', 404);
+      }
+
+      // Check ownership or admin/moderator
+      if (reply.author.toString() !== userId && 
+          req.user.role !== 'admin' && 
+          req.user.role !== 'moderator') {
+        throw new AppError('No tienes permisos para eliminar esta respuesta', 403);
+      }
+
+      // Remove reply
+      review.replies = review.replies.filter(r => r._id.toString() !== replyId);
+      await review.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Respuesta eliminada exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if host exists
-    const hostUser = await User.findById(host);
-    if (!hostUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario anfitrión no encontrado'
-      });
-    }
+  // Get reviews by host
+  getHostReviews = asyncHandler(async (req, res, next) => {
+    try {
+      const { hostId } = req.params;
+      const { page = 1, limit = 20, status = 'approved' } = req.query;
 
-    // Check if event exists (if provided)
-    if (event) {
-      const eventDoc = await Event.findById(event);
-      if (!eventDoc) {
-        return res.status(404).json({
-          success: false,
-          message: 'Evento no encontrado'
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const query = { host: hostId };
+      if (status !== 'all') {
+        query.status = status;
+      }
+
+      const reviews = await Review.find(query)
+        .populate('reviewer', 'username firstName lastName avatar')
+        .populate('host', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Review.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      // Calculate host rating statistics
+      const hostStats = await Review.aggregate([
+        { $match: { host: hostId, status: 'approved' } },
+        {
+          $group: {
+            _id: null,
+            averageRating: { $avg: '$rating' },
+            totalReviews: { $sum: 1 },
+            ratingDistribution: {
+              $push: '$rating'
+            }
+          }
+        }
+      ]);
+
+      let stats = {
+        averageRating: 0,
+        totalReviews: 0,
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      };
+
+      if (hostStats.length > 0) {
+        const hostStat = hostStats[0];
+        stats.averageRating = Math.round(hostStat.averageRating * 10) / 10;
+        stats.totalReviews = hostStat.totalReviews;
+
+        // Calculate rating distribution
+        hostStat.ratingDistribution.forEach(rating => {
+          if (stats.ratingDistribution[rating]) {
+            stats.ratingDistribution[rating]++;
+          }
         });
       }
-    }
 
-    // Create new review
-    const review = new Review({
-      host,
-      reviewer: req.user.id,
-      event,
-      rating,
-      title,
-      content,
-      categories,
-      isAnonymous
-    });
-
-    await review.save();
-
-    // Populate review for response
-    await review.populate('host', 'username firstName lastName avatar');
-    await review.populate('reviewer', 'username firstName lastName avatar');
-    if (event) {
-      await review.populate('event', 'title dateTime location');
-    }
-
-    // Update host's average rating
-    await updateHostRating(host);
-
-    res.status(201).json({
-      success: true,
-      message: 'Review creado exitosamente',
-      data: { review }
-    });
-
-  } catch (error) {
-    console.error('Error creando review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Update review
-// @route   PUT /api/reviews/:id
-// @access  Private
-const updateReview = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const review = await Review.findById(req.params.id);
-
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review no encontrado'
-      });
-    }
-
-    // Check if user is the reviewer
-    if (review.reviewer.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para editar este review'
-      });
-    }
-
-    // Check if review is older than 24 hours
-    const hoursSinceCreation = (Date.now() - review.createdAt.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceCreation > 24) {
-      return res.status(400).json({
-        success: false,
-        message: 'Solo puedes editar reviews durante las primeras 24 horas'
-      });
-    }
-
-    const updateFields = req.body;
-    
-    // Remove fields that shouldn't be updated
-    delete updateFields.host;
-    delete updateFields.reviewer;
-    delete updateFields.event;
-
-    const updatedReview = await Review.findByIdAndUpdate(
-      req.params.id,
-      updateFields,
-      { new: true, runValidators: true }
-    )
-    .populate('host', 'username firstName lastName avatar')
-    .populate('reviewer', 'username firstName lastName avatar')
-    .populate('event', 'title dateTime location');
-
-    // Update host's average rating
-    await updateHostRating(review.host);
-
-    res.json({
-      success: true,
-      message: 'Review actualizado exitosamente',
-      data: { review: updatedReview }
-    });
-
-  } catch (error) {
-    console.error('Error actualizando review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Delete review
-// @route   DELETE /api/reviews/:id
-// @access  Private
-const deleteReview = async (req, res) => {
-  try {
-    const review = await Review.findById(req.params.id);
-
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review no encontrado'
-      });
-    }
-
-    // Check if user is the reviewer or admin
-    if (review.reviewer.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes permisos para eliminar este review'
-      });
-    }
-
-    // Check if review is older than 24 hours (for regular users)
-    if (req.user.role !== 'admin') {
-      const hoursSinceCreation = (Date.now() - review.createdAt.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceCreation > 24) {
-        return res.status(400).json({
-          success: false,
-          message: 'Solo puedes eliminar reviews durante las primeras 24 horas'
-        });
-      }
-    }
-
-    await Review.findByIdAndDelete(req.params.id);
-
-    // Update host's average rating
-    await updateHostRating(review.host);
-
-    res.json({
-      success: true,
-      message: 'Review eliminado exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error eliminando review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get reviews by event
-// @route   GET /api/reviews/event/:eventId
-// @access  Public
-const getEventReviews = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      rating,
-      sort = 'createdAt',
-      order = 'desc'
-    } = req.query;
-
-    const { eventId } = req.params;
-
-    // Check if event exists
-    const event = await Event.findById(eventId);
-    if (!event) {
-      return res.status(404).json({
-        success: false,
-        message: 'Evento no encontrado'
-      });
-    }
-
-    const options = {
-      limit: parseInt(limit),
-      skip: (page - 1) * limit,
-      sort: { [sort]: order === 'desc' ? -1 : 1 }
-    };
-
-    const reviews = await Review.findByEvent(eventId, options);
-    const total = await Review.countDocuments({ event: eventId });
-
-    res.json({
-      success: true,
-      data: {
-        reviews,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews,
+          stats,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get reviews by event
+  getEventReviews = asyncHandler(async (req, res, next) => {
+    try {
+      const { eventId } = req.params;
+      const { page = 1, limit = 20, status = 'approved' } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const query = { event: eventId };
+      if (status !== 'all') {
+        query.status = status;
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo reviews del evento:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      const reviews = await Review.find(query)
+        .populate('reviewer', 'username firstName lastName avatar')
+        .populate('host', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-// @desc    Get user's own reviews
-// @route   GET /api/reviews/my-reviews
-// @access  Private
-const getMyReviews = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      sort = 'createdAt',
-      order = 'desc'
-    } = req.query;
+      const total = await Review.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
 
-    const options = {
-      limit: parseInt(limit),
-      skip: (page - 1) * limit,
-      sort: { [sort]: order === 'desc' ? -1 : 1 }
-    };
-
-    const reviews = await Review.findByReviewer(req.user.id, options);
-    const total = await Review.countDocuments({ reviewer: req.user.id });
-
-    res.json({
-      success: true,
-      data: {
-        reviews,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get user's reviews
+  getUserReviews = asyncHandler(async (req, res, next) => {
+    try {
+      const { userId } = req.params;
+      const { page = 1, limit = 20, status = 'all' } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const query = { reviewer: userId };
+      if (status !== 'all') {
+        query.status = status;
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo mis reviews:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      const reviews = await Review.find(query)
+        .populate('reviewer', 'username firstName lastName avatar')
+        .populate('host', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate category')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-// @desc    Report review
-// @route   POST /api/reviews/:id/report
-// @access  Private
-const reportReview = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      const total = await Review.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const { reason, description } = req.body;
-    const review = await Review.findById(req.params.id);
+  // Get pending reviews for moderation
+  getPendingReviews = asyncHandler(async (req, res, next) => {
+    try {
+      const { page = 1, limit = 20 } = req.query;
 
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review no encontrado'
-      });
-    }
-
-    // Check if user is trying to report their own review
-    if (review.reviewer.toString() === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'No puedes reportar tu propio review'
-      });
-    }
-
-    // Check if user has already reported this review
-    const existingReport = review.reports.find(
-      report => report.reporter.toString() === req.user.id
-    );
-
-    if (existingReport) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ya has reportado este review'
-      });
-    }
-
-    // Add report
-    review.reports.push({
-      reporter: req.user.id,
-      reason,
-      description,
-      reportedAt: new Date()
-    });
-
-    await review.save();
-
-    res.json({
-      success: true,
-      message: 'Review reportado exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error reportando review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Like/Unlike review
-// @route   POST /api/reviews/:id/like
-// @access  Private
-const toggleReviewLike = async (req, res) => {
-  try {
-    const review = await Review.findById(req.params.id);
-
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review no encontrado'
-      });
-    }
-
-    // Check if user is trying to like their own review
-    if (review.reviewer.toString() === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'No puedes dar like a tu propio review'
-      });
-    }
-
-    // Toggle like
-    await review.toggleLike(req.user.id);
-
-    res.json({
-      success: true,
-      message: 'Like actualizado exitosamente',
-      data: { 
-        isLiked: review.isLiked(req.user.id),
-        likesCount: review.likesCount
+      // Check if user is admin or moderator
+      if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
+        throw new AppError('No tienes permisos para ver reviews pendientes', 403);
       }
-    });
 
-  } catch (error) {
-    console.error('Error actualizando like del review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      const skip = (parseInt(page) - 1) * parseInt(limit);
 
-// @desc    Get review statistics
-// @route   GET /api/reviews/stats/overview
-// @access  Public
-const getReviewStats = async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
+      const reviews = await Review.find({ status: 'pending' })
+        .populate('reviewer', 'username firstName lastName avatar')
+        .populate('host', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate category')
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-    const query = {};
-    
-    if (startDate) {
-      query.createdAt = { $gte: new Date(startDate) };
-    }
-    if (endDate) {
-      query.createdAt = { ...query.createdAt, $lte: new Date(endDate) };
-    }
+      const total = await Review.countDocuments({ status: 'pending' });
+      const totalPages = Math.ceil(total / parseInt(limit));
 
-    // Get overall stats
-    const totalReviews = await Review.countDocuments(query);
-    const averageRating = await Review.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: null,
-          average: { $avg: '$rating' }
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
         }
-      }
-    ]);
-
-    // Get rating distribution
-    const ratingDistribution = await Review.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: '$rating',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: -1 } }
-    ]);
-
-    // Get category distribution
-    const categoryDistribution = await Review.aggregate([
-      { $match: query },
-      { $unwind: '$categories' },
-      {
-        $group: {
-          _id: '$categories',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Get recent reviews
-    const recentReviews = await Review.find(query)
-      .populate('host', 'username firstName lastName avatar')
-      .populate('reviewer', 'username firstName lastName avatar')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    const stats = {
-      totalReviews,
-      averageRating: averageRating[0]?.average || 0,
-      ratingDistribution,
-      categoryDistribution,
-      recentReviews
-    };
-
-    res.json({
-      success: true,
-      data: { stats }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo estadísticas de reviews:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// Helper function to update host's average rating
-const updateHostRating = async (hostId) => {
-  try {
-    const ratingStats = await Review.aggregate([
-      { $match: { host: hostId } },
-      {
-        $group: {
-          _id: null,
-          averageRating: { $avg: '$rating' },
-          totalReviews: { $sum: 1 }
-        }
-      }
-    ]);
-
-    if (ratingStats.length > 0) {
-      const { averageRating, totalReviews } = ratingStats[0];
-      
-      await User.findByIdAndUpdate(hostId, {
-        'stats.averageRating': Math.round(averageRating * 10) / 10,
-        'stats.totalReviews': totalReviews
       });
+    } catch (error) {
+      next(error);
     }
-  } catch (error) {
-    console.error('Error actualizando rating del host:', error);
-  }
-};
+  });
 
-module.exports = {
-  getUserReviews,
-  getReview,
-  createReview,
-  updateReview,
-  deleteReview,
-  getEventReviews,
-  getMyReviews,
-  reportReview,
-  toggleReviewLike,
-  getReviewStats
-};
+  // Flag review for moderation
+  flagReview = asyncHandler(async (req, res, next) => {
+    try {
+      const { reviewId } = req.params;
+      const { reason } = req.body;
+      const userId = req.user.id;
+
+      const review = await Review.findById(reviewId);
+      if (!review) {
+        throw new AppError('Review no encontrada', 404);
+      }
+
+      // Check if user is not the reviewer
+      if (review.reviewer.toString() === userId) {
+        throw new AppError('No puedes marcar tu propia review', 400);
+      }
+
+      // Add flag
+      if (!review.flags) {
+        review.flags = [];
+      }
+
+      // Check if user already flagged this review
+      const existingFlag = review.flags.find(flag => flag.user.toString() === userId);
+      if (existingFlag) {
+        throw new AppError('Ya has marcado esta review', 400);
+      }
+
+      review.flags.push({
+        user: userId,
+        reason: reason || 'Sin razón especificada',
+        flaggedAt: new Date()
+      });
+
+      // If multiple flags, consider for moderation
+      if (review.flags.length >= 3) {
+        review.status = 'flagged';
+        review.moderation.flaggedBy = 'system';
+        review.moderation.flaggedAt = new Date();
+        review.moderation.notes = 'Review marcada automáticamente por múltiples reportes';
+      }
+
+      await review.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Review marcada exitosamente',
+        data: {
+          flagCount: review.flags.length,
+          status: review.status
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Search reviews
+  searchReviews = asyncHandler(async (req, res, next) => {
+    try {
+      const {
+        query,
+        host,
+        event,
+        rating,
+        status,
+        verified,
+        dateFrom,
+        dateTo,
+        page = 1,
+        limit = 20,
+        sortBy = 'relevance'
+      } = req.body;
+
+      // Build search query
+      const searchQuery = {};
+
+      // Text search
+      if (query) {
+        searchQuery.$text = { $search: query };
+      }
+
+      // Apply other filters
+      if (host) searchQuery.host = host;
+      if (event) searchQuery.event = event;
+      if (rating) searchQuery.rating = parseInt(rating);
+      if (status) searchQuery.status = status;
+      if (verified !== undefined) searchQuery.isVerified = verified;
+      if (dateFrom || dateTo) {
+        searchQuery.createdAt = {};
+        if (dateFrom) searchQuery.createdAt.$gte = new Date(dateFrom);
+        if (dateTo) searchQuery.createdAt.$lte = new Date(dateTo);
+      }
+
+      // Build sort
+      let sort = {};
+      switch (sortBy) {
+        case 'date':
+          sort = { createdAt: -1 };
+          break;
+        case 'rating':
+          sort = { rating: -1 };
+          break;
+        case 'helpful':
+          sort = { 'analytics.helpfulScore': -1 };
+          break;
+        case 'relevance':
+        default:
+          if (query) {
+            sort = { score: { $meta: 'textScore' } };
+          } else {
+            sort = { createdAt: -1 };
+          }
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const reviews = await Review.find(searchQuery)
+        .populate('reviewer', 'username firstName lastName avatar')
+        .populate('host', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate category')
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
+
+      const total = await Review.countDocuments(searchQuery);
+      const totalPages = Math.ceil(total / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          reviews,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+
+module.exports = new ReviewController();

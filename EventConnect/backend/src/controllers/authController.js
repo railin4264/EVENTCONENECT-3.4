@@ -1,812 +1,540 @@
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { validationResult } = require('express-validator');
-const redisClient = require('../config/redis');
+const { User } = require('../models');
+const { jwt, redis } = require('../config');
+const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { validateUserRegistration, validateUserLogin } = require('../middleware/validation');
 
-// Generate JWT tokens
-const generateTokens = (userId) => {
-  const accessToken = jwt.sign(
-    { userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
-  );
-  
-  const refreshToken = jwt.sign(
-    { userId, type: 'refresh' },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
-  );
-  
-  return { accessToken, refreshToken };
-};
+class AuthController {
+  // Register new user
+  register = asyncHandler(async (req, res, next) => {
+    try {
+      const { email, password, username, firstName, lastName, dateOfBirth, phone, acceptTerms, acceptMarketing } = req.body;
 
-// Store refresh token in Redis
-const storeRefreshToken = async (userId, refreshToken, device = 'unknown', ip = 'unknown') => {
-  const key = `refresh_token:${userId}:${refreshToken}`;
-  const tokenData = {
-    userId,
-    device,
-    ip,
-    createdAt: new Date().toISOString()
-  };
-  
-  await redisClient.set(key, tokenData, 7 * 24 * 60 * 60); // 7 days
-};
-
-// Remove refresh token from Redis
-const removeRefreshToken = async (userId, refreshToken) => {
-  const key = `refresh_token:${userId}:${refreshToken}`;
-  await redisClient.del(key);
-};
-
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
-const register = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Check if user already exists
+      const existingUser = await User.findOne({
+        $or: [{ email }, { username }]
       });
-    }
 
-    const {
-      username,
-      email,
-      password,
-      firstName,
-      lastName,
-      dateOfBirth,
-      gender,
-      interests,
-      location
-    } = req.body;
-
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: existingUser.email === email ? 
-          'El email ya está registrado' : 
-          'El nombre de usuario ya está en uso'
-      });
-    }
-
-    // Create new user
-    const user = new User({
-      username,
-      email,
-      password,
-      firstName,
-      lastName,
-      dateOfBirth,
-      gender,
-      interests: interests || [],
-      location: location || {
-        type: 'Point',
-        coordinates: [0, 0]
-      }
-    });
-
-    await user.save();
-
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    
-    // Store refresh token
-    await storeRefreshToken(user._id, refreshToken, req.headers['user-agent'], req.ip);
-
-    // Remove password from response
-    user.password = undefined;
-
-    res.status(201).json({
-      success: true,
-      message: 'Usuario registrado exitosamente',
-      data: {
-        user,
-        tokens: {
-          accessToken,
-          refreshToken
+      if (existingUser) {
+        if (existingUser.email === email) {
+          throw new AppError('El email ya está registrado', 400);
+        }
+        if (existingUser.username === username) {
+          throw new AppError('El nombre de usuario ya está en uso', 400);
         }
       }
-    });
 
-  } catch (error) {
-    console.error('Error en registro:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Hash password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-// @desc    Login user
-// @route   POST /api/auth/login
-// @access  Public
-const login = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Create user
+      const user = new User({
+        email,
+        password: hashedPassword,
+        username,
+        firstName,
+        lastName,
+        dateOfBirth,
+        phone,
+        acceptTerms,
+        acceptMarketing,
+        isActive: true,
+        isVerified: false, // Will be verified via email
+        role: 'user'
       });
-    }
 
-    const { email, password, device = 'unknown' } = req.body;
-
-    // Find user by email and include password
-    const user = await User.findOne({ email }).select('+password');
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
-    }
-
-    // Check if user is active
-    if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Cuenta desactivada. Contacta al administrador.'
-      });
-    }
-
-    // Check password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
-    }
-
-    // Update last active
-    user.lastActive = new Date();
-    await user.save();
-
-    // Generate tokens
-    const { accessToken, refreshToken } = generateTokens(user._id);
-    
-    // Store refresh token
-    await storeRefreshToken(user._id, refreshToken, device, req.ip);
-
-    // Remove password from response
-    user.password = undefined;
-
-    res.json({
-      success: true,
-      message: 'Login exitoso',
-      data: {
-        user,
-        tokens: {
-          accessToken,
-          refreshToken
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Refresh access token
-// @route   POST /api/auth/refresh
-// @access  Public
-const refreshToken = async (req, res) => {
-  try {
-    const { refreshToken: token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({
-        success: false,
-        message: 'Refresh token es requerido'
-      });
-    }
-
-    // Verify refresh token
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-    
-    if (decoded.type !== 'refresh') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token inválido'
-      });
-    }
-
-    // Check if token exists in Redis
-    const key = `refresh_token:${decoded.userId}:${token}`;
-    const storedToken = await redisClient.get(key);
-    
-    if (!storedToken) {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token inválido o expirado'
-      });
-    }
-
-    // Check if user exists and is active
-    const user = await User.findById(decoded.userId).select('-password');
-    
-    if (!user || !user.isActive) {
-      return res.status(401).json({
-        success: false,
-        message: 'Usuario no encontrado o inactivo'
-      });
-    }
-
-    // Generate new tokens
-    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user._id);
-    
-    // Remove old refresh token and store new one
-    await removeRefreshToken(decoded.userId, token);
-    await storeRefreshToken(user._id, newRefreshToken, req.headers['user-agent'], req.ip);
-
-    res.json({
-      success: true,
-      message: 'Token refrescado exitosamente',
-      data: {
-        user,
-        tokens: {
-          accessToken,
-          refreshToken: newRefreshToken
-        }
-      }
-    });
-
-  } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token inválido'
-      });
-    }
-    
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token expirado'
-      });
-    }
-
-    console.error('Error en refresh token:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
-const logout = async (req, res) => {
-  try {
-    const { refreshToken: token } = req.body;
-    const userId = req.user.id;
-
-    if (token) {
-      // Remove refresh token from Redis
-      await removeRefreshToken(userId, token);
-    }
-
-    // Remove all refresh tokens for this user (optional - for security)
-    // await redisClient.del(`refresh_tokens:${userId}:*`);
-
-    res.json({
-      success: true,
-      message: 'Logout exitoso'
-    });
-
-  } catch (error) {
-    console.error('Error en logout:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Logout from all devices
-// @route   POST /api/auth/logout-all
-// @access  Private
-const logoutAll = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // Remove all refresh tokens for this user
-    const pattern = `refresh_token:${userId}:*`;
-    const keys = await redisClient.keys(pattern);
-    
-    if (keys.length > 0) {
-      await Promise.all(keys.map(key => redisClient.del(key)));
-    }
-
-    // Clear refresh tokens from user document
-    const user = await User.findById(userId);
-    if (user) {
-      user.refreshTokens = [];
       await user.save();
-    }
 
-    res.json({
-      success: true,
-      message: 'Logout de todos los dispositivos exitoso'
-    });
-
-  } catch (error) {
-    console.error('Error en logout all:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get current user profile
-// @route   GET /api/auth/me
-// @access  Private
-const getMe = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
+      // Generate tokens
+      const tokens = jwt.generateTokens({
+        userId: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role
       });
-    }
 
-    res.json({
-      success: true,
-      data: { user }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo perfil:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Update user profile
-// @route   PUT /api/auth/me
-// @access  Private
-const updateMe = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Store refresh token in Redis
+      const tokenId = await jwt.storeRefreshToken(user._id.toString(), tokens.refreshToken, {
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
       });
-    }
 
-    const {
-      firstName,
-      lastName,
-      bio,
-      interests,
-      location,
-      preferences
-    } = req.body;
+      // Remove password from response
+      const userResponse = user.toObject();
+      delete userResponse.password;
 
-    // Fields that can be updated
-    const updateFields = {};
-    if (firstName) updateFields.firstName = firstName;
-    if (lastName) updateFields.lastName = lastName;
-    if (bio !== undefined) updateFields.bio = bio;
-    if (interests) updateFields.interests = interests;
-    if (location) updateFields.location = location;
-    if (preferences) updateFields.preferences = preferences;
-
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      updateFields,
-      { new: true, runValidators: true }
-    ).select('-password');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Perfil actualizado exitosamente',
-      data: { user }
-    });
-
-  } catch (error) {
-    console.error('Error actualizando perfil:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Change password
-// @route   PUT /api/auth/change-password
-// @access  Private
-const changePassword = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const { currentPassword, newPassword } = req.body;
-
-    // Get user with password
-    const user = await User.findById(req.user.id).select('+password');
-    
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    // Verify current password
-    const isCurrentPasswordValid = await user.comparePassword(currentPassword);
-    if (!isCurrentPasswordValid) {
-      return res.status(400).json({
-        success: false,
-        message: 'Contraseña actual incorrecta'
-      });
-    }
-
-    // Update password
-    user.password = newPassword;
-    await user.save();
-
-    // Logout from all devices (optional - for security)
-    const pattern = `refresh_token:${user._id}:*`;
-    const keys = await redisClient.keys(pattern);
-    
-    if (keys.length > 0) {
-      await Promise.all(keys.map(key => redisClient.del(key)));
-    }
-
-    res.json({
-      success: true,
-      message: 'Contraseña cambiada exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error cambiando contraseña:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Forgot password
-// @route   POST /api/auth/forgot-password
-// @access  Public
-const forgotPassword = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const { email } = req.body;
-
-    const user = await User.findOne({ email });
-    
-    if (!user) {
-      // Don't reveal if user exists or not
-      return res.json({
+      res.status(201).json({
         success: true,
-        message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña'
+        message: 'Usuario registrado exitosamente',
+        data: {
+          user: userResponse,
+          tokens: {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresIn: tokens.expiresIn,
+            refreshExpiresIn: tokens.refreshExpiresIn
+          },
+          tokenId
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Generate reset token
-    const resetToken = require('crypto').randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  // Login user
+  login = asyncHandler(async (req, res, next) => {
+    try {
+      const { email, password, rememberMe } = req.body;
 
-    // Store reset token in Redis
-    const key = `reset_token:${resetToken}`;
-    const tokenData = {
-      userId: user._id,
-      email: user.email,
-      expiresAt: resetTokenExpiry.toISOString()
-    };
-    
-    await redisClient.set(key, tokenData, 60 * 60); // 1 hour
+      // Find user by email or username
+      const user = await User.findOne({
+        $or: [{ email }, { username: email }]
+      }).select('+password');
 
-    // TODO: Send email with reset link
-    // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-    // await sendPasswordResetEmail(user.email, resetUrl);
+      if (!user) {
+        throw new AppError('Credenciales inválidas', 401);
+      }
 
-    res.json({
-      success: true,
-      message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña'
-    });
+      if (!user.isActive) {
+        throw new AppError('Tu cuenta ha sido desactivada', 401);
+      }
 
-  } catch (error) {
-    console.error('Error en forgot password:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Check password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new AppError('Credenciales inválidas', 401);
+      }
 
-// @desc    Reset password
-// @route   POST /api/auth/reset-password
-// @access  Public
-const resetPassword = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Update last login
+      user.lastLogin = new Date();
+      user.loginCount = (user.loginCount || 0) + 1;
+      await user.save();
+
+      // Generate tokens
+      const tokens = jwt.generateTokens({
+        userId: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role
       });
-    }
 
-    const { token, newPassword } = req.body;
-
-    // Get reset token from Redis
-    const key = `reset_token:${token}`;
-    const tokenData = await redisClient.get(key);
-    
-    if (!tokenData) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token de restablecimiento inválido o expirado'
+      // Store refresh token in Redis
+      const tokenId = await jwt.storeRefreshToken(user._id.toString(), tokens.refreshToken, {
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
       });
-    }
 
-    // Check if token is expired
-    if (new Date(tokenData.expiresAt) < new Date()) {
-      await redisClient.del(key);
-      return res.status(400).json({
-        success: false,
-        message: 'Token de restablecimiento expirado'
+      // Remove password from response
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      res.status(200).json({
+        success: true,
+        message: 'Login exitoso',
+        data: {
+          user: userResponse,
+          tokens: {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresIn: tokens.expiresIn,
+            refreshExpiresIn: tokens.refreshExpiresIn
+          },
+          tokenId
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Update user password
-    const user = await User.findById(tokenData.userId);
-    if (!user) {
-      await redisClient.del(key);
-      return res.status(400).json({
-        success: false,
-        message: 'Usuario no encontrado'
+  // Logout user
+  logout = asyncHandler(async (req, res, next) => {
+    try {
+      const { tokenId } = req.body;
+      const userId = req.user.id;
+
+      if (tokenId) {
+        // Revoke specific refresh token
+        await jwt.revokeRefreshToken(userId, tokenId);
+      } else {
+        // Revoke all user tokens
+        await jwt.revokeAllUserTokens(userId);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Logout exitoso'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    user.password = newPassword;
-    await user.save();
+  // Refresh access token
+  refreshToken = asyncHandler(async (req, res, next) => {
+    try {
+      const { refreshToken } = req.body;
 
-    // Remove reset token
-    await redisClient.del(key);
+      if (!refreshToken) {
+        throw new AppError('Refresh token es requerido', 400);
+      }
 
-    // Logout from all devices
-    const pattern = `refresh_token:${user._id}:*`;
-    const keys = await redisClient.keys(pattern);
-    
-    if (keys.length > 0) {
-      await Promise.all(keys.map(key => redisClient.del(key)));
-    }
+      // Verify refresh token
+      const decoded = jwt.verifyRefreshToken(refreshToken);
+      
+      // Get user
+      const user = await User.findById(decoded.userId).select('-password');
+      if (!user || !user.isActive) {
+        throw new AppError('Usuario no encontrado o inactivo', 401);
+      }
 
-    res.json({
-      success: true,
-      message: 'Contraseña restablecida exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error en reset password:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Verify email
-// @route   POST /api/auth/verify-email
-// @access  Public
-const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.body;
-
-    // Get verification token from Redis
-    const key = `verify_email:${token}`;
-    const tokenData = await redisClient.get(key);
-    
-    if (!tokenData) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token de verificación inválido o expirado'
+      // Generate new tokens
+      const tokens = jwt.generateTokens({
+        userId: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role
       });
-    }
 
-    // Update user verification status
-    const user = await User.findById(tokenData.userId);
-    if (!user) {
-      await redisClient.del(key);
-      return res.status(400).json({
-        success: false,
-        message: 'Usuario no encontrado'
+      // Store new refresh token
+      const tokenId = await jwt.storeRefreshToken(user._id.toString(), tokens.refreshToken, {
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
       });
+
+      res.status(200).json({
+        success: true,
+        message: 'Token renovado exitosamente',
+        data: {
+          tokens: {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            expiresIn: tokens.expiresIn,
+            refreshExpiresIn: tokens.refreshExpiresIn
+          },
+          tokenId
+        }
+      });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    user.isVerified = true;
-    await user.save();
+  // Get current user profile
+  getProfile = asyncHandler(async (req, res, next) => {
+    try {
+      const user = await User.findById(req.user.id).select('-password');
+      
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
 
-    // Remove verification token
-    await redisClient.del(key);
+      res.status(200).json({
+        success: true,
+        data: { user }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
-    res.json({
-      success: true,
-      message: 'Email verificado exitosamente'
-    });
+  // Update user profile
+  updateProfile = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const updateData = req.body;
 
-  } catch (error) {
-    console.error('Error en verify email:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Remove sensitive fields
+      delete updateData.password;
+      delete updateData.email;
+      delete updateData.role;
+      delete updateData.isActive;
+      delete updateData.isVerified;
 
-// @desc    Get user sessions
-// @route   GET /api/auth/sessions
-// @access  Private
-const getSessions = async (req, res) => {
-  try {
-    const userId = req.user.id;
+      const user = await User.findByIdAndUpdate(
+        userId,
+        updateData,
+        { new: true, runValidators: true }
+      ).select('-password');
 
-    // Get all refresh tokens for this user
-    const pattern = `refresh_token:${userId}:*`;
-    const keys = await redisClient.keys(pattern);
-    
-    const sessions = [];
-    
-    for (const key of keys) {
-      const tokenData = await redisClient.get(key);
-      if (tokenData) {
-        sessions.push({
-          id: key.split(':')[2], // Extract token part
-          device: tokenData.device,
-          ip: tokenData.ip,
-          createdAt: tokenData.createdAt,
-          isCurrent: false // Will be set below
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Perfil actualizado exitosamente',
+        data: { user }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Change password
+  changePassword = asyncHandler(async (req, res, next) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user.id;
+
+      const user = await User.findById(userId).select('+password');
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isCurrentPasswordValid) {
+        throw new AppError('Contraseña actual incorrecta', 400);
+      }
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password
+      user.password = hashedNewPassword;
+      user.passwordChangedAt = new Date();
+      await user.save();
+
+      // Revoke all user tokens to force re-login
+      await jwt.revokeAllUserTokens(userId);
+
+      res.status(200).json({
+        success: true,
+        message: 'Contraseña cambiada exitosamente. Por favor, inicia sesión nuevamente.'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Request password reset
+  requestPasswordReset = asyncHandler(async (req, res, next) => {
+    try {
+      const { email } = req.body;
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        // Don't reveal if user exists or not
+        return res.status(200).json({
+          success: true,
+          message: 'Si el email existe, se enviará un enlace de restablecimiento'
         });
       }
-    }
 
-    // Mark current session
-    const currentToken = req.headers.authorization?.split(' ')[1];
-    if (currentToken) {
-      const decoded = jwt.decode(currentToken);
-      if (decoded && decoded.userId === userId) {
-        // Find current session and mark it
-        sessions.forEach(session => {
-          if (session.id === currentToken) {
-            session.isCurrent = true;
+      // Generate reset token
+      const resetTokenData = jwt.generatePasswordResetToken(user._id);
+      
+      // Store reset token hash in user document
+      user.passwordResetToken = resetTokenData.resetTokenHash;
+      user.passwordResetExpires = resetTokenData.expiresAt;
+      await user.save();
+
+      // TODO: Send email with reset token
+      // For now, just return the token (in production, send via email)
+      res.status(200).json({
+        success: true,
+        message: 'Enlace de restablecimiento enviado al email',
+        data: {
+          resetToken: resetTokenData.resetToken, // Remove this in production
+          expiresAt: resetTokenData.expiresAt
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Reset password
+  resetPassword = asyncHandler(async (req, res, next) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        throw new AppError('Token y nueva contraseña son requeridos', 400);
+      }
+
+      // Hash the token to compare with stored hash
+      const crypto = require('crypto');
+      const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+      // Find user with valid reset token
+      const user = await User.findOne({
+        passwordResetToken: resetTokenHash,
+        passwordResetExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+        throw new AppError('Token de restablecimiento inválido o expirado', 400);
+      }
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password and clear reset token
+      user.password = hashedNewPassword;
+      user.passwordChangedAt = new Date();
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+
+      // Revoke all user tokens
+      await jwt.revokeAllUserTokens(user._id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Contraseña restablecida exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Verify email
+  verifyEmail = asyncHandler(async (req, res, next) => {
+    try {
+      const { token } = req.params;
+
+      if (!token) {
+        throw new AppError('Token de verificación es requerido', 400);
+      }
+
+      // Hash the token to compare with stored hash
+      const crypto = require('crypto');
+      const verificationTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+      // Find user with valid verification token
+      const user = await User.findOne({
+        emailVerificationToken: verificationTokenHash,
+        emailVerificationExpires: { $gt: Date.now() }
+      });
+
+      if (!user) {
+        throw new AppError('Token de verificación inválido o expirado', 400);
+      }
+
+      // Mark email as verified
+      user.isVerified = true;
+      user.emailVerificationToken = undefined;
+      user.emailVerificationExpires = undefined;
+      user.emailVerifiedAt = new Date();
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Email verificado exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Resend verification email
+  resendVerificationEmail = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      if (user.isVerified) {
+        throw new AppError('El email ya está verificado', 400);
+      }
+
+      // Generate new verification token
+      const verificationTokenData = jwt.generateEmailVerificationToken(user._id);
+      
+      // Store verification token hash
+      user.emailVerificationToken = verificationTokenData.verificationTokenHash;
+      user.emailVerificationExpires = verificationTokenData.expiresAt;
+      await user.save();
+
+      // TODO: Send email with verification token
+      res.status(200).json({
+        success: true,
+        message: 'Email de verificación reenviado',
+        data: {
+          verificationToken: verificationTokenData.verificationToken, // Remove this in production
+          expiresAt: verificationTokenData.expiresAt
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get user's active sessions
+  getActiveSessions = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+
+      const activeTokens = await jwt.getUserActiveTokens(userId);
+
+      res.status(200).json({
+        success: true,
+        data: { activeTokens }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Revoke specific session
+  revokeSession = asyncHandler(async (req, res, next) => {
+    try {
+      const { tokenId } = req.params;
+      const userId = req.user.id;
+
+      const success = await jwt.revokeRefreshToken(userId, tokenId);
+
+      if (!success) {
+        throw new AppError('No se pudo revocar la sesión', 400);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Sesión revocada exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Revoke all sessions except current
+  revokeAllOtherSessions = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const currentTokenId = req.body.currentTokenId;
+
+      if (currentTokenId) {
+        // Get all active tokens
+        const activeTokens = await jwt.getUserActiveTokens(userId);
+        
+        // Revoke all except current
+        for (const token of activeTokens) {
+          if (token.tokenId !== currentTokenId) {
+            await jwt.revokeRefreshToken(userId, token.tokenId);
           }
-        });
+        }
+      } else {
+        // Revoke all tokens
+        await jwt.revokeAllUserTokens(userId);
       }
-    }
 
-    res.json({
-      success: true,
-      data: { sessions }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo sesiones:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Revoke session
-// @route   DELETE /api/auth/sessions/:token
-// @access  Private
-const revokeSession = async (req, res) => {
-  try {
-    const { token } = req.params;
-    const userId = req.user.id;
-
-    const key = `refresh_token:${userId}:${token}`;
-    const tokenData = await redisClient.get(key);
-    
-    if (!tokenData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sesión no encontrada'
+      res.status(200).json({
+        success: true,
+        message: 'Otras sesiones revocadas exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
+}
 
-    // Remove the session
-    await redisClient.del(key);
-
-    res.json({
-      success: true,
-      message: 'Sesión revocada exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error revocando sesión:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-module.exports = {
-  register,
-  login,
-  refreshToken,
-  logout,
-  logoutAll,
-  getMe,
-  updateMe,
-  changePassword,
-  forgotPassword,
-  resetPassword,
-  verifyEmail,
-  getSessions,
-  revokeSession
-};
+module.exports = new AuthController();

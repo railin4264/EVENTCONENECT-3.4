@@ -1,1005 +1,859 @@
-const Chat = require('../models/Chat');
-const User = require('../models/User');
-const Event = require('../models/Event');
-const Tribe = require('../models/Tribe');
-const { validationResult } = require('express-validator');
+const { Chat, User, Event, Tribe } = require('../models');
+const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { validateChatMessage } = require('../middleware/validation');
 
-// @desc    Get user's chats
-// @route   GET /api/chat
-// @access  Private
-const getUserChats = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      type,
-      sort = 'lastMessage.timestamp',
-      order = 'desc'
-    } = req.query;
+class ChatController {
+  // Create new chat
+  createChat = asyncHandler(async (req, res, next) => {
+    try {
+      const chatData = req.body;
+      const userId = req.user.id;
 
-    const options = {
-      limit: parseInt(limit),
-      skip: (page - 1) * limit,
-      sort: { [sort]: order === 'desc' ? -1 : 1 }
-    };
+      // Add creator information
+      chatData.creator = userId;
+      chatData.participants = [userId];
+      chatData.status = 'active';
 
-    const chats = await Chat.findUserChats(req.user.id, options);
-    const total = await Chat.countDocuments({ 'participants.user': req.user.id, status: 'active' });
-
-    res.json({
-      success: true,
-      data: {
-        chats,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      // Validate chat type and participants
+      if (chatData.type === 'private') {
+        if (!chatData.participants || chatData.participants.length !== 2) {
+          throw new AppError('Los chats privados deben tener exactamente 2 participantes', 400);
         }
-      }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo chats del usuario:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+        // Check if private chat already exists between these users
+        const existingChat = await Chat.findOne({
+          type: 'private',
+          participants: { $all: chatData.participants },
+          status: 'active'
+        });
 
-// @desc    Get chat by ID
-// @route   GET /api/chat/:id
-// @access  Private
-const getChat = async (req, res) => {
-  try {
-    const chat = await Chat.findById(req.params.id)
-      .populate('participants.user', 'username firstName lastName avatar')
-      .populate('messages.sender', 'username firstName lastName avatar')
-      .populate('pinnedMessages.message', 'content sender createdAt')
-      .populate('eventChat.event', 'title dateTime location')
-      .populate('tribeChat.tribe', 'name description images');
+        if (existingChat) {
+          return res.status(200).json({
+            success: true,
+            message: 'Chat privado ya existe',
+            data: { chat: existingChat }
+          });
+        }
+      } else if (chatData.type === 'group') {
+        if (!chatData.name) {
+          throw new AppError('Los chats grupales deben tener un nombre', 400);
+        }
+        if (!chatData.participants || chatData.participants.length < 3) {
+          throw new AppError('Los chats grupales deben tener al menos 3 participantes', 400);
+        }
+      } else if (chatData.type === 'event') {
+        if (!chatData.event) {
+          throw new AppError('Los chats de evento deben especificar el evento', 400);
+        }
+        
+        // Verify event exists and user is attending
+        const event = await Event.findById(chatData.event);
+        if (!event) {
+          throw new AppError('Evento no encontrado', 404);
+        }
+        if (!event.attendees.includes(userId)) {
+          throw new AppError('Solo puedes crear chats para eventos a los que asistas', 403);
+        }
 
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
+        // Check if event chat already exists
+        const existingEventChat = await Chat.findOne({
+          type: 'event',
+          event: chatData.event,
+          status: 'active'
+        });
 
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user._id.toString() === req.user.id
-    );
+        if (existingEventChat) {
+          return res.status(200).json({
+            success: true,
+            message: 'Chat de evento ya existe',
+            data: { chat: existingEventChat }
+          });
+        }
+      } else if (chatData.type === 'tribe') {
+        if (!chatData.tribe) {
+          throw new AppError('Los chats de tribu deben especificar la tribu', 400);
+        }
 
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
-      });
-    }
+        // Verify tribe exists and user is member
+        const tribe = await Tribe.findById(chatData.tribe);
+        if (!tribe) {
+          throw new AppError('Tribu no encontrada', 404);
+        }
+        if (!tribe.members.includes(userId)) {
+          throw new AppError('Solo puedes crear chats para tribus de las que seas miembro', 403);
+        }
 
-    // Mark messages as read for this user
-    await chat.markAsRead(req.user.id);
+        // Check if tribe chat already exists
+        const existingTribeChat = await Chat.findOne({
+          type: 'tribe',
+          tribe: chatData.tribe,
+          status: 'active'
+        });
 
-    res.json({
-      success: true,
-      data: { chat }
-    });
-
-  } catch (error) {
-    console.error('Error obteniendo chat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Create or get private chat
-// @route   POST /api/chat/private
-// @access  Private
-const createPrivateChat = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const { otherUserId } = req.body;
-
-    // Check if user is trying to chat with themselves
-    if (otherUserId === req.user.id) {
-      return res.status(400).json({
-        success: false,
-        message: 'No puedes crear un chat contigo mismo'
-      });
-    }
-
-    // Check if other user exists
-    const otherUser = await User.findById(otherUserId);
-    if (!otherUser) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    // Check if private chat already exists
-    let chat = await Chat.findPrivateChat(req.user.id, otherUserId);
-
-    if (!chat) {
-      // Create new private chat
-      chat = new Chat({
-        type: 'private',
-        privateChat: {
-          user1: req.user.id,
-          user2: otherUserId
-        },
-        participants: [
-          {
-            user: req.user.id,
-            role: 'member',
-            isActive: true
-          },
-          {
-            user: otherUserId,
-            role: 'member',
-            isActive: true
-          }
-        ]
-      });
-
-      await chat.save();
-    }
-
-    // Populate chat for response
-    await chat.populate('participants.user', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      data: { chat }
-    });
-
-  } catch (error) {
-    console.error('Error creando chat privado:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Create group chat
-// @route   POST /api/chat/group
-// @access  Private
-const createGroupChat = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const {
-      name,
-      description,
-      participants,
-      isPublic = false,
-      maxParticipants = 100
-    } = req.body;
-
-    if (!participants || !Array.isArray(participants) || participants.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Lista de participantes es requerida'
-      });
-    }
-
-    // Add creator to participants
-    const allParticipants = [...new Set([req.user.id, ...participants])];
-
-    // Check if participants exist
-    const users = await User.find({ _id: { $in: allParticipants } });
-    if (users.length !== allParticipants.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Uno o más usuarios no encontrados'
-      });
-    }
-
-    // Create group chat
-    const chat = new Chat({
-      type: 'group',
-      name,
-      description,
-      groupChat: {
-        creator: req.user.id,
-        admins: [req.user.id],
-        isPublic,
-        maxParticipants
-      },
-      participants: allParticipants.map(userId => ({
-        user: userId,
-        role: userId === req.user.id ? 'admin' : 'member',
-        isActive: true
-      }))
-    });
-
-    await chat.save();
-
-    // Populate chat for response
-    await chat.populate('participants.user', 'username firstName lastName avatar');
-    await chat.populate('groupChat.creator', 'username firstName lastName avatar');
-
-    res.status(201).json({
-      success: true,
-      message: 'Chat grupal creado exitosamente',
-      data: { chat }
-    });
-
-  } catch (error) {
-    console.error('Error creando chat grupal:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Send message
-// @route   POST /api/chat/:id/messages
-// @access  Private
-const sendMessage = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
-      });
-    }
-
-    const { content, type = 'text', media, replyTo } = req.body;
-    const chatId = req.params.id;
-
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
-
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.isActive
-    );
-
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
-      });
-    }
-
-    // Check if user is muted
-    const participant = chat.participants.find(p => p.user.toString() === req.user.id);
-    if (participant && participant.isMuted) {
-      return res.status(403).json({
-        success: false,
-        message: 'Estás silenciado en este chat'
-      });
-    }
-
-    // Check slow mode
-    if (chat.settings.moderation.slowMode && chat.settings.moderation.slowModeInterval > 0) {
-      const lastMessage = chat.messages
-        .filter(m => m.sender.toString() === req.user.id)
-        .sort((a, b) => b.createdAt - a.createdAt)[0];
-
-      if (lastMessage) {
-        const timeSinceLastMessage = Date.now() - lastMessage.createdAt.getTime();
-        if (timeSinceLastMessage < chat.settings.moderation.slowModeInterval * 1000) {
-          return res.status(429).json({
-            success: false,
-            message: 'Modo lento activado. Espera antes de enviar otro mensaje'
+        if (existingTribeChat) {
+          return res.status(200).json({
+            success: true,
+            message: 'Chat de tribu ya existe',
+            data: { chat: existingTribeChat }
           });
         }
       }
-    }
 
-    // Add message to chat
-    await chat.addMessage(req.user.id, content, type, media);
+      // Create chat
+      const chat = new Chat(chatData);
+      await chat.save();
 
-    // Populate message for response
-    const lastMessage = chat.messages[chat.messages.length - 1];
-    await lastMessage.populate('sender', 'username firstName lastName avatar');
+      // Populate chat data
+      await chat.populate('creator', 'username firstName lastName avatar');
+      await chat.populate('participants', 'username firstName lastName avatar');
+      if (chat.event) await chat.populate('event', 'title startDate endDate');
+      if (chat.tribe) await chat.populate('tribe', 'name category');
 
-    res.status(201).json({
-      success: true,
-      message: 'Mensaje enviado exitosamente',
-      data: { message: lastMessage }
-    });
-
-  } catch (error) {
-    console.error('Error enviando mensaje:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Get chat messages
-// @route   GET /api/chat/:id/messages
-// @access  Private
-const getChatMessages = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 50,
-      before,
-      after
-    } = req.query;
-
-    const chatId = req.params.id;
-
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
+      res.status(201).json({
+        success: true,
+        message: 'Chat creado exitosamente',
+        data: { chat }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
+  // Get user's chats
+  getUserChats = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { type, page = 1, limit = 20 } = req.query;
 
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
-      });
-    }
+      const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    // Build query for messages
-    let query = { _id: { $in: chat.messages } };
-    
-    if (before) {
-      query.createdAt = { ...query.createdAt, $lt: new Date(before) };
-    }
-    if (after) {
-      query.createdAt = { ...query.createdAt, $gt: new Date(after) };
-    }
+      // Build query
+      const query = {
+        participants: userId,
+        status: 'active'
+      };
 
-    // Get messages with pagination
-    const skip = (page - 1) * limit;
-    const messages = await Chat.aggregate([
-      { $match: { _id: chat._id } },
-      { $unwind: '$messages' },
-      { $replaceRoot: { newRoot: '$messages' } },
-      { $match: query },
-      { $sort: { createdAt: -1 } },
-      { $skip: skip },
-      { $limit: parseInt(limit) },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'sender',
-          foreignField: '_id',
-          as: 'sender'
-        }
-      },
-      { $unwind: '$sender' },
-      {
-        $project: {
-          _id: 1,
-          content: 1,
-          type: 1,
-          media: 1,
-          createdAt: 1,
-          isEdited: 1,
-          editedAt: 1,
-          'sender._id': 1,
-          'sender.username': 1,
-          'sender.firstName': 1,
-          'sender.lastName': 1,
-          'sender.avatar': 1
-        }
+      if (type && type !== 'all') {
+        query.type = type;
       }
-    ]);
 
-    const total = chat.messages.length;
+      const chats = await Chat.find(query)
+        .populate('creator', 'username firstName lastName avatar')
+        .populate('participants', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate')
+        .populate('tribe', 'name category')
+        .populate('lastMessage.author', 'username firstName lastName avatar')
+        .sort({ lastMessageAt: -1, updatedAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean();
 
-    // Mark messages as read for this user
-    await chat.markAsRead(req.user.id);
+      const total = await Chat.countDocuments(query);
+      const totalPages = Math.ceil(total / parseInt(limit));
 
-    res.json({
-      success: true,
-      data: {
-        messages: messages.reverse(), // Show oldest first
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / limit)
+      res.status(200).json({
+        success: true,
+        data: {
+          chats,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
         }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Get chat by ID
+  getChatById = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user.id;
+
+      const chat = await Chat.findById(chatId)
+        .populate('creator', 'username firstName lastName avatar')
+        .populate('participants', 'username firstName lastName avatar')
+        .populate('event', 'title startDate endDate')
+        .populate('tribe', 'name category')
+        .populate('pinnedMessages.author', 'username firstName lastName avatar');
+
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
       }
-    });
 
-  } catch (error) {
-    console.error('Error obteniendo mensajes del chat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Check if user is participant
+      if (!chat.participants.some(p => p._id.toString() === userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
 
-// @desc    Edit message
-// @route   PUT /api/chat/:id/messages/:messageId
-// @access  Private
-const editMessage = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      res.status(200).json({
+        success: true,
+        data: { chat }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const { content } = req.body;
-    const { id: chatId, messageId } = req.params;
+  // Get chat messages
+  getChatMessages = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const { page = 1, limit = 50, before } = req.query;
+      const userId = req.user.id;
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
+
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Build query
+      const query = { chat: chatId, status: 'active' };
+      if (before) {
+        query.createdAt = { $lt: new Date(before) };
+      }
+
+      const messages = await Chat.aggregate([
+        { $match: { _id: chatId } },
+        { $unwind: '$messages' },
+        { $match: { 'messages.status': 'active' } },
+        { $sort: { 'messages.createdAt': -1 } },
+        { $skip: skip },
+        { $limit: parseInt(limit) },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'messages.author',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        {
+          $unwind: '$author'
+        },
+        {
+          $project: {
+            _id: '$messages._id',
+            content: '$messages.content',
+            type: '$messages.type',
+            media: '$messages.media',
+            author: {
+              _id: '$author._id',
+              username: '$author.username',
+              firstName: '$author.firstName',
+              lastName: '$author.lastName',
+              avatar: '$author.avatar'
+            },
+            createdAt: '$messages.createdAt',
+            updatedAt: '$messages.updatedAt',
+            isEdited: '$messages.isEdited',
+            isPinned: '$messages.isPinned',
+            reactions: '$messages.reactions'
+          }
+        },
+        { $sort: { createdAt: 1 } }
+      ]);
+
+      const total = await Chat.aggregate([
+        { $match: { _id: chatId } },
+        { $unwind: '$messages' },
+        { $match: { 'messages.status': 'active' } },
+        { $count: 'total' }
+      ]);
+
+      const totalMessages = total.length > 0 ? total[0].total : 0;
+      const totalPages = Math.ceil(totalMessages / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          messages,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total: totalMessages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
+  // Send message
+  sendMessage = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const { content, type = 'text', media, replyTo } = req.body;
+      const userId = req.user.id;
 
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
+
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
+
+      // Check if chat is active
+      if (chat.status !== 'active') {
+        throw new AppError('No puedes enviar mensajes a un chat inactivo', 400);
+      }
+
+      // Create message
+      const message = {
+        author: userId,
+        content,
+        type,
+        media: media || [],
+        replyTo: replyTo || null,
+        createdAt: new Date(),
+        status: 'active'
+      };
+
+      // Add message to chat
+      chat.messages.push(message);
+      chat.lastMessage = message;
+      chat.lastMessageAt = new Date();
+      chat.messageCount = (chat.messageCount || 0) + 1;
+
+      // Update participant activity
+      if (!chat.participantActivity) {
+        chat.participantActivity = {};
+      }
+      chat.participantActivity[userId] = {
+        lastSeen: new Date(),
+        lastMessageAt: new Date()
+      };
+
+      await chat.save();
+
+      // Populate message data
+      await chat.populate('messages.author', 'username firstName lastName avatar');
+      const newMessage = chat.messages[chat.messages.length - 1];
+
+      res.status(201).json({
+        success: true,
+        message: 'Mensaje enviado exitosamente',
+        data: { message: newMessage }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Edit message
-    await chat.editMessage(messageId, req.user.id, content);
+  // Update message
+  updateMessage = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId, messageId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.id;
 
-    res.json({
-      success: true,
-      message: 'Mensaje editado exitosamente'
-    });
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
 
-  } catch (error) {
-    console.error('Error editando mensaje:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
 
-// @desc    Delete message
-// @route   DELETE /api/chat/:id/messages/:messageId
-// @access  Private
-const deleteMessage = async (req, res) => {
-  try {
-    const { id: chatId, messageId } = req.params;
+      // Find message
+      const message = chat.messages.id(messageId);
+      if (!message) {
+        throw new AppError('Mensaje no encontrado', 404);
+      }
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
+      // Check ownership
+      if (message.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para editar este mensaje', 403);
+      }
+
+      // Check if message can be edited (within 15 minutes)
+      const minutesSinceCreation = (Date.now() - message.createdAt.getTime()) / (1000 * 60);
+      if (minutesSinceCreation > 15 && req.user.role !== 'admin') {
+        throw new AppError('Solo puedes editar mensajes durante los primeros 15 minutos', 400);
+      }
+
+      // Update message
+      message.content = content;
+      message.updatedAt = new Date();
+      message.isEdited = true;
+
+      await chat.save();
+
+      // Populate message author
+      await chat.populate('messages.author', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Mensaje actualizado exitosamente',
+        data: { message }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
+  // Delete message
+  deleteMessage = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId, messageId } = req.params;
+      const userId = req.user.id;
 
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
+
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
+
+      // Find message
+      const message = chat.messages.id(messageId);
+      if (!message) {
+        throw new AppError('Mensaje no encontrado', 404);
+      }
+
+      // Check ownership or admin
+      if (message.author.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar este mensaje', 403);
+      }
+
+      // Soft delete message
+      message.status = 'deleted';
+      message.deletedAt = new Date();
+      message.deletedBy = userId;
+
+      await chat.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Mensaje eliminado exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Delete message
-    await chat.deleteMessage(messageId, req.user.id);
+  // Pin/unpin message
+  togglePinMessage = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId, messageId } = req.params;
+      const userId = req.user.id;
 
-    res.json({
-      success: true,
-      message: 'Mensaje eliminado exitosamente'
-    });
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
 
-  } catch (error) {
-    console.error('Error eliminando mensaje:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
 
-// @desc    Add reaction to message
-// @route   POST /api/chat/:id/messages/:messageId/reactions
-// @access  Private
-const addReaction = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Check if user is creator or admin
+      if (chat.creator.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('Solo el creador del chat o administradores pueden fijar mensajes', 403);
+      }
+
+      // Find message
+      const message = chat.messages.id(messageId);
+      if (!message) {
+        throw new AppError('Mensaje no encontrado', 404);
+      }
+
+      // Toggle pin status
+      message.isPinned = !message.isPinned;
+      message.pinnedAt = message.isPinned ? new Date() : undefined;
+      message.pinnedBy = message.isPinned ? userId : undefined;
+
+      // Update pinned messages array
+      if (message.isPinned) {
+        if (!chat.pinnedMessages) {
+          chat.pinnedMessages = [];
+        }
+        chat.pinnedMessages.push(messageId);
+      } else {
+        chat.pinnedMessages = chat.pinnedMessages.filter(id => id.toString() !== messageId);
+      }
+
+      await chat.save();
+
+      res.status(200).json({
+        success: true,
+        message: message.isPinned ? 'Mensaje fijado exitosamente' : 'Mensaje desfijado exitosamente',
+        data: { isPinned: message.isPinned }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const { emoji } = req.body;
-    const { id: chatId, messageId } = req.params;
+  // Add/remove reaction to message
+  toggleReaction = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId, messageId } = req.params;
+      const { emoji } = req.body;
+      const userId = req.user.id;
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
 
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
 
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
-      });
-    }
+      // Find message
+      const message = chat.messages.id(messageId);
+      if (!message) {
+        throw new AppError('Mensaje no encontrado', 404);
+      }
 
-    // Add reaction
-    await chat.addReaction(messageId, req.user.id, emoji);
+      // Initialize reactions if not exists
+      if (!message.reactions) {
+        message.reactions = [];
+      }
 
-    res.json({
-      success: true,
-      message: 'Reacción agregada exitosamente'
-    });
+      // Find existing reaction
+      const existingReaction = message.reactions.find(r => 
+        r.user.toString() === userId && r.emoji === emoji
+      );
 
-  } catch (error) {
-    console.error('Error agregando reacción:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Pin/Unpin message
-// @route   POST /api/chat/:id/messages/:messageId/pin
-// @access  Private
-const togglePinMessage = async (req, res) => {
-  try {
-    const { id: chatId, messageId } = req.params;
-
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
-
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
-
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
-      });
-    }
-
-    // Check if user is admin/moderator for group chats
-    if (chat.type === 'group') {
-      const participant = chat.participants.find(p => p.user.toString() === req.user.id);
-      if (!participant || (participant.role !== 'admin' && participant.role !== 'moderator')) {
-        return res.status(403).json({
-          success: false,
-          message: 'Solo administradores y moderadores pueden fijar mensajes'
+      if (existingReaction) {
+        // Remove reaction
+        message.reactions = message.reactions.filter(r => 
+          !(r.user.toString() === userId && r.emoji === emoji)
+        );
+      } else {
+        // Add reaction
+        message.reactions.push({
+          user: userId,
+          emoji,
+          createdAt: new Date()
         });
       }
-    }
 
-    // Toggle pin
-    await chat.pinMessage(messageId, req.user.id);
+      await chat.save();
 
-    res.json({
-      success: true,
-      message: 'Estado de fijación del mensaje actualizado exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error fijando/desfijando mensaje:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Add participant to group chat
-// @route   POST /api/chat/:id/participants
-// @access  Private
-const addParticipant = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      res.status(200).json({
+        success: true,
+        message: existingReaction ? 'Reacción removida' : 'Reacción agregada',
+        data: {
+          reactions: message.reactions,
+          hasReacted: !existingReaction
+        }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const { userId, role = 'member' } = req.body;
-    const chatId = req.params.id;
+  // Mark chat as read
+  markChatAsRead = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user.id;
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
-
-    // Check if chat is group type
-    if (chat.type !== 'group') {
-      return res.status(400).json({
-        success: false,
-        message: 'Solo se pueden agregar participantes a chats grupales'
-      });
-    }
-
-    // Check if user is admin
-    const isAdmin = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.role === 'admin'
-    );
-
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Solo los administradores pueden agregar participantes'
-      });
-    }
-
-    // Check if user exists
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Usuario no encontrado'
-      });
-    }
-
-    // Check if user is already participant
-    const isAlreadyParticipant = chat.participants.some(
-      p => p.user.toString() === userId
-    );
-
-    if (isAlreadyParticipant) {
-      return res.status(400).json({
-        success: false,
-        message: 'El usuario ya es participante del chat'
-      });
-    }
-
-    // Check max participants
-    if (chat.participants.length >= chat.groupChat.maxParticipants) {
-      return res.status(400).json({
-        success: false,
-        message: 'El chat ha alcanzado el límite máximo de participantes'
-      });
-    }
-
-    // Add participant
-    await chat.addParticipant(userId, role);
-
-    // Populate chat for response
-    await chat.populate('participants.user', 'username firstName lastName avatar');
-
-    res.json({
-      success: true,
-      message: 'Participante agregado exitosamente',
-      data: { chat }
-    });
-
-  } catch (error) {
-    console.error('Error agregando participante:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Remove participant from group chat
-// @route   DELETE /api/chat/:id/participants/:userId
-// @access  Private
-const removeParticipant = async (req, res) => {
-  try {
-    const { id: chatId, userId } = req.params;
-
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
-
-    // Check if chat is group type
-    if (chat.type !== 'group') {
-      return res.status(400).json({
-        success: false,
-        message: 'Solo se pueden remover participantes de chats grupales'
-      });
-    }
-
-    // Check if user is admin
-    const isAdmin = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.role === 'admin'
-    );
-
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Solo los administradores pueden remover participantes'
-      });
-    }
-
-    // Check if trying to remove admin
-    const participantToRemove = chat.participants.find(p => p.user.toString() === userId);
-    if (participantToRemove && participantToRemove.role === 'admin') {
-      return res.status(400).json({
-        success: false,
-        message: 'No se puede remover a un administrador'
-      });
-    }
-
-    // Remove participant
-    await chat.removeParticipant(userId);
-
-    res.json({
-      success: true,
-      message: 'Participante removido exitosamente'
-    });
-
-  } catch (error) {
-    console.error('Error removiendo participante:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-// @desc    Leave group chat
-// @route   POST /api/chat/:id/leave
-// @access  Private
-const leaveChat = async (req, res) => {
-  try {
-    const chatId = req.params.id;
-
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
-      });
-    }
-
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
-
-    if (!isParticipant) {
-      return res.status(400).json({
-        success: false,
-        message: 'No eres participante de este chat'
-      });
-    }
-
-    // Check if user is the only admin
-    if (chat.type === 'group') {
-      const admins = chat.participants.filter(p => p.role === 'admin');
-      const isOnlyAdmin = admins.length === 1 && admins[0].user.toString() === req.user.id;
-
-      if (isOnlyAdmin) {
-        return res.status(400).json({
-          success: false,
-          message: 'No puedes dejar el chat siendo el único administrador'
-        });
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
       }
-    }
 
-    // Remove participant
-    await chat.removeParticipant(req.user.id);
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
 
-    res.json({
-      success: true,
-      message: 'Has dejado el chat exitosamente'
-    });
+      // Update participant activity
+      if (!chat.participantActivity) {
+        chat.participantActivity = {};
+      }
 
-  } catch (error) {
-    console.error('Error dejando chat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      chat.participantActivity[userId] = {
+        lastSeen: new Date(),
+        lastReadAt: new Date()
+      };
 
-// @desc    Get chat settings
-// @route   GET /api/chat/:id/settings
-// @access  Private
-const getChatSettings = async (req, res) => {
-  try {
-    const chatId = req.params.id;
+      await chat.save();
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
+      res.status(200).json({
+        success: true,
+        message: 'Chat marcado como leído'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if user is participant
-    const isParticipant = chat.participants.some(
-      p => p.user.toString() === req.user.id
-    );
+  // Add participant to chat
+  addParticipant = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const { userId: newParticipantId } = req.body;
+      const currentUserId = req.user.id;
 
-    if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        message: 'No tienes acceso a este chat'
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
+
+      // Check permissions
+      if (chat.creator.toString() !== currentUserId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para agregar participantes', 403);
+      }
+
+      // Check if user is already a participant
+      if (chat.participants.includes(newParticipantId)) {
+        throw new AppError('El usuario ya es participante del chat', 400);
+      }
+
+      // Add participant
+      chat.participants.push(newParticipantId);
+      await chat.save();
+
+      // Populate chat data
+      await chat.populate('participants', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Participante agregado exitosamente',
+        data: { chat }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    res.json({
-      success: true,
-      data: { settings: chat.settings }
-    });
+  // Remove participant from chat
+  removeParticipant = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId, participantId } = req.params;
+      const currentUserId = req.user.id;
 
-  } catch (error) {
-    console.error('Error obteniendo configuración del chat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
 
-// @desc    Update chat settings
-// @route   PUT /api/chat/:id/settings
-// @access  Private
-const updateChatSettings = async (req, res) => {
-  try {
-    // Check for validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Errores de validación',
-        errors: errors.array()
+      // Check permissions
+      if (chat.creator.toString() !== currentUserId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para remover participantes', 403);
+      }
+
+      // Check if user is trying to remove themselves
+      if (participantId === currentUserId) {
+        throw new AppError('No puedes removerte a ti mismo del chat', 400);
+      }
+
+      // Check if user is a participant
+      if (!chat.participants.includes(participantId)) {
+        throw new AppError('El usuario no es participante del chat', 400);
+      }
+
+      // Remove participant
+      chat.participants = chat.participants.filter(id => id.toString() !== participantId);
+      await chat.save();
+
+      // Populate chat data
+      await chat.populate('participants', 'username firstName lastName avatar');
+
+      res.status(200).json({
+        success: true,
+        message: 'Participante removido exitosamente',
+        data: { chat }
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    const chatId = req.params.id;
-    const updateFields = req.body;
+  // Leave chat
+  leaveChat = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user.id;
 
-    const chat = await Chat.findById(chatId);
-    if (!chat) {
-      return res.status(404).json({
-        success: false,
-        message: 'Chat no encontrado'
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
+
+      // Check if user is a participant
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No eres participante de este chat', 400);
+      }
+
+      // Check if user is creator
+      if (chat.creator.toString() === userId) {
+        throw new AppError('El creador no puede dejar el chat. Transfiere la propiedad o elimina el chat', 400);
+      }
+
+      // Remove participant
+      chat.participants = chat.participants.filter(id => id.toString() !== userId);
+      await chat.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Has dejado el chat exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Check if user is admin
-    const isAdmin = chat.participants.some(
-      p => p.user.toString() === req.user.id && p.role === 'admin'
-    );
+  // Delete chat
+  deleteChat = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const userId = req.user.id;
 
-    if (!isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Solo los administradores pueden actualizar la configuración'
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
+
+      // Check permissions
+      if (chat.creator.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para eliminar este chat', 403);
+      }
+
+      // Soft delete chat
+      chat.status = 'deleted';
+      chat.deletedAt = new Date();
+      chat.deletedBy = userId;
+      await chat.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Chat eliminado exitosamente'
       });
+    } catch (error) {
+      next(error);
     }
+  });
 
-    // Update settings
-    Object.assign(chat.settings, updateFields);
-    await chat.save();
+  // Search messages in chat
+  searchChatMessages = asyncHandler(async (req, res, next) => {
+    try {
+      const { chatId } = req.params;
+      const { query, page = 1, limit = 20 } = req.body;
+      const userId = req.user.id;
 
-    res.json({
-      success: true,
-      message: 'Configuración del chat actualizada exitosamente',
-      data: { settings: chat.settings }
-    });
+      // Verify user has access to chat
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new AppError('Chat no encontrado', 404);
+      }
 
-  } catch (error) {
-    console.error('Error actualizando configuración del chat:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
+      if (!chat.participants.includes(userId)) {
+        throw new AppError('No tienes acceso a este chat', 403);
+      }
 
-module.exports = {
-  getUserChats,
-  getChat,
-  createPrivateChat,
-  createGroupChat,
-  sendMessage,
-  getChatMessages,
-  editMessage,
-  deleteMessage,
-  addReaction,
-  togglePinMessage,
-  addParticipant,
-  removeParticipant,
-  leaveChat,
-  getChatSettings,
-  updateChatSettings
-};
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      // Search messages
+      const messages = await Chat.aggregate([
+        { $match: { _id: chatId } },
+        { $unwind: '$messages' },
+        { 
+          $match: { 
+            'messages.status': 'active',
+            'messages.content': { $regex: query, $options: 'i' }
+          } 
+        },
+        { $sort: { 'messages.createdAt': -1 } },
+        { $skip: skip },
+        { $limit: parseInt(limit) },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'messages.author',
+            foreignField: '_id',
+            as: 'author'
+          }
+        },
+        {
+          $unwind: '$author'
+        },
+        {
+          $project: {
+            _id: '$messages._id',
+            content: '$messages.content',
+            type: '$messages.type',
+            author: {
+              _id: '$author._id',
+              username: '$author.username',
+              firstName: '$author.firstName',
+              lastName: '$author.lastName',
+              avatar: '$author.avatar'
+            },
+            createdAt: '$messages.createdAt'
+          }
+        }
+      ]);
+
+      const total = await Chat.aggregate([
+        { $match: { _id: chatId } },
+        { $unwind: '$messages' },
+        { 
+          $match: { 
+            'messages.status': 'active',
+            'messages.content': { $regex: query, $options: 'i' }
+          } 
+        },
+        { $count: 'total' }
+      ]);
+
+      const totalMessages = total.length > 0 ? total[0].total : 0;
+      const totalPages = Math.ceil(totalMessages / parseInt(limit));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          messages,
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages,
+            total: totalMessages,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+            limit: parseInt(limit)
+          }
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+}
+
+module.exports = new ChatController();
