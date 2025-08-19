@@ -161,10 +161,6 @@ const withPWA = require('next-pwa')({
 });
 
 const nextConfig = {
-  experimental: {
-    appDir: true,
-    serverComponentsExternalPackages: ['@prisma/client']
-  },
   images: {
     domains: [
       'localhost',
@@ -210,7 +206,7 @@ const nextConfig = {
               /node_modules[/\\]/.test(module.identifier());
           },
           name(module) {
-            const hash = crypto.createHash('sha1');
+            const hash = require('crypto').createHash('sha1');
             hash.update(module.identifier());
             return hash.digest('hex').slice(0, 8);
           },
@@ -225,7 +221,7 @@ const nextConfig = {
         },
         shared: {
           name(module, chunks) {
-            return crypto
+            return require('crypto')
               .createHash('sha1')
               .update(chunks.map(c => c.name).join('_'))
               .digest('hex');
@@ -328,8 +324,7 @@ const nextConfig = {
     pagesBufferLength: 2
   },
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-    styledComponents: true
+    removeConsole: process.env.NODE_ENV === 'production'
   }
 };
 
