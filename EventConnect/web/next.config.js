@@ -4,11 +4,10 @@ const nextConfig = {
     appDir: true,
   },
   images: {
-    domains: ['localhost', 'eventconnect.com', 'api.eventconnect.com'],
-    formats: ['image/webp', 'image/avif'],
+    domains: ['localhost', 'your-domain.com'],
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_MAPBOX_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
   },
   async headers() {
