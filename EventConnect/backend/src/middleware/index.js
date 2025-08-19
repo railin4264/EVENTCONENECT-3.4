@@ -1,0 +1,388 @@
+// Authentication and Authorization Middleware
+const auth = require('./auth');
+const { protect, optionalAuth, adminOnly, moderatorOrAdmin, ownerOrAdmin, rateLimit, requireVerification, requireProfile, notBanned } = auth;
+
+// Validation Middleware
+const validation = require('./validation');
+const { 
+  handleValidationErrors, 
+  sanitizeHtmlContent,
+  validateUserRegistration,
+  validateUserLogin,
+  validateUserUpdate,
+  validateEventCreation,
+  validateEventUpdate,
+  validateTribeCreation,
+  validatePostCreation,
+  validateChatMessage,
+  validateReviewCreation,
+  validateSearch,
+  validatePagination,
+  validateMongoId,
+  validateFileUpload,
+  validateLocation
+} = validation;
+
+// Error Handling Middleware
+const errorHandler = require('./errorHandler');
+const { 
+  AppError, 
+  errorHandler: globalErrorHandler, 
+  notFound, 
+  asyncHandler, 
+  handleUnhandledRejection, 
+  handleUncaughtException, 
+  gracefulShutdown, 
+  logError,
+  rateLimitExceeded,
+  formatValidationErrors,
+  handleDatabaseError,
+  handleFileUploadError,
+  handleAuthError,
+  handlePermissionError,
+  handleNotFoundError,
+  handleConflictError,
+  handleTooManyRequestsError,
+  handleServiceUnavailableError
+} = errorHandler;
+
+// File Upload Middleware
+const upload = require('./upload');
+const {
+  uploadSingle,
+  uploadMultiple,
+  uploadFields,
+  uploadAvatar,
+  uploadBanner,
+  uploadEventImages,
+  uploadTribeImages,
+  uploadPostMedia,
+  uploadProfileImages,
+  uploadEvent,
+  uploadTribe,
+  uploadPost,
+  handleUploadError,
+  validateFile,
+  validateFileSize,
+  validateFileType,
+  validateImage,
+  validateVideo,
+  validateDocument,
+  cleanupFiles,
+  generateFileUrl,
+  deleteFile,
+  getFileInfo,
+  getFilesInfo
+} = upload;
+
+// Logging Middleware
+const logger = require('./logger');
+const {
+  devLogger,
+  prodLogger,
+  errorLogger,
+  combinedLogger,
+  jsonLogger,
+  requestLogger,
+  responseLogger,
+  performanceMonitor,
+  securityLogger,
+  rotateLogs,
+  scheduleLogRotation
+} = logger;
+
+// Security Middleware
+const security = require('./security');
+const {
+  securityMiddleware,
+  routeSecurity,
+  cors,
+  helmet,
+  rateLimit: securityRateLimit,
+  speedLimit,
+  authRateLimit,
+  apiRateLimit,
+  uploadRateLimit,
+  searchRateLimit,
+  ipWhitelist,
+  requestSizeLimit,
+  validateContentType,
+  validateMethod,
+  validateReferrer,
+  validateUserAgent,
+  requestFrequencyMonitor
+} = security;
+
+// Optimization Middleware
+const optimization = require('./optimization');
+const {
+  compressionMiddleware,
+  gzipCompression,
+  serveStatic,
+  staticFilesConfig,
+  cacheControl,
+  noCache,
+  etag,
+  responseTime,
+  performanceMonitor: optPerformanceMonitor,
+  memoryMonitor,
+  bodySizeOptimization,
+  responseOptimization,
+  queryOptimization,
+  imageOptimization,
+  apiOptimization
+} = optimization;
+
+// Pagination and Filtering Middleware
+const pagination = require('./pagination');
+const {
+  paginate,
+  sort,
+  filter,
+  search,
+  select,
+  populate,
+  dateRange,
+  locationFilter,
+  priceRange,
+  categoryFilter,
+  statusFilter,
+  userFilter,
+  buildQuery,
+  formatResponse,
+  countTotal,
+  executeQuery,
+  createPaginationQuery,
+  createSortQuery,
+  createFilterQuery
+} = pagination;
+
+// Notifications and WebSocket Middleware
+const notifications = require('./notifications');
+const {
+  wsManager,
+  notificationService,
+  webSocketMiddleware,
+  WebSocketManager,
+  NotificationService
+} = notifications;
+
+// Cache Middleware
+const cache = require('./cache');
+const {
+  cache: cacheMiddleware,
+  invalidateCache,
+  warmCache,
+  cacheStats,
+  modelCache,
+  userCache,
+  searchCache,
+  locationCache,
+  paginationCache,
+  apiCache,
+  staticCache,
+  profileCache,
+  eventCache,
+  tribeCache,
+  postCache,
+  feedCache,
+  generateCacheKey,
+  routeCacheKey,
+  modelCacheKey,
+  userCacheKey,
+  invalidateCachePatterns,
+  getCacheStats,
+  cacheConfig
+} = cache;
+
+// Export all middleware
+module.exports = {
+  // Authentication
+  protect,
+  optionalAuth,
+  adminOnly,
+  moderatorOrAdmin,
+  ownerOrAdmin,
+  rateLimit: auth.rateLimit,
+  requireVerification,
+  requireProfile,
+  notBanned,
+  
+  // Validation
+  handleValidationErrors,
+  sanitizeHtmlContent,
+  validateUserRegistration,
+  validateUserLogin,
+  validateUserUpdate,
+  validateEventCreation,
+  validateEventUpdate,
+  validateTribeCreation,
+  validatePostCreation,
+  validateChatMessage,
+  validateReviewCreation,
+  validateSearch,
+  validatePagination,
+  validateMongoId,
+  validateFileUpload,
+  validateLocation,
+  
+  // Error Handling
+  AppError,
+  globalErrorHandler,
+  notFound,
+  asyncHandler,
+  handleUnhandledRejection,
+  handleUncaughtException,
+  gracefulShutdown,
+  logError,
+  rateLimitExceeded,
+  formatValidationErrors,
+  handleDatabaseError,
+  handleFileUploadError,
+  handleAuthError,
+  handlePermissionError,
+  handleNotFoundError,
+  handleConflictError,
+  handleTooManyRequestsError,
+  handleServiceUnavailableError,
+  
+  // File Upload
+  uploadSingle,
+  uploadMultiple,
+  uploadFields,
+  uploadAvatar,
+  uploadBanner,
+  uploadEventImages,
+  uploadTribeImages,
+  uploadPostMedia,
+  uploadProfileImages,
+  uploadEvent,
+  uploadTribe,
+  uploadPost,
+  handleUploadError: upload.handleUploadError,
+  validateFile,
+  validateFileSize,
+  validateFileType,
+  validateImage,
+  validateVideo,
+  validateDocument,
+  cleanupFiles,
+  generateFileUrl,
+  deleteFile,
+  getFileInfo,
+  getFilesInfo,
+  
+  // Logging
+  devLogger,
+  prodLogger,
+  errorLogger: logger.errorLogger,
+  combinedLogger,
+  jsonLogger,
+  requestLogger,
+  responseLogger,
+  performanceMonitor: logger.performanceMonitor,
+  securityLogger: logger.securityLogger,
+  rotateLogs,
+  scheduleLogRotation,
+  
+  // Security
+  securityMiddleware,
+  routeSecurity,
+  cors,
+  helmet,
+  securityRateLimit,
+  speedLimit,
+  authRateLimit,
+  apiRateLimit,
+  uploadRateLimit,
+  searchRateLimit,
+  ipWhitelist,
+  requestSizeLimit,
+  validateContentType,
+  validateMethod,
+  validateReferrer,
+  validateUserAgent,
+  requestFrequencyMonitor,
+  
+  // Optimization
+  compressionMiddleware,
+  gzipCompression,
+  serveStatic,
+  staticFilesConfig,
+  cacheControl,
+  noCache,
+  etag,
+  responseTime,
+  optPerformanceMonitor,
+  memoryMonitor,
+  bodySizeOptimization,
+  responseOptimization,
+  queryOptimization,
+  imageOptimization,
+  apiOptimization,
+  
+  // Pagination
+  paginate,
+  sort,
+  filter,
+  search,
+  select,
+  populate,
+  dateRange,
+  locationFilter,
+  priceRange,
+  categoryFilter,
+  statusFilter,
+  userFilter,
+  buildQuery,
+  formatResponse,
+  countTotal,
+  executeQuery,
+  createPaginationQuery,
+  createSortQuery,
+  createFilterQuery,
+  
+  // Notifications
+  wsManager,
+  notificationService,
+  webSocketMiddleware,
+  WebSocketManager,
+  NotificationService,
+  
+  // Cache
+  cacheMiddleware,
+  invalidateCache,
+  warmCache,
+  cacheStats,
+  modelCache,
+  userCache,
+  searchCache,
+  locationCache,
+  paginationCache,
+  apiCache,
+  staticCache,
+  profileCache,
+  eventCache,
+  tribeCache,
+  postCache,
+  feedCache,
+  generateCacheKey,
+  routeCacheKey,
+  modelCacheKey,
+  userCacheKey,
+  invalidateCachePatterns,
+  getCacheStats,
+  cacheConfig,
+  
+  // Complete modules
+  auth,
+  validation,
+  errorHandler,
+  upload,
+  logger,
+  security,
+  optimization,
+  pagination,
+  notifications,
+  cache
+};
