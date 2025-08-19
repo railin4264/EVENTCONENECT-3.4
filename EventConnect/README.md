@@ -1,354 +1,343 @@
 # EventConnect 🎉
 
-**Plataforma de descubrimiento instantáneo de eventos y tribus**
-
-EventConnect es una plataforma completa que facilita la conexión entre personas a través de eventos y tribus, con funcionalidades avanzadas de geolocalización, notificaciones en tiempo real y una experiencia PWA optimizada.
+**EventConnect** es una plataforma integral para descubrir eventos y conectar con tribus en tiempo real. Facilita la organización de eventos, la creación de comunidades y la interacción social basada en intereses y ubicación.
 
 ## 🚀 Características Principales
 
-### ✨ Funcionalidades Core
-- **Mapa Interactivo**: Descubre eventos y tribus cerca de ti
-- **Feed Social**: Posts, comentarios y likes en tiempo real
-- **Gestión de Eventos**: Crear, unirse y gestionar eventos
-- **Sistema de Tribus**: Únete a comunidades con intereses similares
-- **Chat en Tiempo Real**: Comunicación privada y grupal
-- **Notificaciones Push**: Multi-plataforma y personalizables
-- **Modo Offline**: Funcionalidad PWA completa
-- **Gamificación**: Sistema de badges y logros
+### Core Features
+- **🗺️ Mapa Interactivo**: Descubre eventos y tribus cerca de ti con integración de Google Maps
+- **📱 Feed Social**: Publica, comenta y da like a contenido de eventos y tribus
+- **👥 Gestión de Tribus**: Crea y únete a comunidades basadas en intereses
+- **📅 Sistema de Eventos**: Organiza y participa en eventos con funcionalidades completas
+- **💬 Chat en Tiem Real**: Comunicación privada y grupal con WebSockets
+- **🔔 Notificaciones Push**: Sistema de alertas personalizable por tipo de evento
+- **🏆 Gamificación**: Sistema de badges y logros por participación
+- **🤖 IA Básica**: Recomendaciones inteligentes basadas en intereses y ubicación
 
-### 🎯 Tecnologías Implementadas
+### Tecnologías Implementadas
 - **Backend**: Node.js 18+, Express, MongoDB, Redis, Socket.IO
-- **Frontend Web**: Next.js 14, PWA, Tailwind CSS, Shadcn/ui
-- **Mobile**: React Native + Expo, Google Maps, Notificaciones Push
-- **Real-time**: WebSockets, Chat en vivo, Notificaciones instantáneas
-- **Seguridad**: JWT, Helmet, CORS, Rate Limiting, XSS Protection
+- **Frontend Web**: Next.js 14, React, Tailwind CSS, Shadcn/ui
+- **Frontend Mobile**: React Native, Expo, Google Maps
+- **Base de Datos**: MongoDB con Mongoose
+- **Cache**: Redis para sesiones y datos frecuentes
+- **Autenticación**: JWT + Refresh Tokens
+- **Real-time**: WebSockets con Socket.IO
+- **Notificaciones**: Push, Email, SMS, In-app
 
-## 📁 Estructura del Proyecto
+## 🏗️ Arquitectura del Proyecto
 
 ```
 EventConnect/
 ├── backend/                 # API REST + WebSockets
 │   ├── src/
-│   │   ├── config/         # Configuraciones (DB, Redis, JWT, Google Maps)
+│   │   ├── config/         # Configuraciones (DB, Redis, JWT, etc.)
 │   │   ├── controllers/    # Lógica de negocio
-│   │   ├── middleware/     # Autenticación, validación, seguridad
+│   │   ├── middleware/     # Autenticación, validación, etc.
 │   │   ├── models/         # Modelos de MongoDB
 │   │   ├── routes/         # Endpoints de la API
-│   │   ├── services/       # Servicios (Chat, Notificaciones, Location)
-│   │   ├── validators/     # Validación de datos con Joi
-│   │   └── utils/          # Utilidades y helpers
-│   └── tests/              # Tests unitarios e integración
-├── web/                    # Frontend Web (PWA)
+│   │   ├── services/       # Servicios externos
+│   │   ├── utils/          # Utilidades y helpers
+│   │   └── validators/     # Validación de datos
+│   ├── tests/              # Tests unitarios e integración
+│   └── docs/               # Documentación de la API
+├── web/                    # Frontend Web (Next.js)
 │   ├── src/
-│   │   ├── app/           # Páginas y rutas (App Router)
-│   │   ├── components/    # Componentes reutilizables
-│   │   ├── hooks/         # Hooks personalizados
-│   │   ├── services/      # Servicios (API, Socket, Analytics)
-│   │   └── styles/        # Estilos y configuración Tailwind
-│   ├── public/            # Assets estáticos, Service Worker, Manifest
-│   └── next.config.js     # Configuración PWA y optimizaciones
-└── mobile/                 # App Móvil (React Native + Expo)
-    ├── src/
-    │   ├── components/    # Componentes nativos
-    │   ├── contexts/      # Contextos (Auth, Theme)
-    │   ├── hooks/         # Hooks personalizados
-    │   ├── navigation/    # Navegación y rutas
-    │   ├── screens/       # Pantallas principales
-    │   └── services/      # Servicios móviles
-    └── app.json          # Configuración Expo
+│   │   ├── app/            # App Router (Next.js 14)
+│   │   ├── components/     # Componentes reutilizables
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── services/       # Servicios de API
+│   │   ├── store/          # Estado global (Zustand)
+│   │   └── styles/         # Estilos globales
+│   └── public/             # Assets estáticos
+├── mobile/                 # App Móvil (React Native + Expo)
+│   ├── src/
+│   │   ├── components/     # Componentes móviles
+│   │   ├── contexts/       # Contextos de React
+│   │   ├── hooks/          # Custom hooks móviles
+│   │   ├── navigation/     # Navegación de la app
+│   │   ├── screens/        # Pantallas de la app
+│   │   ├── services/       # Servicios de API
+│   │   └── utils/          # Utilidades móviles
+│   └── assets/             # Imágenes y recursos
+└── docs/                   # Documentación general
 ```
 
 ## 🛠️ Instalación y Configuración
 
 ### Prerrequisitos
-- **Node.js** 18.0.0 o superior
-- **MongoDB** 6.0 o superior
-- **Redis** 6.0 o superior
-- **npm** 9.0.0 o superior
-- **Expo CLI** (para desarrollo móvil)
+- Node.js 18+
+- MongoDB 6+
+- Redis 6+
+- Expo CLI (para desarrollo móvil)
+- Google Maps API Key
 
 ### 1. Clonar el Repositorio
 ```bash
-git clone <repository-url>
+git clone https://github.com/tu-usuario/eventconnect.git
 cd EventConnect
 ```
 
-### 2. Configurar Variables de Entorno
-
-#### Backend (`.env`)
+### 2. Configurar Backend
 ```bash
 cd backend
-cp .env.example .env
-# Editar .env con tus credenciales reales
-```
-
-#### Frontend Web (`.env.local`)
-```bash
-cd web
-cp .env.example .env.local
-# Editar .env.local con tus API keys
-```
-
-#### Mobile (`.env`)
-```bash
-cd mobile
+npm install
 cp .env.example .env
 # Editar .env con tus configuraciones
-```
-
-### 3. Instalar Dependencias
-```bash
-# Backend
-cd backend
-npm install
-
-# Frontend Web
-cd ../web
-npm install
-
-# Mobile
-cd ../mobile
-npm install
-```
-
-### 4. Configurar Base de Datos
-```bash
-# Iniciar MongoDB
-mongod
-
-# Iniciar Redis
-redis-server
-
-# Ejecutar migraciones
-cd backend
-npm run db:migrate
-npm run db:seed
-```
-
-### 5. Generar VAPID Keys para Notificaciones
-```bash
-npm install -g web-push
-web-push generate-vapid-keys
-# Agregar las keys al .env del frontend web
-```
-
-## 🚀 Ejecutar el Proyecto
-
-### Desarrollo
-```bash
-# Terminal 1: Backend
-cd backend
 npm run dev
+```
 
-# Terminal 2: Frontend Web
+### 3. Configurar Frontend Web
+```bash
 cd web
+npm install
+cp .env.example .env.local
+# Editar .env.local con tus configuraciones
 npm run dev
+```
 
-# Terminal 3: Mobile
+### 4. Configurar App Móvil
+```bash
 cd mobile
-npm start
+npm install
+cp .env.example .env
+# Editar .env con tus configuraciones
+npx expo start
 ```
 
-### Producción
+## 🔧 Configuración de Variables de Entorno
+
+### Backend (.env)
 ```bash
-# Backend
-cd backend
-npm run build
-npm start
+# Configuración básica
+NODE_ENV=development
+PORT=5000
+CORS_ORIGIN=http://localhost:3000
 
-# Frontend Web
-cd web
-npm run build
-npm start
+# Base de datos
+MONGODB_URI=mongodb://localhost:27017/eventconnect
+REDIS_URL=redis://localhost:6379
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key
+JWT_REFRESH_SECRET=your-refresh-secret
+
+# Google Maps
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 ```
 
-## 🔑 Configuración de APIs
+### Frontend Web (.env.local)
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+NEXT_PUBLIC_GA_ID=your-google-analytics-id
+```
 
-### Google Maps
-1. Obtener API Key en [Google Cloud Console](https://console.cloud.google.com/)
-2. Habilitar APIs: Maps JavaScript, Places, Geocoding, Distance Matrix
-3. Configurar restricciones de dominio
+### App Móvil (.env)
+```bash
+EXPO_PUBLIC_API_URL=http://localhost:5000
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+```
 
-### Cloudinary
-1. Crear cuenta en [Cloudinary](https://cloudinary.com/)
-2. Obtener Cloud Name, API Key y Secret
-3. Configurar upload preset
+## 🚀 Endpoints de la API
 
-### Push Notifications
-1. **Web**: Generar VAPID keys
-2. **Mobile**: Configurar Expo Push Tokens
-3. **iOS**: Configurar APNS (opcional)
-4. **Android**: Configurar FCM (opcional)
+### Autenticación
+- `POST /api/auth/register` - Registro de usuario
+- `POST /api/auth/login` - Inicio de sesión
+- `POST /api/auth/logout` - Cerrar sesión
+- `POST /api/auth/refresh` - Renovar token
+- `GET /api/auth/me` - Obtener perfil del usuario
 
-## 📱 Funcionalidades por Plataforma
+### Eventos
+- `GET /api/events` - Listar eventos
+- `POST /api/events` - Crear evento
+- `GET /api/events/:id` - Obtener evento específico
+- `PUT /api/events/:id` - Actualizar evento
+- `DELETE /api/events/:id` - Eliminar evento
+- `POST /api/events/:id/join` - Unirse a evento
+- `POST /api/events/:id/leave` - Salir de evento
 
-### 🌐 Frontend Web (PWA)
-- ✅ Instalación como app nativa
-- ✅ Funcionamiento offline
-- ✅ Notificaciones push del navegador
-- ✅ Chat en tiempo real
-- ✅ Mapa interactivo con Google Maps
-- ✅ Modo oscuro/claro
-- ✅ Responsive design
-- ✅ SEO optimizado
+### Tribus
+- `GET /api/tribes` - Listar tribus
+- `POST /api/tribes` - Crear tribu
+- `GET /api/tribes/:id` - Obtener tribu específica
+- `PUT /api/tribes/:id` - Actualizar tribu
+- `DELETE /api/tribes/:id` - Eliminar tribu
+- `POST /api/tribes/:id/join` - Unirse a tribu
+- `POST /api/tribes/:id/leave` - Salir de tribu
 
-### 📱 App Móvil
-- ✅ Navegación nativa
-- ✅ Geolocalización en tiempo real
-- ✅ Notificaciones push nativas
-- ✅ Chat en tiempo real
-- ✅ Mapa nativo con Google Maps
-- ✅ Tema adaptativo
-- ✅ Funcionalidad offline
-- ✅ Integración con cámara y galería
+### Chat
+- `GET /api/chat` - Listar chats
+- `POST /api/chat` - Crear chat
+- `GET /api/chat/:id/messages` - Obtener mensajes
+- `POST /api/chat/:id/messages` - Enviar mensaje
 
-### 🔧 Backend API
-- ✅ REST API completa
-- ✅ WebSockets para tiempo real
-- ✅ Sistema de notificaciones multi-canal
-- ✅ Autenticación JWT segura
-- ✅ Validación de datos robusta
-- ✅ Rate limiting y seguridad
-- ✅ Integración con servicios externos
-- ✅ Logging y monitoreo
+### Notificaciones
+- `GET /api/notifications` - Listar notificaciones
+- `PATCH /api/notifications/:id/read` - Marcar como leída
+- `POST /api/notifications/push-token` - Registrar token push
+
+## 📱 Funcionalidades de la App Móvil
+
+### Pantallas Principales
+- **Inicio**: Dashboard con estadísticas y acciones rápidas
+- **Eventos**: Descubrir y gestionar eventos
+- **Tribus**: Explorar y unirse a comunidades
+- **Mapa**: Vista interactiva de eventos y tribus cercanas
+- **Chat**: Comunicación en tiempo real
+- **Notificaciones**: Sistema de alertas personalizable
+- **Perfil**: Gestión de cuenta y preferencias
+
+### Características Móviles
+- **Geolocalización**: Detección automática de ubicación
+- **Mapas Offline**: Funcionalidad básica sin conexión
+- **Push Notifications**: Alertas en tiempo real
+- **Modo Oscuro**: Tema adaptable automáticamente
+- **Responsive**: Adaptado a diferentes tamaños de pantalla
+
+## 🌐 Funcionalidades del Frontend Web
+
+### Características Web
+- **PWA**: Instalable como aplicación nativa
+- **Modo Offline**: Funcionalidad básica sin conexión
+- **SEO Optimizado**: Meta tags y estructura semántica
+- **Analytics**: Integración con Google Analytics
+- **Performance**: Lazy loading y optimizaciones
+- **Accesibilidad**: Cumple estándares WCAG
+
+### Componentes Principales
+- **Mapa Interactivo**: Integración con Google Maps
+- **Feed Social**: Timeline de eventos y publicaciones
+- **Sistema de Chat**: Comunicación en tiempo real
+- **Gestión de Eventos**: CRUD completo de eventos
+- **Sistema de Tribus**: Comunidades y membresías
+
+## 🔒 Seguridad
+
+### Medidas Implementadas
+- **Autenticación**: JWT con refresh tokens
+- **Autorización**: Middleware de roles y permisos
+- **Validación**: Sanitización de inputs y validación de esquemas
+- **Rate Limiting**: Protección contra ataques de fuerza bruta
+- **CORS**: Configuración segura de origen cruzado
+- **Helmet**: Headers de seguridad HTTP
+- **XSS Protection**: Prevención de ataques XSS
+- **NoSQL Injection**: Protección contra inyecciones
 
 ## 🧪 Testing
 
 ### Backend
 ```bash
 cd backend
-npm test                    # Tests unitarios
-npm run test:integration   # Tests de integración
-npm run test:coverage      # Cobertura de código
+npm test              # Tests unitarios
+npm run test:watch    # Tests en modo watch
+npm run test:coverage # Tests con cobertura
+npm run test:integration # Tests de integración
 ```
 
 ### Frontend Web
 ```bash
 cd web
-npm run test               # Tests con Jest
-npm run test:e2e          # Tests end-to-end
-npm run lint              # Linting
-npm run type-check        # Verificación de tipos
+npm test              # Tests unitarios
+npm run test:e2e      # Tests end-to-end
+npm run test:coverage # Tests con cobertura
 ```
 
-## 📊 Monitoreo y Logs
+### App Móvil
+```bash
+cd mobile
+npm test              # Tests unitarios
+npx expo test         # Tests de Expo
+```
 
-### Logs
-- **Backend**: Logs estructurados con Winston
-- **Frontend**: Logs del navegador y consola
-- **Mobile**: Logs nativos y crash reporting
+## 📊 Monitoreo y Logging
 
-### Métricas
-- **Performance**: Tiempo de respuesta, throughput
-- **Errores**: Rate de errores, tipos de errores
-- **Usuarios**: Activos, engagement, retención
+### Métricas Implementadas
+- **Performance**: Tiempo de respuesta de API
+- **Errores**: Captura y logging de errores
+- **Uso**: Métricas de usuarios y funcionalidades
+- **Base de Datos**: Estado de conexiones y queries
+- **Cache**: Hit/miss rates de Redis
 
-## 🔒 Seguridad
-
-### Implementado
-- ✅ Autenticación JWT con refresh tokens
-- ✅ Rate limiting y throttling
-- ✅ Validación de entrada y sanitización
-- ✅ Protección XSS y CSRF
-- ✅ Headers de seguridad (Helmet)
-- ✅ CORS configurado
-- ✅ Encriptación de contraseñas (bcrypt)
-- ✅ Sanitización de MongoDB
-
-### Recomendaciones de Producción
-- 🔐 Usar HTTPS en producción
-- 🔐 Configurar CSP headers
-- 🔐 Implementar logging de auditoría
-- 🔐 Configurar backup automático de DB
-- 🔐 Monitoreo de seguridad continuo
+### Herramientas de Logging
+- **Morgan**: Logging de requests HTTP
+- **Winston**: Logging estructurado
+- **Rotación**: Logs automáticos por fecha/tamaño
 
 ## 🚀 Despliegue
 
-### Backend
+### Backend (Producción)
 ```bash
 # Docker
 docker build -t eventconnect-backend .
 docker run -p 5000:5000 eventconnect-backend
 
-# Heroku
-heroku create eventconnect-backend
-git push heroku main
-
-# Vercel
-vercel --prod
-```
-
-### Frontend Web
-```bash
-# Vercel (recomendado para Next.js)
-vercel --prod
-
-# Netlify
+# PM2
 npm run build
-netlify deploy --prod
-
-# AWS S3 + CloudFront
-npm run build
-aws s3 sync out/ s3://tu-bucket
+pm2 start ecosystem.config.js
 ```
 
-### Mobile
+### Frontend Web (Producción)
 ```bash
-# Expo EAS Build
-eas build --platform all
-
-# App Store / Google Play
-eas submit --platform all
+npm run build
+npm start
+# o deploy a Vercel/Netlify
 ```
 
-## 📈 Roadmap
+### App Móvil (Producción)
+```bash
+# Build para producción
+npx expo build:android
+npx expo build:ios
 
-### 🎯 MVP (Completado ✅)
-- [x] Sistema de autenticación
-- [x] CRUD de eventos y tribus
-- [x] Chat en tiempo real
-- [x] Notificaciones push
-- [x] Mapa interactivo
-- [x] PWA funcional
-- [x] App móvil nativa
-
-### 🚀 Próximas Versiones
-- [ ] IA avanzada para recomendaciones
-- [ ] Sistema de votación de ubicaciones
-- [ ] Integración con redes sociales
-- [ ] Sistema de pagos y ticketing
-- [ ] Analytics avanzado
-- [ ] Multi-idioma
-- [ ] Modo empresa/organizador
+# Deploy a stores
+npx expo submit:android
+npx expo submit:ios
+```
 
 ## 🤝 Contribución
 
+### Guías de Contribución
 1. Fork el proyecto
 2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
 3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
+### Estándares de Código
+- **ESLint**: Configuración estricta para JavaScript/TypeScript
+- **Prettier**: Formateo automático de código
+- **Husky**: Pre-commit hooks
+- **Conventional Commits**: Estándar de mensajes de commit
+
 ## 📄 Licencia
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
-## 📞 Soporte
+## 🆘 Soporte
 
-- **Documentación**: [docs/](./docs/)
+### Canales de Soporte
 - **Issues**: [GitHub Issues](https://github.com/tu-usuario/eventconnect/issues)
-- **Email**: soporte@eventconnect.com
-- **Discord**: [EventConnect Community](https://discord.gg/eventconnect)
+- **Discussions**: [GitHub Discussions](https://github.com/tu-usuario/eventconnect/discussions)
+- **Documentación**: [Wiki del Proyecto](https://github.com/tu-usuario/eventconnect/wiki)
+
+### Comunidad
+- **Discord**: [Servidor de EventConnect](https://discord.gg/eventconnect)
+- **Telegram**: [Canal de EventConnect](https://t.me/eventconnect)
+- **Email**: support@eventconnect.com
 
 ## 🙏 Agradecimientos
 
-- **Next.js** por el framework web
-- **Expo** por la plataforma móvil
-- **MongoDB** por la base de datos
-- **Socket.IO** por el tiempo real
-- **Tailwind CSS** por los estilos
-- **Shadcn/ui** por los componentes
+- **Expo**: Por el framework móvil increíble
+- **Next.js**: Por el framework web moderno
+- **MongoDB**: Por la base de datos flexible
+- **Socket.IO**: Por la comunicación en tiempo real
+- **Google Maps**: Por las APIs de geolocalización
 
 ---
 
-**EventConnect** - Conectando personas a través de eventos y tribus 🎉 
+**EventConnect** - Conectando personas, creando experiencias. 🎉 
