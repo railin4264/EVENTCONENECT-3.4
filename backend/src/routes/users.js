@@ -1,106 +1,362 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
+
+const { AppError } = require('../middleware/errorHandler');
+const { User, Event, Tribe, Post } = require('../models');
+const { redis } = require('../config');
 
 const router = express.Router();
-const {
-  protect,
-  optionalAuth,
-  ownerOrAdmin,
-  adminOnly,
-} = require('../middleware/auth');
-const { cache } = require('../middleware/cache');
-const { uploadAvatar, uploadBanner } = require('../middleware/upload');
-const {
-  validateUserUpdate,
-  validateSearch,
-  validatePagination,
-} = require('../middleware/validation');
 
-// Public routes (with optional auth)
-router.get('/', optionalAuth, validatePagination, cache(300), (req, res) => {
-  // This would use a userController.getUsers method
-  res.status(200).json({ message: 'Get users endpoint' });
+// Middleware de autenticación
+const requireAuth = (req, res, next) => {
+  if (!req.user) {
+    return next(new AppError('Autenticación requerida', 401));
+  }
+  next();
+};
+
+// Middleware de autorización (propietario o admin)
+const ownerOrAdmin = (req, res, next) => {
+  const { id } = req.params;
+  if (req.user.id !== id && req.user.role !== 'admin') {
+    return next(new AppError('No autorizado', 403));
+  }
+  next();
+};
+
+// GET /api/users - Obtener lista de usuarios
+router.get('/', requireAuth, async (req, res, next) => {
+  try {
+    const { page = 1, limit = 20, search, sort = 'createdAt' } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Construir query
+    const query = { status: 'active' };
+    if (search) {
+      query.$or = [
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    // Ejecutar query
+    const users = await User.find(query)
+      .select('-password')
+      .sort({ [sort]: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('tribes', 'name avatar');
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: users,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
-router.get(
-  '/search',
-  optionalAuth,
-  validateSearch,
-  validatePagination,
-  cache(180),
-  (req, res) => {
-    // This would use a userController.searchUsers method
-    res.status(200).json({ message: 'Search users endpoint' });
+
+// GET /api/users/:id - Obtener usuario específico
+router.get('/:id', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { include } = req.query;
+
+    const user = await User.findById(id)
+      .select('-password')
+      .populate('tribes', 'name avatar description memberCount');
+
+    if (!user) {
+      throw new AppError('Usuario no encontrado', 404);
+    }
+
+    // Incluir datos adicionales si se solicitan
+    const response = { success: true, data: user };
+
+    if (include && include.includes('events')) {
+      const events = await Event.find({ host: id, status: 'active' })
+        .select('name description startDate location category')
+        .sort({ startDate: 1 })
+        .limit(10);
+      response.events = events;
+    }
+
+    if (include && include.includes('posts')) {
+      const posts = await Post.find({ author: id, status: 'active' })
+        .select('content createdAt likes comments')
+        .sort({ createdAt: -1 })
+        .limit(10);
+      response.posts = posts;
+    }
+
+    if (include && include.includes('stats')) {
+      const stats = await getUserStats(id);
+      response.stats = stats;
+    }
+
+    res.json(response);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /api/users/:id - Actualizar usuario
+router.put(
+  '/:id',
+  requireAuth,
+  ownerOrAdmin,
+  [
+    body('firstName').optional().trim().isLength({ min: 2, max: 50 }),
+    body('lastName').optional().trim().isLength({ min: 2, max: 50 }),
+    body('bio').optional().trim().isLength({ max: 500 }),
+    body('location').optional().isObject(),
+    body('interests').optional().isArray(),
+    body('socialLinks').optional().isObject(),
+  ],
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        throw new AppError('Datos de validación inválidos', 400);
+      }
+
+      const { id } = req.params;
+      const updateData = req.body;
+
+      // Remover campos sensibles
+      delete updateData.password;
+      delete updateData.email;
+      delete updateData.role;
+      delete updateData.status;
+
+      const user = await User.findByIdAndUpdate(
+        id,
+        { ...updateData, updatedAt: new Date() },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      // Limpiar cache
+      await redis.del(`user:${id}`);
+
+      res.json({
+        success: true,
+        data: user,
+        message: 'Usuario actualizado exitosamente',
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 );
-router.get('/:userId', optionalAuth, cache(300), (req, res) => {
-  // This would use a userController.getUserById method
-  res.status(200).json({ message: 'Get user by ID endpoint' });
+
+// DELETE /api/users/:id - Eliminar usuario
+router.delete('/:id', requireAuth, ownerOrAdmin, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Soft delete - marcar como inactivo
+    const user = await User.findByIdAndUpdate(
+      id,
+      { status: 'inactive', deletedAt: new Date() },
+      { new: true }
+    );
+
+    if (!user) {
+      throw new AppError('Usuario no encontrado', 404);
+    }
+
+    // Limpiar cache
+    await redis.del(`user:${id}`);
+
+    res.json({
+      success: true,
+      message: 'Usuario eliminado exitosamente',
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Protected routes
-router.use(protect);
+// GET /api/users/:id/followers - Obtener seguidores
+router.get('/:id/followers', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
 
-// Profile management
-router.put('/profile', validateUserUpdate, (req, res) => {
-  // This would use a userController.updateProfile method
-  res.status(200).json({ message: 'Update profile endpoint' });
-});
+    const user = await User.findById(id);
+    if (!user) {
+      throw new AppError('Usuario no encontrado', 404);
+    }
 
-// Avatar and banner management
-router.post('/avatar', uploadAvatar, (req, res) => {
-  // This would use a userController.uploadAvatar method
-  res.status(200).json({ message: 'Upload avatar endpoint' });
-});
-router.post('/banner', uploadBanner, (req, res) => {
-  // This would use a userController.uploadBanner method
-  res.status(200).json({ message: 'Upload banner endpoint' });
-});
+    const followers = await User.find({ following: id })
+      .select('username firstName lastName avatar bio')
+      .skip(skip)
+      .limit(parseInt(limit));
 
-// User interactions
-router.post('/:userId/follow', (req, res) => {
-  // This would use a userController.followUser method
-  res.status(200).json({ message: 'Follow user endpoint' });
-});
-router.delete('/:userId/follow', (req, res) => {
-  // This would use a userController.unfollowUser method
-  res.status(200).json({ message: 'Unfollow user endpoint' });
-});
+    const total = await User.countDocuments({ following: id });
 
-// User relationships
-router.get('/:userId/followers', validatePagination, cache(180), (req, res) => {
-  // This would use a userController.getUserFollowers method
-  res.status(200).json({ message: 'Get user followers endpoint' });
-});
-router.get('/:userId/following', validatePagination, cache(180), (req, res) => {
-  // This would use a userController.getUserFollowing method
-  res.status(200).json({ message: 'Get user following endpoint' });
+    res.json({
+      success: true,
+      data: followers,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-// User content
-router.get('/:userId/events', validatePagination, cache(180), (req, res) => {
-  // This would use a userController.getUserEvents method
-  res.status(200).json({ message: 'Get user events endpoint' });
-});
-router.get('/:userId/tribes', validatePagination, cache(180), (req, res) => {
-  // This would use a userController.getUserTribes method
-  res.status(200).json({ message: 'Get user tribes endpoint' });
-});
-router.get('/:userId/posts', validatePagination, cache(180), (req, res) => {
-  // This would use a userController.getUserPosts method
-  res.status(200).json({ message: 'Get user posts endpoint' });
+// GET /api/users/:id/following - Obtener usuarios seguidos
+router.get('/:id/following', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findById(id);
+    if (!user) {
+      throw new AppError('Usuario no encontrado', 404);
+    }
+
+    const following = await User.find({ _id: { $in: user.following } })
+      .select('username firstName lastName avatar bio')
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = user.following.length;
+
+    res.json({
+      success: true,
+      data: following,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Admin routes
-router.get('/admin/all', adminOnly, validatePagination, (req, res) => {
-  // This would use a userController.getAllUsers method
-  res.status(200).json({ message: 'Get all users endpoint' });
+// POST /api/users/:id/follow - Seguir usuario
+router.post('/:id/follow', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const followerId = req.user.id;
+
+    if (id === followerId) {
+      throw new AppError('No puedes seguirte a ti mismo', 400);
+    }
+
+    const userToFollow = await User.findById(id);
+    if (!userToFollow) {
+      throw new AppError('Usuario no encontrado', 404);
+    }
+
+    const follower = await User.findById(followerId);
+    if (follower.following.includes(id)) {
+      throw new AppError('Ya estás siguiendo a este usuario', 400);
+    }
+
+    // Agregar a following
+    await User.findByIdAndUpdate(followerId, {
+      $addToSet: { following: id },
+      $inc: { followingCount: 1 },
+    });
+
+    // Agregar a followers
+    await User.findByIdAndUpdate(id, {
+      $addToSet: { followers: followerId },
+      $inc: { followersCount: 1 },
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuario seguido exitosamente',
+    });
+  } catch (error) {
+    next(error);
+  }
 });
-router.put('/admin/:userId/verify', adminOnly, (req, res) => {
-  // This would use a userController.verifyUser method
-  res.status(200).json({ message: 'Verify user endpoint' });
+
+// DELETE /api/users/:id/follow - Dejar de seguir usuario
+router.delete('/:id/follow', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const followerId = req.user.id;
+
+    const follower = await User.findById(followerId);
+    if (!follower.following.includes(id)) {
+      throw new AppError('No estás siguiendo a este usuario', 400);
+    }
+
+    // Remover de following
+    await User.findByIdAndUpdate(followerId, {
+      $pull: { following: id },
+      $inc: { followingCount: -1 },
+    });
+
+    // Remover de followers
+    await User.findByIdAndUpdate(id, {
+      $pull: { followers: followerId },
+      $inc: { followersCount: -1 },
+    });
+
+    res.json({
+      success: true,
+      message: 'Dejaste de seguir al usuario exitosamente',
+    });
+  } catch (error) {
+    next(error);
+  }
 });
-router.put('/admin/:userId/ban', adminOnly, (req, res) => {
-  // This would use a userController.banUser method
-  res.status(200).json({ message: 'Ban user endpoint' });
-});
+
+// Función auxiliar para obtener estadísticas del usuario
+async function getUserStats(userId) {
+  try {
+    const [eventCount, tribeCount, postCount, followerCount] = await Promise.all([
+      Event.countDocuments({ host: userId, status: 'active' }),
+      Tribe.countDocuments({ members: userId }),
+      Post.countDocuments({ author: userId, status: 'active' }),
+      User.countDocuments({ following: userId }),
+    ]);
+
+    return {
+      eventCount,
+      tribeCount,
+      postCount,
+      followerCount,
+    };
+  } catch (error) {
+    console.error('Error obteniendo estadísticas del usuario:', error);
+    return {
+      eventCount: 0,
+      tribeCount: 0,
+      postCount: 0,
+      followerCount: 0,
+    };
+  }
+}
 
 module.exports = router;

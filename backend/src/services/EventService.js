@@ -1,17 +1,18 @@
 const { redis } = require('../config');
 const { AppError } = require('../middleware/errorHandler');
-const { Event, User, Review, Post } = require('../models');
+const { Event, User, Post } = require('../models');
 
 class EventService {
   /**
    * Get personalized event recommendations for a user
-   * @param userId
-   * @param limit
+   * @param {string} userId - User ID
+   * @param {number} limit - Number of recommendations
+   * @returns {array} Event recommendations
    */
   async getPersonalizedRecommendations(userId, limit = 10) {
     try {
       const user = await User.findById(userId).select(
-        'interests location following'
+        'interests location following',
       );
       if (!user) {
         throw new AppError('Usuario no encontrado', 404);
@@ -77,7 +78,7 @@ class EventService {
       const recommendations = this.rankRecommendations(
         [...interestEvents, ...followedEvents, ...trendingEvents],
         userInterests,
-        userLocation
+        userLocation,
       );
 
       // Remove duplicates and limit results
@@ -86,180 +87,103 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener recomendaciones: ${error.message}`,
-        500
+        500,
       );
     }
   }
 
   /**
    * Get event analytics and insights
-   * @param eventId
-   * @param hostId
+   * @param {string} eventId - Event ID
+   * @param {string} hostId - Host ID
+   * @returns {object} Event analytics
    */
   async getEventAnalytics(eventId, hostId) {
     try {
-      const event = await Event.findById(eventId);
+      // Verify event ownership
+      const event = await Event.findOne({ _id: eventId, host: hostId });
       if (!event) {
-        throw new AppError('Evento no encontrado', 404);
+        throw new AppError('Evento no encontrado o no autorizado', 404);
       }
 
-      if (event.host.toString() !== hostId) {
-        throw new AppError(
-          'No autorizado para ver analytics de este evento',
-          403
-        );
-      }
-
-      // Get attendee demographics
-      const attendees = await User.find({
-        _id: { $in: event.attendees },
-      }).select('age gender location interests');
-
-      // Get engagement metrics
-      const posts = await Post.find({
-        event: eventId,
-        createdAt: { $gte: event.createdAt },
-      });
-
-      // Calculate analytics
+      // Get analytics data
       const analytics = {
         totalAttendees: event.attendees.length,
-        capacityUtilization: (event.attendees.length / event.capacity) * 100,
-        engagement: {
-          posts: posts.length,
-          likes: event.likeCount,
-          shares: event.shareCount,
-          comments: posts.reduce((sum, post) => sum + post.commentCount, 0),
-        },
-        demographics: this.calculateDemographics(attendees),
-        growth: await this.calculateEventGrowth(eventId),
-        revenue: await this.calculateEventRevenue(eventId),
-        retention: await this.calculateRetentionRate(eventId),
+        totalLikes: event.likes.length,
+        totalComments: event.comments.length,
+        totalShares: event.shares || 0,
+        engagementRate: this.calculateEngagementRate(event),
+        attendeeGrowth: await this.getAttendeeGrowth(eventId),
+        demographicData: await this.getDemographicData(eventId),
+        revenueData: await this.getRevenueData(eventId),
+        socialMediaMetrics: await this.getSocialMediaMetrics(eventId),
       };
-
-      // Cache analytics for 1 hour
-      await redis.set(
-        `event:analytics:${eventId}`,
-        JSON.stringify(analytics),
-        3600
-      );
 
       return analytics;
     } catch (error) {
-      throw new AppError(`Error al obtener analytics: ${error.message}`, 500);
+      throw new AppError(
+        `Error al obtener analytics del evento: ${error.message}`,
+        500,
+      );
     }
   }
 
   /**
-   * Process event creation with validation and setup
-   * @param eventData
-   * @param hostId
+   * Get universal tribes for a user
+   * @param {string} userId - User ID
+   * @returns {array} Universal tribes
    */
-  async processEventCreation(eventData, hostId) {
+  async getUniversalTribes(userId) {
     try {
-      // Validate event data
-      const validationResult = await this.validateEventData(eventData);
-      if (!validationResult.isValid) {
-        throw new AppError(
-          `Datos del evento inválidos: ${validationResult.errors.join(', ')}`,
-          400
-        );
+      const user = await User.findById(userId).select('interests location');
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
       }
 
-      // Check host capacity and limits
-      const hostEventCount = await Event.countDocuments({
-        host: hostId,
-        startDate: { $gte: new Date() },
-      });
-
-      if (hostEventCount >= 10) {
-        throw new AppError(
-          'Has alcanzado el límite de eventos activos (10)',
-          400
-        );
-      }
-
-      // Check for duplicate events
-      const duplicateCheck = await this.checkDuplicateEvent(eventData, hostId);
-      if (duplicateCheck.isDuplicate) {
-        throw new AppError('Ya tienes un evento similar programado', 400);
-      }
-
-      // Create event
-      const event = new Event({
-        ...eventData,
-        host: hostId,
+      const query = {
+        isPrivate: false,
         status: 'active',
-      });
+      };
 
-      await event.save();
+      // Add location-based filtering if user has location
+      if (user.location) {
+        query.location = {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [
+                user.location.coordinates.lng,
+                user.location.coordinates.lat,
+              ],
+            },
+            $maxDistance: 100000, // 100km radius
+          },
+        };
+      }
 
-      // Send notifications to relevant users
-      await this.notifyRelevantUsers(event);
+      const tribes = await Event.find(query)
+        .populate('creator', 'username avatar rating')
+        .sort({ memberCount: -1, rating: -1 })
+        .limit(20);
 
-      // Update host statistics
-      await this.updateHostStats(hostId);
-
-      return event;
+      return tribes;
     } catch (error) {
-      throw new AppError(`Error al crear evento: ${error.message}`, 500);
+      throw new AppError(
+        `Error al obtener tribus universales: ${error.message}`,
+        500,
+      );
     }
   }
 
   /**
-   * Handle event cancellation with refunds and notifications
-   * @param eventId
-   * @param hostId
-   * @param reason
+   * Get pulse events (nearby events)
+   * @param {string} userId - User ID
+   * @param {number} latitude - User latitude
+   * @param {number} longitude - User longitude
+   * @param {number} radius - Search radius in km
+   * @returns {array} Pulse events
    */
-  async cancelEvent(eventId, hostId, reason) {
-    try {
-      const event = await Event.findById(eventId);
-      if (!event) {
-        throw new AppError('Evento no encontrado', 404);
-      }
-
-      if (event.host.toString() !== hostId) {
-        throw new AppError('No autorizado para cancelar este evento', 403);
-      }
-
-      if (event.status === 'cancelled') {
-        throw new AppError('El evento ya está cancelado', 400);
-      }
-
-      // Process refunds if applicable
-      if (event.pricing && event.pricing.price > 0) {
-        await this.processRefunds(event);
-      }
-
-      // Update event status
-      event.status = 'cancelled';
-      event.cancellationReason = reason;
-      event.cancelledAt = new Date();
-      await event.save();
-
-      // Notify attendees
-      await this.notifyEventCancellation(event);
-
-      // Update host statistics
-      await this.updateHostStats(hostId);
-
-      // Process any related posts or content
-      await this.handleEventCancellationContent(event);
-
-      return event;
-    } catch (error) {
-      throw new AppError(`Error al cancelar evento: ${error.message}`, 500);
-    }
-  }
-
-  /**
-   * Get nearby events with intelligent filtering
-   * @param location
-   * @param radius
-   * @param filters
-   */
-  async getNearbyEvents(location, radius = 50, filters = {}) {
+  async getPulseEvents(userId, latitude, longitude, radius = 10) {
     try {
       const query = {
         status: 'active',
@@ -269,46 +193,133 @@ class EventService {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [location.lng, location.lat],
+              coordinates: [longitude, latitude],
             },
-            $maxDistance: radius * 1000, // Convert km to meters
+            $maxDistance: radius * 1000, // Convert to meters
           },
         },
       };
 
-      // Apply additional filters
-      if (filters.category) {
-        query.category = {
-          $in: Array.isArray(filters.category)
-            ? filters.category
-            : [filters.category],
-        };
-      }
-
-      if (filters.dateRange) {
-        query.startDate = {
-          $gte: filters.dateRange.start,
-          $lte: filters.dateRange.end,
-        };
-      }
-
-      if (filters.priceRange) {
-        query['pricing.price'] = {
-          $gte: filters.priceRange.min || 0,
-          $lte: filters.priceRange.max || Number.MAX_SAFE_INTEGER,
-        };
-      }
-
       const events = await Event.find(query)
         .populate('host', 'username avatar rating')
         .sort({ startDate: 1, attendeeCount: -1 })
-        .limit(filters.limit || 50);
+        .limit(50);
 
       return events;
     } catch (error) {
       throw new AppError(
-        `Error al obtener eventos cercanos: ${error.message}`,
-        500
+        `Error al obtener eventos del pulso: ${error.message}`,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Get user tribes
+   * @param {string} userId - User ID
+   * @returns {array} User tribes
+   */
+  async getUserTribes(userId) {
+    try {
+      const user = await User.findById(userId).populate('tribes');
+      return user.tribes || [];
+    } catch (error) {
+      throw new AppError(
+        `Error al obtener tribus del usuario: ${error.message}`,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Create a new event
+   * @param {object} eventData - Event data
+   * @returns {object} Created event
+   */
+  async createEvent(eventData) {
+    try {
+      const event = new Event(eventData);
+      await event.save();
+      return event;
+    } catch (error) {
+      throw new AppError(
+        `Error al crear evento: ${error.message}`,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Save a message
+   * @param {object} messageData - Message data
+   * @returns {object} Saved message
+   */
+  async saveMessage(messageData) {
+    try {
+      // This would typically save to a Chat model
+      // For now, return the message data
+      return {
+        ...messageData,
+        id: Date.now().toString(),
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      throw new AppError(
+        `Error al guardar mensaje: ${error.message}`,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Update user location
+   * @param {string} userId - User ID
+   * @param {object} locationData - Location data
+   * @returns {object} Updated user
+   */
+  async updateUserLocation(userId, locationData) {
+    try {
+      const user = await User.findByIdAndUpdate(
+        userId,
+        { location: locationData },
+        { new: true },
+      );
+      return user;
+    } catch (error) {
+      throw new AppError(
+        `Error al actualizar ubicación: ${error.message}`,
+        500,
+      );
+    }
+  }
+
+  /**
+   * Get nearby users
+   * @param {object} locationData - Location data
+   * @returns {array} Nearby users
+   */
+  async getNearbyUsers(locationData) {
+    try {
+      const { latitude, longitude, radius = 5 } = locationData;
+      const users = await User.find({
+        location: {
+          $near: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [longitude, latitude],
+            },
+            $maxDistance: radius * 1000, // Convert to meters
+          },
+        },
+      })
+        .select('username avatar location')
+        .limit(20);
+
+      return users;
+    } catch (error) {
+      throw new AppError(
+        `Error al obtener usuarios cercanos: ${error.message}`,
+        500,
       );
     }
   }

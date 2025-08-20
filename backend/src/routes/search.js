@@ -14,13 +14,13 @@ router.get(
   '/suggestions',
   optionalAuth,
   cache(180),
-  searchController.getSearchSuggestions
+  searchController.generateSearchSuggestions
 );
 router.get(
   '/trending',
   optionalAuth,
   cache(300),
-  searchController.getTrendingSearches
+  searchController.getSearchAnalytics
 );
 
 // Protected routes
