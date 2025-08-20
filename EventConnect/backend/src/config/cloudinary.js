@@ -1,6 +1,7 @@
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
 const path = require('path');
 const fs = require('fs');
 
@@ -9,9 +10,11 @@ class CloudinaryManager {
     this.cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     this.apiKey = process.env.CLOUDINARY_API_KEY;
     this.apiSecret = process.env.CLOUDINARY_API_SECRET;
-    
+
     if (!this.cloudName || !this.apiKey || !this.apiSecret) {
-      console.warn('⚠️ Configuración de Cloudinary incompleta. Las subidas de archivos pueden no funcionar correctamente.');
+      console.warn(
+        '⚠️ Configuración de Cloudinary incompleta. Las subidas de archivos pueden no funcionar correctamente.'
+      );
     }
 
     // Configure Cloudinary
@@ -19,17 +22,26 @@ class CloudinaryManager {
       cloud_name: this.cloudName,
       api_key: this.apiKey,
       api_secret: this.apiSecret,
-      secure: true
+      secure: true,
     });
 
     this.defaultOptions = {
       folder: 'eventconnect',
-      allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'avi', 'pdf', 'doc', 'docx'],
-      transformation: [
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' }
+      allowed_formats: [
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'mp4',
+        'mov',
+        'avi',
+        'pdf',
+        'doc',
+        'docx',
       ],
-      resource_type: 'auto'
+      transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
+      resource_type: 'auto',
     };
   }
 
@@ -59,7 +71,8 @@ class CloudinaryManager {
       const uploadOptions = {
         ...this.defaultOptions,
         ...options,
-        public_id: options.public_id || this.generatePublicId(file.originalname)
+        public_id:
+          options.public_id || this.generatePublicId(file.originalname),
       };
 
       // Handle different file types
@@ -70,20 +83,20 @@ class CloudinaryManager {
           { fetch_format: 'auto' },
           { width: options.width || 'auto' },
           { height: options.height || 'auto' },
-          { crop: options.crop || 'limit' }
+          { crop: options.crop || 'limit' },
         ];
       } else if (file.mimetype.startsWith('video/')) {
         uploadOptions.resource_type = 'video';
         uploadOptions.transformation = [
           { quality: 'auto:good' },
-          { fetch_format: 'auto' }
+          { fetch_format: 'auto' },
         ];
       } else {
         uploadOptions.resource_type = 'raw';
       }
 
       const result = await cloudinary.uploader.upload(file.path, uploadOptions);
-      
+
       // Clean up local file
       this.cleanupLocalFile(file.path);
 
@@ -96,17 +109,17 @@ class CloudinaryManager {
         format: result.format,
         size: result.bytes,
         resource_type: result.resource_type,
-        created_at: result.created_at
+        created_at: result.created_at,
       };
     } catch (error) {
       console.error('❌ Error subiendo archivo a Cloudinary:', error);
-      
+
       // Clean up local file on error
       this.cleanupLocalFile(file.path);
-      
+
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -128,12 +141,15 @@ class CloudinaryManager {
         if (result.status === 'fulfilled' && result.value.success) {
           successful.push({
             originalName: files[index].originalname,
-            ...result.value
+            ...result.value,
           });
         } else {
           failed.push({
             originalName: files[index].originalname,
-            error: result.status === 'rejected' ? result.reason.message : result.value.error
+            error:
+              result.status === 'rejected'
+                ? result.reason.message
+                : result.value.error,
           });
         }
       });
@@ -143,19 +159,22 @@ class CloudinaryManager {
         failed,
         total: files.length,
         successCount: successful.length,
-        failureCount: failed.length
+        failureCount: failed.length,
       };
     } catch (error) {
-      console.error('❌ Error subiendo múltiples archivos a Cloudinary:', error);
+      console.error(
+        '❌ Error subiendo múltiples archivos a Cloudinary:',
+        error
+      );
       return {
         successful: [],
         failed: files.map(file => ({
           originalName: file.originalname,
-          error: error.message
+          error: error.message,
         })),
         total: files.length,
         successCount: 0,
-        failureCount: files.length
+        failureCount: files.length,
       };
     }
   }
@@ -165,19 +184,22 @@ class CloudinaryManager {
     try {
       const options = {
         folder: transformations.folder || 'eventconnect/images',
-        transformation: [
-          { quality: 'auto:good' },
-          { fetch_format: 'auto' }
-        ]
+        transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
       };
 
       // Add custom transformations
-      if (transformations.width) options.transformation.push({ width: transformations.width });
-      if (transformations.height) options.transformation.push({ height: transformations.height });
-      if (transformations.crop) options.transformation.push({ crop: transformations.crop });
-      if (transformations.gravity) options.transformation.push({ gravity: transformations.gravity });
-      if (transformations.radius) options.transformation.push({ radius: transformations.radius });
-      if (transformations.effect) options.transformation.push({ effect: transformations.effect });
+      if (transformations.width)
+        options.transformation.push({ width: transformations.width });
+      if (transformations.height)
+        options.transformation.push({ height: transformations.height });
+      if (transformations.crop)
+        options.transformation.push({ crop: transformations.crop });
+      if (transformations.gravity)
+        options.transformation.push({ gravity: transformations.gravity });
+      if (transformations.radius)
+        options.transformation.push({ radius: transformations.radius });
+      if (transformations.effect)
+        options.transformation.push({ effect: transformations.effect });
 
       return await this.uploadFile(file, options);
     } catch (error) {
@@ -194,9 +216,9 @@ class CloudinaryManager {
         transformation: [
           { width: 400, height: 400, crop: 'fill', gravity: 'face' },
           { quality: 'auto:good' },
-          { fetch_format: 'auto' }
+          { fetch_format: 'auto' },
         ],
-        public_id: `avatar_${userId}_${Date.now()}`
+        public_id: `avatar_${userId}_${Date.now()}`,
       };
 
       return await this.uploadFile(file, options);
@@ -214,9 +236,9 @@ class CloudinaryManager {
         transformation: [
           { width: 1200, height: 400, crop: 'fill', gravity: 'auto' },
           { quality: 'auto:good' },
-          { fetch_format: 'auto' }
+          { fetch_format: 'auto' },
         ],
-        public_id: `banner_${userId}_${Date.now()}`
+        public_id: `banner_${userId}_${Date.now()}`,
       };
 
       return await this.uploadFile(file, options);
@@ -231,15 +253,15 @@ class CloudinaryManager {
     try {
       const options = {
         folder: `eventconnect/events/${eventId}`,
-        transformation: [
-          { quality: 'auto:good' },
-          { fetch_format: 'auto' }
-        ]
+        transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
       };
 
       return await this.uploadMultipleFiles(files, options);
     } catch (error) {
-      console.error('❌ Error subiendo imágenes de evento a Cloudinary:', error);
+      console.error(
+        '❌ Error subiendo imágenes de evento a Cloudinary:',
+        error
+      );
       throw error;
     }
   }
@@ -249,10 +271,7 @@ class CloudinaryManager {
     try {
       const options = {
         folder: `eventconnect/tribes/${tribeId}`,
-        transformation: [
-          { quality: 'auto:good' },
-          { fetch_format: 'auto' }
-        ]
+        transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
       };
 
       return await this.uploadMultipleFiles(files, options);
@@ -267,10 +286,7 @@ class CloudinaryManager {
     try {
       const options = {
         folder: `eventconnect/posts/${postId}`,
-        transformation: [
-          { quality: 'auto:good' },
-          { fetch_format: 'auto' }
-        ]
+        transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
       };
 
       return await this.uploadMultipleFiles(files, options);
@@ -288,20 +304,20 @@ class CloudinaryManager {
       }
 
       const result = await cloudinary.uploader.destroy(publicId, {
-        resource_type: resourceType
+        resource_type: resourceType,
       });
 
       return {
         success: true,
         result: result.result,
-        public_id: publicId
+        public_id: publicId,
       };
     } catch (error) {
       console.error('❌ Error eliminando archivo de Cloudinary:', error);
       return {
         success: false,
         error: error.message,
-        public_id: publicId
+        public_id: publicId,
       };
     }
   }
@@ -313,7 +329,9 @@ class CloudinaryManager {
         throw new Error('Public IDs no proporcionados o formato inválido');
       }
 
-      const deletePromises = publicIds.map(publicId => this.deleteFile(publicId, resourceType));
+      const deletePromises = publicIds.map(publicId =>
+        this.deleteFile(publicId, resourceType)
+      );
       const results = await Promise.allSettled(deletePromises);
 
       const successful = [];
@@ -325,7 +343,10 @@ class CloudinaryManager {
         } else {
           failed.push({
             public_id: publicIds[index],
-            error: result.status === 'rejected' ? result.reason.message : result.value.error
+            error:
+              result.status === 'rejected'
+                ? result.reason.message
+                : result.value.error,
           });
         }
       });
@@ -335,19 +356,22 @@ class CloudinaryManager {
         failed,
         total: publicIds.length,
         successCount: successful.length,
-        failureCount: failed.length
+        failureCount: failed.length,
       };
     } catch (error) {
-      console.error('❌ Error eliminando múltiples archivos de Cloudinary:', error);
+      console.error(
+        '❌ Error eliminando múltiples archivos de Cloudinary:',
+        error
+      );
       return {
         successful: [],
         failed: publicIds.map(publicId => ({
           public_id: publicId,
-          error: error.message
+          error: error.message,
         })),
         total: publicIds.length,
         successCount: 0,
-        failureCount: publicIds.length
+        failureCount: publicIds.length,
       };
     }
   }
@@ -360,7 +384,7 @@ class CloudinaryManager {
       }
 
       const result = await cloudinary.api.resource(publicId, {
-        resource_type: resourceType
+        resource_type: resourceType,
       });
 
       return {
@@ -373,14 +397,17 @@ class CloudinaryManager {
         size: result.bytes,
         resource_type: result.resource_type,
         created_at: result.created_at,
-        tags: result.tags || []
+        tags: result.tags || [],
       };
     } catch (error) {
-      console.error('❌ Error obteniendo información del archivo de Cloudinary:', error);
+      console.error(
+        '❌ Error obteniendo información del archivo de Cloudinary:',
+        error
+      );
       return {
         success: false,
         error: error.message,
-        public_id: publicId
+        public_id: publicId,
       };
     }
   }
@@ -398,14 +425,21 @@ class CloudinaryManager {
       // Add transformations
       if (Object.keys(transformations).length > 0) {
         const transformParams = [];
-        
-        if (transformations.width) transformParams.push(`w_${transformations.width}`);
-        if (transformations.height) transformParams.push(`h_${transformations.height}`);
-        if (transformations.crop) transformParams.push(`c_${transformations.crop}`);
-        if (transformations.gravity) transformParams.push(`g_${transformations.gravity}`);
-        if (transformations.radius) transformParams.push(`r_${transformations.radius}`);
-        if (transformations.quality) transformParams.push(`q_${transformations.quality}`);
-        if (transformations.format) transformParams.push(`f_${transformations.format}`);
+
+        if (transformations.width)
+          transformParams.push(`w_${transformations.width}`);
+        if (transformations.height)
+          transformParams.push(`h_${transformations.height}`);
+        if (transformations.crop)
+          transformParams.push(`c_${transformations.crop}`);
+        if (transformations.gravity)
+          transformParams.push(`g_${transformations.gravity}`);
+        if (transformations.radius)
+          transformParams.push(`r_${transformations.radius}`);
+        if (transformations.quality)
+          transformParams.push(`q_${transformations.quality}`);
+        if (transformations.format)
+          transformParams.push(`f_${transformations.format}`);
 
         if (transformParams.length > 0) {
           url = `${baseUrl}/${transformParams.join(',')}/${publicId}`;
@@ -432,12 +466,17 @@ class CloudinaryManager {
       // Add transformations
       if (Object.keys(transformations).length > 0) {
         const transformParams = [];
-        
-        if (transformations.width) transformParams.push(`w_${transformations.width}`);
-        if (transformations.height) transformParams.push(`h_${transformations.height}`);
-        if (transformations.crop) transformParams.push(`c_${transformations.crop}`);
-        if (transformations.quality) transformParams.push(`q_${transformations.quality}`);
-        if (transformations.format) transformParams.push(`f_${transformations.format}`);
+
+        if (transformations.width)
+          transformParams.push(`w_${transformations.width}`);
+        if (transformations.height)
+          transformParams.push(`h_${transformations.height}`);
+        if (transformations.crop)
+          transformParams.push(`c_${transformations.crop}`);
+        if (transformations.quality)
+          transformParams.push(`q_${transformations.quality}`);
+        if (transformations.format)
+          transformParams.push(`f_${transformations.format}`);
 
         if (transformParams.length > 0) {
           url = `${baseUrl}/${transformParams.join(',')}/${publicId}`;
@@ -452,18 +491,18 @@ class CloudinaryManager {
   }
 
   // Create Cloudinary storage for multer
-  createStorage(folder = 'eventconnect', allowedFormats = ['jpg', 'jpeg', 'png', 'gif', 'webp']) {
+  createStorage(
+    folder = 'eventconnect',
+    allowedFormats = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+  ) {
     try {
       return new CloudinaryStorage({
-        cloudinary: cloudinary,
+        cloudinary,
         params: {
-          folder: folder,
+          folder,
           allowed_formats: allowedFormats,
-          transformation: [
-            { quality: 'auto:good' },
-            { fetch_format: 'auto' }
-          ]
-        }
+          transformation: [{ quality: 'auto:good' }, { fetch_format: 'auto' }],
+        },
       });
     } catch (error) {
       console.error('❌ Error creando storage de Cloudinary:', error);
@@ -478,7 +517,7 @@ class CloudinaryManager {
       const randomString = Math.random().toString(36).substring(2, 15);
       const extension = path.extname(originalName);
       const nameWithoutExt = path.basename(originalName, extension);
-      
+
       return `${nameWithoutExt}_${timestamp}_${randomString}`;
     } catch (error) {
       console.error('❌ Error generando public ID:', error);
@@ -502,7 +541,7 @@ class CloudinaryManager {
   async getUsageStats() {
     try {
       const result = await cloudinary.api.usage();
-      
+
       return {
         success: true,
         plan: result.plan,
@@ -512,13 +551,16 @@ class CloudinaryManager {
         storage: result.storage,
         requests: result.requests,
         resources: result.resources,
-        derived_resources: result.derived_resources
+        derived_resources: result.derived_resources,
       };
     } catch (error) {
-      console.error('❌ Error obteniendo estadísticas de uso de Cloudinary:', error);
+      console.error(
+        '❌ Error obteniendo estadísticas de uso de Cloudinary:',
+        error
+      );
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -529,7 +571,7 @@ class CloudinaryManager {
       const searchOptions = {
         max_results: options.maxResults || 100,
         next_cursor: options.nextCursor,
-        ...options
+        ...options,
       };
 
       const result = await cloudinary.search
@@ -543,7 +585,7 @@ class CloudinaryManager {
         success: true,
         resources: result.resources,
         next_cursor: result.next_cursor,
-        total_count: result.total_count
+        total_count: result.total_count,
       };
     } catch (error) {
       console.error('❌ Error buscando archivos en Cloudinary:', error);
@@ -552,7 +594,7 @@ class CloudinaryManager {
         error: error.message,
         resources: [],
         next_cursor: null,
-        total_count: 0
+        total_count: 0,
       };
     }
   }
@@ -578,23 +620,26 @@ class CloudinaryManager {
         prefix: folderPath,
         max_results: options.maxResults || 100,
         next_cursor: options.nextCursor,
-        ...options
+        ...options,
       });
 
       return {
         success: true,
         resources: result.resources,
         next_cursor: result.next_cursor,
-        total_count: result.total_count
+        total_count: result.total_count,
       };
     } catch (error) {
-      console.error('❌ Error obteniendo contenido de carpeta de Cloudinary:', error);
+      console.error(
+        '❌ Error obteniendo contenido de carpeta de Cloudinary:',
+        error
+      );
       return {
         success: false,
         error: error.message,
         resources: [],
         next_cursor: null,
-        total_count: 0
+        total_count: 0,
       };
     }
   }

@@ -1,7 +1,10 @@
-const { Tribe, User, Post } = require('../models');
 const { cloudinary } = require('../config');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
-const { validateTribeCreation, validateTribeUpdate } = require('../middleware/validation');
+const {
+  validateTribeCreation,
+  validateTribeUpdate,
+} = require('../middleware/validation');
+const { Tribe, User, Post } = require('../models');
 
 class TribeController {
   // Create new tribe
@@ -21,7 +24,7 @@ class TribeController {
         tribeData.location.type = 'Point';
         tribeData.location.coordinates = [
           tribeData.location.coordinates.longitude,
-          tribeData.location.coordinates.latitude
+          tribeData.location.coordinates.latitude,
         ];
       }
 
@@ -36,7 +39,7 @@ class TribeController {
       res.status(201).json({
         success: true,
         message: 'Tribu creada exitosamente',
-        data: { tribe }
+        data: { tribe },
       });
     } catch (error) {
       next(error);
@@ -59,7 +62,7 @@ class TribeController {
         sortOrder = 'desc',
         radius = 50,
         latitude,
-        longitude
+        longitude,
       } = req.query;
 
       // Build query
@@ -91,7 +94,7 @@ class TribeController {
         query.$or = [
           { name: { $regex: search, $options: 'i' } },
           { description: { $regex: search, $options: 'i' } },
-          { tags: { $in: [new RegExp(search, 'i')] } }
+          { tags: { $in: [new RegExp(search, 'i')] } },
         ];
       }
 
@@ -101,10 +104,10 @@ class TribeController {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
             },
-            $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
-          }
+            $maxDistance: parseFloat(radius) * 1000, // Convert km to meters
+          },
         };
       }
 
@@ -114,7 +117,7 @@ class TribeController {
 
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      
+
       const tribes = await Tribe.find(query)
         .populate('creator', 'username firstName lastName avatar')
         .populate('members', 'username firstName lastName avatar')
@@ -141,9 +144,9 @@ class TribeController {
             total,
             hasNextPage,
             hasPrevPage,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -173,10 +176,14 @@ class TribeController {
       let userRole = null;
 
       if (userId) {
-        isMember = tribe.members.some(member => member._id.toString() === userId);
-        isModerator = tribe.moderators.some(moderator => moderator._id.toString() === userId);
+        isMember = tribe.members.some(
+          member => member._id.toString() === userId
+        );
+        isModerator = tribe.moderators.some(
+          moderator => moderator._id.toString() === userId
+        );
         isCreator = tribe.creator._id.toString() === userId;
-        
+
         if (isCreator) {
           userRole = 'creator';
         } else if (isModerator) {
@@ -200,9 +207,9 @@ class TribeController {
             isMember,
             isModerator,
             isCreator,
-            userRole
-          }
-        }
+            userRole,
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -222,9 +229,11 @@ class TribeController {
         throw new AppError('Tribu no encontrada', 404);
       }
 
-      if (tribe.creator.toString() !== userId && 
-          !tribe.moderators.includes(userId) && 
-          req.user.role !== 'admin') {
+      if (
+        tribe.creator.toString() !== userId &&
+        !tribe.moderators.includes(userId) &&
+        req.user.role !== 'admin'
+      ) {
         throw new AppError('No tienes permisos para editar esta tribu', 403);
       }
 
@@ -233,21 +242,20 @@ class TribeController {
         updateData.location.type = 'Point';
         updateData.location.coordinates = [
           updateData.location.coordinates.longitude,
-          updateData.location.coordinates.latitude
+          updateData.location.coordinates.latitude,
         ];
       }
 
       // Update tribe
-      const updatedTribe = await Tribe.findByIdAndUpdate(
-        tribeId,
-        updateData,
-        { new: true, runValidators: true }
-      ).populate('creator', 'username firstName lastName avatar');
+      const updatedTribe = await Tribe.findByIdAndUpdate(tribeId, updateData, {
+        new: true,
+        runValidators: true,
+      }).populate('creator', 'username firstName lastName avatar');
 
       res.status(200).json({
         success: true,
         message: 'Tribu actualizada exitosamente',
-        data: { tribe: updatedTribe }
+        data: { tribe: updatedTribe },
       });
     } catch (error) {
       next(error);
@@ -275,7 +283,7 @@ class TribeController {
 
       res.status(200).json({
         success: true,
-        message: 'Tribu eliminada exitosamente'
+        message: 'Tribu eliminada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -295,7 +303,10 @@ class TribeController {
 
       // Check if tribe is public
       if (!tribe.isPublic && !tribe.requiresApproval) {
-        throw new AppError('Esta tribu es privada y no acepta nuevos miembros', 400);
+        throw new AppError(
+          'Esta tribu es privada y no acepta nuevos miembros',
+          400
+        );
       }
 
       // Check if user is already a member
@@ -320,7 +331,7 @@ class TribeController {
       res.status(200).json({
         success: true,
         message: 'Te has unido a la tribu exitosamente',
-        data: { tribe }
+        data: { tribe },
       });
     } catch (error) {
       next(error);
@@ -345,12 +356,19 @@ class TribeController {
 
       // Check if user is creator
       if (tribe.creator.toString() === userId) {
-        throw new AppError('El creador no puede dejar la tribu. Transfiere la propiedad o elimina la tribu', 400);
+        throw new AppError(
+          'El creador no puede dejar la tribu. Transfiere la propiedad o elimina la tribu',
+          400
+        );
       }
 
       // Remove user from members and moderators
-      tribe.members = tribe.members.filter(member => member.toString() !== userId);
-      tribe.moderators = tribe.moderators.filter(moderator => moderator.toString() !== userId);
+      tribe.members = tribe.members.filter(
+        member => member.toString() !== userId
+      );
+      tribe.moderators = tribe.moderators.filter(
+        moderator => moderator.toString() !== userId
+      );
       tribe.memberCount = tribe.members.length;
       await tribe.save();
 
@@ -361,7 +379,7 @@ class TribeController {
       res.status(200).json({
         success: true,
         message: 'Has dejado la tribu exitosamente',
-        data: { tribe }
+        data: { tribe },
       });
     } catch (error) {
       next(error);
@@ -382,7 +400,10 @@ class TribeController {
 
       // Check if tribe requires approval
       if (!tribe.requiresApproval) {
-        throw new AppError('Esta tribu no requiere aprobación para unirse', 400);
+        throw new AppError(
+          'Esta tribu no requiere aprobación para unirse',
+          400
+        );
       }
 
       // Check if user is already a member
@@ -391,8 +412,14 @@ class TribeController {
       }
 
       // Check if request already exists
-      if (tribe.joinRequests && tribe.joinRequests.some(req => req.user.toString() === userId)) {
-        throw new AppError('Ya has enviado una solicitud para unirte a esta tribu', 400);
+      if (
+        tribe.joinRequests &&
+        tribe.joinRequests.some(req => req.user.toString() === userId)
+      ) {
+        throw new AppError(
+          'Ya has enviado una solicitud para unirte a esta tribu',
+          400
+        );
       }
 
       // Add join request
@@ -404,14 +431,15 @@ class TribeController {
         user: userId,
         message: message || '',
         status: 'pending',
-        requestedAt: new Date()
+        requestedAt: new Date(),
       });
 
       await tribe.save();
 
       res.status(200).json({
         success: true,
-        message: 'Solicitud enviada exitosamente. Espera la aprobación de los moderadores.'
+        message:
+          'Solicitud enviada exitosamente. Espera la aprobación de los moderadores.',
       });
     } catch (error) {
       next(error);
@@ -431,9 +459,11 @@ class TribeController {
       }
 
       // Check if user is moderator or creator
-      if (tribe.creator.toString() !== userId && 
-          !tribe.moderators.includes(userId) && 
-          req.user.role !== 'admin') {
+      if (
+        tribe.creator.toString() !== userId &&
+        !tribe.moderators.includes(userId) &&
+        req.user.role !== 'admin'
+      ) {
         throw new AppError('No tienes permisos para manejar solicitudes', 403);
       }
 
@@ -449,20 +479,22 @@ class TribeController {
           tribe.members.push(joinRequest.user);
           tribe.memberCount = tribe.members.length;
         }
-        
+
         // Update request status
         joinRequest.status = 'approved';
         joinRequest.processedBy = userId;
         joinRequest.processedAt = new Date();
 
         // Remove request
-        tribe.joinRequests = tribe.joinRequests.filter(req => req._id.toString() !== requestId);
+        tribe.joinRequests = tribe.joinRequests.filter(
+          req => req._id.toString() !== requestId
+        );
 
         await tribe.save();
 
         res.status(200).json({
           success: true,
-          message: 'Solicitud aprobada exitosamente'
+          message: 'Solicitud aprobada exitosamente',
         });
       } else if (action === 'deny') {
         // Update request status
@@ -471,13 +503,15 @@ class TribeController {
         joinRequest.processedAt = new Date();
 
         // Remove request
-        tribe.joinRequests = tribe.joinRequests.filter(req => req._id.toString() !== requestId);
+        tribe.joinRequests = tribe.joinRequests.filter(
+          req => req._id.toString() !== requestId
+        );
 
         await tribe.save();
 
         res.status(200).json({
           success: true,
-          message: 'Solicitud denegada exitosamente'
+          message: 'Solicitud denegada exitosamente',
         });
       } else {
         throw new AppError('Acción inválida. Debe ser "approve" o "deny"', 400);
@@ -500,7 +534,10 @@ class TribeController {
       }
 
       // Check if current user is creator or admin
-      if (tribe.creator.toString() !== currentUserId && req.user.role !== 'admin') {
+      if (
+        tribe.creator.toString() !== currentUserId &&
+        req.user.role !== 'admin'
+      ) {
         throw new AppError('No tienes permisos para agregar moderadores', 403);
       }
 
@@ -511,7 +548,10 @@ class TribeController {
 
       // Check if user is a member
       if (!tribe.members.includes(newModeratorId)) {
-        throw new AppError('El usuario debe ser miembro de la tribu para ser moderador', 400);
+        throw new AppError(
+          'El usuario debe ser miembro de la tribu para ser moderador',
+          400
+        );
       }
 
       // Add user to moderators
@@ -520,7 +560,7 @@ class TribeController {
 
       res.status(200).json({
         success: true,
-        message: 'Moderador agregado exitosamente'
+        message: 'Moderador agregado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -539,7 +579,10 @@ class TribeController {
       }
 
       // Check if current user is creator or admin
-      if (tribe.creator.toString() !== currentUserId && req.user.role !== 'admin') {
+      if (
+        tribe.creator.toString() !== currentUserId &&
+        req.user.role !== 'admin'
+      ) {
         throw new AppError('No tienes permisos para remover moderadores', 403);
       }
 
@@ -549,12 +592,14 @@ class TribeController {
       }
 
       // Remove user from moderators
-      tribe.moderators = tribe.moderators.filter(moderator => moderator.toString() !== moderatorId);
+      tribe.moderators = tribe.moderators.filter(
+        moderator => moderator.toString() !== moderatorId
+      );
       await tribe.save();
 
       res.status(200).json({
         success: true,
-        message: 'Moderador removido exitosamente'
+        message: 'Moderador removido exitosamente',
       });
     } catch (error) {
       next(error);
@@ -585,7 +630,7 @@ class TribeController {
       } else {
         // Get all members with pagination
         const skip = (parseInt(page) - 1) * parseInt(limit);
-        
+
         members = await User.find({ _id: { $in: tribe.members } })
           .select('username firstName lastName avatar bio createdAt')
           .sort({ createdAt: 1 })
@@ -607,9 +652,9 @@ class TribeController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -636,7 +681,10 @@ class TribeController {
         .limit(parseInt(limit))
         .lean();
 
-      const total = await Post.countDocuments({ tribe: tribeId, status: 'active' });
+      const total = await Post.countDocuments({
+        tribe: tribeId,
+        status: 'active',
+      });
       const totalPages = Math.ceil(total / parseInt(limit));
 
       res.status(200).json({
@@ -649,9 +697,9 @@ class TribeController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -663,7 +711,7 @@ class TribeController {
     try {
       const { tribeId } = req.params;
       const userId = req.user.id;
-      const files = req.files;
+      const { files } = req;
 
       if (!files || files.length === 0) {
         throw new AppError('No se proporcionaron archivos', 400);
@@ -675,17 +723,25 @@ class TribeController {
         throw new AppError('Tribu no encontrada', 404);
       }
 
-      if (tribe.creator.toString() !== userId && 
-          !tribe.moderators.includes(userId) && 
-          req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para subir imágenes a esta tribu', 403);
+      if (
+        tribe.creator.toString() !== userId &&
+        !tribe.moderators.includes(userId) &&
+        req.user.role !== 'admin'
+      ) {
+        throw new AppError(
+          'No tienes permisos para subir imágenes a esta tribu',
+          403
+        );
       }
 
       // Upload images to Cloudinary
       const uploadResults = await cloudinary.uploadTribeImages(files, tribeId);
 
       if (uploadResults.failureCount > 0) {
-        console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
+        console.warn(
+          'Algunas imágenes no se pudieron subir:',
+          uploadResults.failed
+        );
       }
 
       // Update tribe with new images
@@ -694,7 +750,7 @@ class TribeController {
         publicId: result.public_id,
         width: result.width,
         height: result.height,
-        format: result.format
+        format: result.format,
       }));
 
       tribe.images = [...(tribe.images || []), ...newImages];
@@ -706,8 +762,8 @@ class TribeController {
         data: {
           uploadedImages: newImages,
           totalImages: tribe.images.length,
-          uploadResults
-        }
+          uploadResults,
+        },
       });
     } catch (error) {
       next(error);
@@ -726,10 +782,15 @@ class TribeController {
         throw new AppError('Tribu no encontrada', 404);
       }
 
-      if (tribe.creator.toString() !== userId && 
-          !tribe.moderators.includes(userId) && 
-          req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para eliminar imágenes de esta tribu', 403);
+      if (
+        tribe.creator.toString() !== userId &&
+        !tribe.moderators.includes(userId) &&
+        req.user.role !== 'admin'
+      ) {
+        throw new AppError(
+          'No tienes permisos para eliminar imágenes de esta tribu',
+          403
+        );
       }
 
       // Find image
@@ -749,7 +810,7 @@ class TribeController {
 
       res.status(200).json({
         success: true,
-        message: 'Imagen eliminada exitosamente'
+        message: 'Imagen eliminada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -762,7 +823,7 @@ class TribeController {
       const { userId } = req.params;
       const { type = 'all', page = 1, limit = 20 } = req.query;
 
-      let query = {};
+      const query = {};
 
       switch (type) {
         case 'created':
@@ -778,7 +839,7 @@ class TribeController {
           query.$or = [
             { creator: userId },
             { members: userId },
-            { moderators: userId }
+            { moderators: userId },
           ];
           break;
         default:
@@ -807,9 +868,9 @@ class TribeController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -828,8 +889,8 @@ class TribeController {
         {
           $match: {
             status: 'active',
-            createdAt: { $gte: dateFrom }
-          }
+            createdAt: { $gte: dateFrom },
+          },
         },
         {
           $addFields: {
@@ -837,27 +898,27 @@ class TribeController {
               $add: [
                 { $multiply: ['$views', 0.3] },
                 { $multiply: ['$memberCount', 0.5] },
-                { $multiply: ['$postCount', 0.2] }
-              ]
-            }
-          }
+                { $multiply: ['$postCount', 0.2] },
+              ],
+            },
+          },
         },
         {
-          $sort: { score: -1 }
+          $sort: { score: -1 },
         },
         {
-          $limit: parseInt(limit)
+          $limit: parseInt(limit),
         },
         {
           $lookup: {
             from: 'users',
             localField: 'creator',
             foreignField: '_id',
-            as: 'creator'
-          }
+            as: 'creator',
+          },
         },
         {
-          $unwind: '$creator'
+          $unwind: '$creator',
         },
         {
           $project: {
@@ -876,14 +937,14 @@ class TribeController {
             'creator.username': 1,
             'creator.firstName': 1,
             'creator.lastName': 1,
-            'creator.avatar': 1
-          }
-        }
+            'creator.avatar': 1,
+          },
+        },
       ]);
 
       res.status(200).json({
         success: true,
-        data: { tribes }
+        data: { tribes },
       });
     } catch (error) {
       next(error);
@@ -905,11 +966,11 @@ class TribeController {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
             },
-            $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
-          }
-        }
+            $maxDistance: parseFloat(radius) * 1000, // Convert km to meters
+          },
+        },
       })
         .populate('creator', 'username firstName lastName avatar')
         .sort({ memberCount: -1 })
@@ -918,7 +979,7 @@ class TribeController {
 
       res.status(200).json({
         success: true,
-        data: { tribes }
+        data: { tribes },
       });
     } catch (error) {
       next(error);
@@ -935,7 +996,7 @@ class TribeController {
         tags,
         page = 1,
         limit = 20,
-        sortBy = 'relevance'
+        sortBy = 'relevance',
       } = req.body;
 
       // Build search query
@@ -995,9 +1056,9 @@ class TribeController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);

@@ -1,11 +1,16 @@
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+
+const jwt = require('jsonwebtoken');
+
 const redisClient = require('./redis');
 
 class JWTManager {
   constructor() {
-    this.secret = process.env.JWT_SECRET || 'default_jwt_secret_change_in_production';
-    this.refreshSecret = process.env.JWT_REFRESH_SECRET || 'default_refresh_secret_change_in_production';
+    this.secret =
+      process.env.JWT_SECRET || 'default_jwt_secret_change_in_production';
+    this.refreshSecret =
+      process.env.JWT_REFRESH_SECRET ||
+      'default_refresh_secret_change_in_production';
     this.accessExpiresIn = process.env.JWT_EXPIRES_IN || '15m';
     this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
     this.algorithm = 'HS256';
@@ -24,7 +29,7 @@ class JWTManager {
         issuer: 'EventConnect',
         audience: 'EventConnect-Users',
         subject: payload.userId || payload.id,
-        jwtid: crypto.randomBytes(16).toString('hex')
+        jwtid: crypto.randomBytes(16).toString('hex'),
       });
 
       return token;
@@ -47,7 +52,7 @@ class JWTManager {
         issuer: 'EventConnect',
         audience: 'EventConnect-Users',
         subject: payload.userId || payload.id,
-        jwtid: crypto.randomBytes(16).toString('hex')
+        jwtid: crypto.randomBytes(16).toString('hex'),
       });
 
       return token;
@@ -67,7 +72,7 @@ class JWTManager {
         accessToken,
         refreshToken,
         expiresIn: this.getExpirationTime(this.accessExpiresIn),
-        refreshExpiresIn: this.getExpirationTime(this.refreshExpiresIn)
+        refreshExpiresIn: this.getExpirationTime(this.refreshExpiresIn),
       };
     } catch (error) {
       console.error('❌ Error generando tokens:', error);
@@ -85,7 +90,7 @@ class JWTManager {
       const decoded = jwt.verify(token, this.secret, {
         algorithms: [this.algorithm],
         issuer: 'EventConnect',
-        audience: 'EventConnect-Users'
+        audience: 'EventConnect-Users',
       });
 
       return decoded;
@@ -112,7 +117,7 @@ class JWTManager {
       const decoded = jwt.verify(token, this.refreshSecret, {
         algorithms: [this.algorithm],
         issuer: 'EventConnect',
-        audience: 'EventConnect-Users'
+        audience: 'EventConnect-Users',
       });
 
       return decoded;
@@ -155,13 +160,22 @@ class JWTManager {
         if (match) {
           const value = parseInt(match[1]);
           const unit = match[2];
-          
+
           switch (unit) {
-            case 's': seconds = value; break;
-            case 'm': seconds = value * 60; break;
-            case 'h': seconds = value * 60 * 60; break;
-            case 'd': seconds = value * 24 * 60 * 60; break;
-            default: seconds = value;
+            case 's':
+              seconds = value;
+              break;
+            case 'm':
+              seconds = value * 60;
+              break;
+            case 'h':
+              seconds = value * 60 * 60;
+              break;
+            case 'd':
+              seconds = value * 24 * 60 * 60;
+              break;
+            default:
+              seconds = value;
           }
         } else {
           seconds = parseInt(expiresIn) || 0;
@@ -203,7 +217,7 @@ class JWTManager {
 
       const now = Math.floor(Date.now() / 1000);
       const timeLeft = decoded.payload.exp - now;
-      
+
       return Math.max(0, timeLeft);
     } catch (error) {
       console.error('❌ Error calculando tiempo hasta expiración:', error);
@@ -220,14 +234,16 @@ class JWTManager {
 
       const tokenId = crypto.randomBytes(16).toString('hex');
       const key = `refresh_token:${userId}:${tokenId}`;
-      
+
       const tokenData = {
         token: refreshToken,
         userId,
         tokenId,
         deviceInfo,
         createdAt: new Date().toISOString(),
-        expiresAt: new Date(Date.now() + this.getExpirationTime(this.refreshExpiresIn) * 1000).toISOString()
+        expiresAt: new Date(
+          Date.now() + this.getExpirationTime(this.refreshExpiresIn) * 1000
+        ).toISOString(),
       };
 
       // Store in Redis with expiration
@@ -240,7 +256,7 @@ class JWTManager {
       if (success) {
         // Store token ID in user's active tokens set
         await redisClient.sadd(`user_tokens:${userId}`, tokenId);
-        
+
         return tokenId;
       } else {
         throw new Error('No se pudo almacenar el refresh token');
@@ -280,14 +296,14 @@ class JWTManager {
       }
 
       const key = `refresh_token:${userId}:${tokenId}`;
-      
+
       // Remove from Redis
       const success = await redisClient.del(key);
-      
+
       if (success) {
         // Remove from user's active tokens set
         await redisClient.srem(`user_tokens:${userId}`, tokenId);
-        
+
         return true;
       }
 
@@ -313,7 +329,7 @@ class JWTManager {
       }
 
       let revokedCount = 0;
-      
+
       for (const tokenId of tokenIds) {
         const key = `refresh_token:${userId}:${tokenId}`;
         const success = await redisClient.del(key);
@@ -348,17 +364,17 @@ class JWTManager {
       }
 
       const activeTokens = [];
-      
+
       for (const tokenId of tokenIds) {
         const key = `refresh_token:${userId}:${tokenId}`;
         const tokenData = await redisClient.get(key);
-        
+
         if (tokenData) {
           activeTokens.push({
             tokenId,
             deviceInfo: tokenData.deviceInfo,
             createdAt: tokenData.createdAt,
-            expiresAt: tokenData.expiresAt
+            expiresAt: tokenData.expiresAt,
           });
         }
       }
@@ -374,35 +390,37 @@ class JWTManager {
   async cleanupExpiredTokens() {
     try {
       console.log('🧹 Limpiando tokens expirados...');
-      
+
       // This is a simplified cleanup - in production you might want to use Redis TTL
       // or a scheduled job to clean up expired tokens
-      
+
       const pattern = 'refresh_token:*';
       const keys = await redisClient.keys(pattern);
-      
+
       let cleanedCount = 0;
-      
+
       for (const key of keys) {
         const tokenData = await redisClient.get(key);
-        
+
         if (tokenData && tokenData.expiresAt) {
           const expiresAt = new Date(tokenData.expiresAt);
           const now = new Date();
-          
+
           if (expiresAt < now) {
             await redisClient.del(key);
-            
+
             // Remove from user's active tokens set
             const [, userId, tokenId] = key.split(':');
             await redisClient.srem(`user_tokens:${userId}`, tokenId);
-            
+
             cleanedCount++;
           }
         }
       }
 
-      console.log(`✅ Limpieza completada. ${cleanedCount} tokens expirados removidos`);
+      console.log(
+        `✅ Limpieza completada. ${cleanedCount} tokens expirados removidos`
+      );
       return cleanedCount;
     } catch (error) {
       console.error('❌ Error limpiando tokens expirados:', error);
@@ -414,12 +432,15 @@ class JWTManager {
   generatePasswordResetToken(userId) {
     try {
       const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-      
+      const resetTokenHash = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+
       return {
         resetToken,
         resetTokenHash,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
       };
     } catch (error) {
       console.error('❌ Error generando password reset token:', error);
@@ -431,12 +452,15 @@ class JWTManager {
   generateEmailVerificationToken(userId) {
     try {
       const verificationToken = crypto.randomBytes(32).toString('hex');
-      const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
-      
+      const verificationTokenHash = crypto
+        .createHash('sha256')
+        .update(verificationToken)
+        .digest('hex');
+
       return {
         verificationToken,
         verificationTokenHash,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
       };
     } catch (error) {
       console.error('❌ Error generando email verification token:', error);
@@ -448,13 +472,16 @@ class JWTManager {
   generateAPIKey(userId, permissions = []) {
     try {
       const apiKey = crypto.randomBytes(32).toString('hex');
-      const apiKeyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
-      
+      const apiKeyHash = crypto
+        .createHash('sha256')
+        .update(apiKey)
+        .digest('hex');
+
       return {
         apiKey,
         apiKeyHash,
         permissions,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
     } catch (error) {
       console.error('❌ Error generando API key:', error);
@@ -470,14 +497,14 @@ class JWTManager {
         totalUsersWithTokens: 0,
         averageTokensPerUser: 0,
         oldestToken: null,
-        newestToken: null
+        newestToken: null,
       };
 
       const userTokensPattern = 'user_tokens:*';
       const userTokenKeys = await redisClient.keys(userTokensPattern);
-      
+
       stats.totalUsersWithTokens = userTokenKeys.length;
-      
+
       let totalTokens = 0;
       let oldestDate = null;
       let newestDate = null;
@@ -490,14 +517,14 @@ class JWTManager {
         for (const tokenId of tokenIds) {
           const tokenKey = `refresh_token:${userId}:${tokenId}`;
           const tokenData = await redisClient.get(tokenKey);
-          
+
           if (tokenData && tokenData.createdAt) {
             const createdAt = new Date(tokenData.createdAt);
-            
+
             if (!oldestDate || createdAt < oldestDate) {
               oldestDate = createdAt;
             }
-            
+
             if (!newestDate || createdAt > newestDate) {
               newestDate = createdAt;
             }
@@ -506,7 +533,8 @@ class JWTManager {
       }
 
       stats.totalActiveTokens = totalTokens;
-      stats.averageTokensPerUser = userTokenKeys.length > 0 ? totalTokens / userTokenKeys.length : 0;
+      stats.averageTokensPerUser =
+        userTokenKeys.length > 0 ? totalTokens / userTokenKeys.length : 0;
       stats.oldestToken = oldestDate;
       stats.newestToken = newestDate;
 

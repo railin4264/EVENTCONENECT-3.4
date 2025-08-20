@@ -1,6 +1,6 @@
-const { Chat, User, Event, Tribe } = require('../models');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { validateChatMessage } = require('../middleware/validation');
+const { Chat, User, Event, Tribe } = require('../models');
 
 class ChatController {
   // Create new chat
@@ -17,21 +17,24 @@ class ChatController {
       // Validate chat type and participants
       if (chatData.type === 'private') {
         if (!chatData.participants || chatData.participants.length !== 2) {
-          throw new AppError('Los chats privados deben tener exactamente 2 participantes', 400);
+          throw new AppError(
+            'Los chats privados deben tener exactamente 2 participantes',
+            400
+          );
         }
 
         // Check if private chat already exists between these users
         const existingChat = await Chat.findOne({
           type: 'private',
           participants: { $all: chatData.participants },
-          status: 'active'
+          status: 'active',
         });
 
         if (existingChat) {
           return res.status(200).json({
             success: true,
             message: 'Chat privado ya existe',
-            data: { chat: existingChat }
+            data: { chat: existingChat },
           });
         }
       } else if (chatData.type === 'group') {
@@ -39,39 +42,51 @@ class ChatController {
           throw new AppError('Los chats grupales deben tener un nombre', 400);
         }
         if (!chatData.participants || chatData.participants.length < 3) {
-          throw new AppError('Los chats grupales deben tener al menos 3 participantes', 400);
+          throw new AppError(
+            'Los chats grupales deben tener al menos 3 participantes',
+            400
+          );
         }
       } else if (chatData.type === 'event') {
         if (!chatData.event) {
-          throw new AppError('Los chats de evento deben especificar el evento', 400);
+          throw new AppError(
+            'Los chats de evento deben especificar el evento',
+            400
+          );
         }
-        
+
         // Verify event exists and user is attending
         const event = await Event.findById(chatData.event);
         if (!event) {
           throw new AppError('Evento no encontrado', 404);
         }
         if (!event.attendees.includes(userId)) {
-          throw new AppError('Solo puedes crear chats para eventos a los que asistas', 403);
+          throw new AppError(
+            'Solo puedes crear chats para eventos a los que asistas',
+            403
+          );
         }
 
         // Check if event chat already exists
         const existingEventChat = await Chat.findOne({
           type: 'event',
           event: chatData.event,
-          status: 'active'
+          status: 'active',
         });
 
         if (existingEventChat) {
           return res.status(200).json({
             success: true,
             message: 'Chat de evento ya existe',
-            data: { chat: existingEventChat }
+            data: { chat: existingEventChat },
           });
         }
       } else if (chatData.type === 'tribe') {
         if (!chatData.tribe) {
-          throw new AppError('Los chats de tribu deben especificar la tribu', 400);
+          throw new AppError(
+            'Los chats de tribu deben especificar la tribu',
+            400
+          );
         }
 
         // Verify tribe exists and user is member
@@ -80,21 +95,24 @@ class ChatController {
           throw new AppError('Tribu no encontrada', 404);
         }
         if (!tribe.members.includes(userId)) {
-          throw new AppError('Solo puedes crear chats para tribus de las que seas miembro', 403);
+          throw new AppError(
+            'Solo puedes crear chats para tribus de las que seas miembro',
+            403
+          );
         }
 
         // Check if tribe chat already exists
         const existingTribeChat = await Chat.findOne({
           type: 'tribe',
           tribe: chatData.tribe,
-          status: 'active'
+          status: 'active',
         });
 
         if (existingTribeChat) {
           return res.status(200).json({
             success: true,
             message: 'Chat de tribu ya existe',
-            data: { chat: existingTribeChat }
+            data: { chat: existingTribeChat },
           });
         }
       }
@@ -112,7 +130,7 @@ class ChatController {
       res.status(201).json({
         success: true,
         message: 'Chat creado exitosamente',
-        data: { chat }
+        data: { chat },
       });
     } catch (error) {
       next(error);
@@ -130,7 +148,7 @@ class ChatController {
       // Build query
       const query = {
         participants: userId,
-        status: 'active'
+        status: 'active',
       };
 
       if (type && type !== 'all') {
@@ -161,9 +179,9 @@ class ChatController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -181,7 +199,10 @@ class ChatController {
         .populate('participants', 'username firstName lastName avatar')
         .populate('event', 'title startDate endDate')
         .populate('tribe', 'name category')
-        .populate('pinnedMessages.author', 'username firstName lastName avatar');
+        .populate(
+          'pinnedMessages.author',
+          'username firstName lastName avatar'
+        );
 
       if (!chat) {
         throw new AppError('Chat no encontrado', 404);
@@ -194,7 +215,7 @@ class ChatController {
 
       res.status(200).json({
         success: true,
-        data: { chat }
+        data: { chat },
       });
     } catch (error) {
       next(error);
@@ -238,11 +259,11 @@ class ChatController {
             from: 'users',
             localField: 'messages.author',
             foreignField: '_id',
-            as: 'author'
-          }
+            as: 'author',
+          },
         },
         {
-          $unwind: '$author'
+          $unwind: '$author',
         },
         {
           $project: {
@@ -255,23 +276,23 @@ class ChatController {
               username: '$author.username',
               firstName: '$author.firstName',
               lastName: '$author.lastName',
-              avatar: '$author.avatar'
+              avatar: '$author.avatar',
             },
             createdAt: '$messages.createdAt',
             updatedAt: '$messages.updatedAt',
             isEdited: '$messages.isEdited',
             isPinned: '$messages.isPinned',
-            reactions: '$messages.reactions'
-          }
+            reactions: '$messages.reactions',
+          },
         },
-        { $sort: { createdAt: 1 } }
+        { $sort: { createdAt: 1 } },
       ]);
 
       const total = await Chat.aggregate([
         { $match: { _id: chatId } },
         { $unwind: '$messages' },
         { $match: { 'messages.status': 'active' } },
-        { $count: 'total' }
+        { $count: 'total' },
       ]);
 
       const totalMessages = total.length > 0 ? total[0].total : 0;
@@ -287,9 +308,9 @@ class ChatController {
             total: totalMessages,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -326,7 +347,7 @@ class ChatController {
         media: media || [],
         replyTo: replyTo || null,
         createdAt: new Date(),
-        status: 'active'
+        status: 'active',
       };
 
       // Add message to chat
@@ -341,19 +362,22 @@ class ChatController {
       }
       chat.participantActivity[userId] = {
         lastSeen: new Date(),
-        lastMessageAt: new Date()
+        lastMessageAt: new Date(),
       };
 
       await chat.save();
 
       // Populate message data
-      await chat.populate('messages.author', 'username firstName lastName avatar');
+      await chat.populate(
+        'messages.author',
+        'username firstName lastName avatar'
+      );
       const newMessage = chat.messages[chat.messages.length - 1];
 
       res.status(201).json({
         success: true,
         message: 'Mensaje enviado exitosamente',
-        data: { message: newMessage }
+        data: { message: newMessage },
       });
     } catch (error) {
       next(error);
@@ -389,9 +413,13 @@ class ChatController {
       }
 
       // Check if message can be edited (within 15 minutes)
-      const minutesSinceCreation = (Date.now() - message.createdAt.getTime()) / (1000 * 60);
+      const minutesSinceCreation =
+        (Date.now() - message.createdAt.getTime()) / (1000 * 60);
       if (minutesSinceCreation > 15 && req.user.role !== 'admin') {
-        throw new AppError('Solo puedes editar mensajes durante los primeros 15 minutos', 400);
+        throw new AppError(
+          'Solo puedes editar mensajes durante los primeros 15 minutos',
+          400
+        );
       }
 
       // Update message
@@ -402,12 +430,15 @@ class ChatController {
       await chat.save();
 
       // Populate message author
-      await chat.populate('messages.author', 'username firstName lastName avatar');
+      await chat.populate(
+        'messages.author',
+        'username firstName lastName avatar'
+      );
 
       res.status(200).json({
         success: true,
         message: 'Mensaje actualizado exitosamente',
-        data: { message }
+        data: { message },
       });
     } catch (error) {
       next(error);
@@ -438,7 +469,10 @@ class ChatController {
 
       // Check ownership or admin
       if (message.author.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para eliminar este mensaje', 403);
+        throw new AppError(
+          'No tienes permisos para eliminar este mensaje',
+          403
+        );
       }
 
       // Soft delete message
@@ -450,7 +484,7 @@ class ChatController {
 
       res.status(200).json({
         success: true,
-        message: 'Mensaje eliminado exitosamente'
+        message: 'Mensaje eliminado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -475,7 +509,10 @@ class ChatController {
 
       // Check if user is creator or admin
       if (chat.creator.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('Solo el creador del chat o administradores pueden fijar mensajes', 403);
+        throw new AppError(
+          'Solo el creador del chat o administradores pueden fijar mensajes',
+          403
+        );
       }
 
       // Find message
@@ -496,15 +533,19 @@ class ChatController {
         }
         chat.pinnedMessages.push(messageId);
       } else {
-        chat.pinnedMessages = chat.pinnedMessages.filter(id => id.toString() !== messageId);
+        chat.pinnedMessages = chat.pinnedMessages.filter(
+          id => id.toString() !== messageId
+        );
       }
 
       await chat.save();
 
       res.status(200).json({
         success: true,
-        message: message.isPinned ? 'Mensaje fijado exitosamente' : 'Mensaje desfijado exitosamente',
-        data: { isPinned: message.isPinned }
+        message: message.isPinned
+          ? 'Mensaje fijado exitosamente'
+          : 'Mensaje desfijado exitosamente',
+        data: { isPinned: message.isPinned },
       });
     } catch (error) {
       next(error);
@@ -540,21 +581,21 @@ class ChatController {
       }
 
       // Find existing reaction
-      const existingReaction = message.reactions.find(r => 
-        r.user.toString() === userId && r.emoji === emoji
+      const existingReaction = message.reactions.find(
+        r => r.user.toString() === userId && r.emoji === emoji
       );
 
       if (existingReaction) {
         // Remove reaction
-        message.reactions = message.reactions.filter(r => 
-          !(r.user.toString() === userId && r.emoji === emoji)
+        message.reactions = message.reactions.filter(
+          r => !(r.user.toString() === userId && r.emoji === emoji)
         );
       } else {
         // Add reaction
         message.reactions.push({
           user: userId,
           emoji,
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }
 
@@ -565,8 +606,8 @@ class ChatController {
         message: existingReaction ? 'Reacción removida' : 'Reacción agregada',
         data: {
           reactions: message.reactions,
-          hasReacted: !existingReaction
-        }
+          hasReacted: !existingReaction,
+        },
       });
     } catch (error) {
       next(error);
@@ -596,14 +637,14 @@ class ChatController {
 
       chat.participantActivity[userId] = {
         lastSeen: new Date(),
-        lastReadAt: new Date()
+        lastReadAt: new Date(),
       };
 
       await chat.save();
 
       res.status(200).json({
         success: true,
-        message: 'Chat marcado como leído'
+        message: 'Chat marcado como leído',
       });
     } catch (error) {
       next(error);
@@ -624,8 +665,14 @@ class ChatController {
       }
 
       // Check permissions
-      if (chat.creator.toString() !== currentUserId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para agregar participantes', 403);
+      if (
+        chat.creator.toString() !== currentUserId &&
+        req.user.role !== 'admin'
+      ) {
+        throw new AppError(
+          'No tienes permisos para agregar participantes',
+          403
+        );
       }
 
       // Check if user is already a participant
@@ -643,7 +690,7 @@ class ChatController {
       res.status(200).json({
         success: true,
         message: 'Participante agregado exitosamente',
-        data: { chat }
+        data: { chat },
       });
     } catch (error) {
       next(error);
@@ -663,8 +710,14 @@ class ChatController {
       }
 
       // Check permissions
-      if (chat.creator.toString() !== currentUserId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para remover participantes', 403);
+      if (
+        chat.creator.toString() !== currentUserId &&
+        req.user.role !== 'admin'
+      ) {
+        throw new AppError(
+          'No tienes permisos para remover participantes',
+          403
+        );
       }
 
       // Check if user is trying to remove themselves
@@ -678,7 +731,9 @@ class ChatController {
       }
 
       // Remove participant
-      chat.participants = chat.participants.filter(id => id.toString() !== participantId);
+      chat.participants = chat.participants.filter(
+        id => id.toString() !== participantId
+      );
       await chat.save();
 
       // Populate chat data
@@ -687,7 +742,7 @@ class ChatController {
       res.status(200).json({
         success: true,
         message: 'Participante removido exitosamente',
-        data: { chat }
+        data: { chat },
       });
     } catch (error) {
       next(error);
@@ -713,16 +768,21 @@ class ChatController {
 
       // Check if user is creator
       if (chat.creator.toString() === userId) {
-        throw new AppError('El creador no puede dejar el chat. Transfiere la propiedad o elimina el chat', 400);
+        throw new AppError(
+          'El creador no puede dejar el chat. Transfiere la propiedad o elimina el chat',
+          400
+        );
       }
 
       // Remove participant
-      chat.participants = chat.participants.filter(id => id.toString() !== userId);
+      chat.participants = chat.participants.filter(
+        id => id.toString() !== userId
+      );
       await chat.save();
 
       res.status(200).json({
         success: true,
-        message: 'Has dejado el chat exitosamente'
+        message: 'Has dejado el chat exitosamente',
       });
     } catch (error) {
       next(error);
@@ -754,7 +814,7 @@ class ChatController {
 
       res.status(200).json({
         success: true,
-        message: 'Chat eliminado exitosamente'
+        message: 'Chat eliminado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -784,11 +844,11 @@ class ChatController {
       const messages = await Chat.aggregate([
         { $match: { _id: chatId } },
         { $unwind: '$messages' },
-        { 
-          $match: { 
+        {
+          $match: {
             'messages.status': 'active',
-            'messages.content': { $regex: query, $options: 'i' }
-          } 
+            'messages.content': { $regex: query, $options: 'i' },
+          },
         },
         { $sort: { 'messages.createdAt': -1 } },
         { $skip: skip },
@@ -798,11 +858,11 @@ class ChatController {
             from: 'users',
             localField: 'messages.author',
             foreignField: '_id',
-            as: 'author'
-          }
+            as: 'author',
+          },
         },
         {
-          $unwind: '$author'
+          $unwind: '$author',
         },
         {
           $project: {
@@ -814,23 +874,23 @@ class ChatController {
               username: '$author.username',
               firstName: '$author.firstName',
               lastName: '$author.lastName',
-              avatar: '$author.avatar'
+              avatar: '$author.avatar',
             },
-            createdAt: '$messages.createdAt'
-          }
-        }
+            createdAt: '$messages.createdAt',
+          },
+        },
       ]);
 
       const total = await Chat.aggregate([
         { $match: { _id: chatId } },
         { $unwind: '$messages' },
-        { 
-          $match: { 
+        {
+          $match: {
             'messages.status': 'active',
-            'messages.content': { $regex: query, $options: 'i' }
-          } 
+            'messages.content': { $regex: query, $options: 'i' },
+          },
         },
-        { $count: 'total' }
+        { $count: 'total' },
       ]);
 
       const totalMessages = total.length > 0 ? total[0].total : 0;
@@ -846,9 +906,9 @@ class ChatController {
             total: totalMessages,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);

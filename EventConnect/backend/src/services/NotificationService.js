@@ -1,11 +1,17 @@
 const { googleMaps } = require('../config');
-const User = require('../models/User');
+const { redis } = require('../config');
+const Chat = require('../models/Chat');
 const Event = require('../models/Event');
 const Tribe = require('../models/Tribe');
-const Chat = require('../models/Chat');
-const { redis } = require('../config');
+const User = require('../models/User');
 
+/**
+ *
+ */
 class NotificationService {
+  /**
+   *
+   */
   constructor() {
     this.notificationTypes = {
       EVENT_INVITE: 'event_invite',
@@ -21,25 +27,30 @@ class NotificationService {
       FOLLOW: 'follow',
       SYSTEM: 'system',
       SECURITY: 'security',
-      PROMOTIONAL: 'promotional'
+      PROMOTIONAL: 'promotional',
     };
 
     this.priorityLevels = {
       LOW: 'low',
       NORMAL: 'normal',
       HIGH: 'high',
-      URGENT: 'urgent'
+      URGENT: 'urgent',
     };
 
     this.channels = {
       PUSH: 'push',
       EMAIL: 'email',
       SMS: 'sms',
-      IN_APP: 'in_app'
+      IN_APP: 'in_app',
     };
   }
 
   // Enviar notificación push
+  /**
+   *
+   * @param userId
+   * @param notification
+   */
   async sendPushNotification(userId, notification) {
     try {
       const user = await User.findById(userId);
@@ -52,10 +63,16 @@ class NotificationService {
         user.pushTokens.map(token => this.sendToExpo(token, notification))
       );
 
-      const successful = results.filter(result => result.status === 'fulfilled').length;
-      const failed = results.filter(result => result.status === 'rejected').length;
+      const successful = results.filter(
+        result => result.status === 'fulfilled'
+      ).length;
+      const failed = results.filter(
+        result => result.status === 'rejected'
+      ).length;
 
-      console.log(`Push notifications enviadas: ${successful} exitosas, ${failed} fallidas`);
+      console.log(
+        `Push notifications enviadas: ${successful} exitosas, ${failed} fallidas`
+      );
 
       // Limpiar tokens inválidos
       if (failed > 0) {
@@ -70,6 +87,11 @@ class NotificationService {
   }
 
   // Enviar a Expo Push Service
+  /**
+   *
+   * @param pushToken
+   * @param notification
+   */
   async sendToExpo(pushToken, notification) {
     try {
       const message = {
@@ -86,17 +108,17 @@ class NotificationService {
         subtitle: notification.subtitle,
         ttl: notification.ttl || 86400, // 24 horas
         expiration: notification.expiration,
-        ...this.buildNotificationOptions(notification)
+        ...this.buildNotificationOptions(notification),
       };
 
       const response = await fetch('https://exp.host/--/api/v2/push/send', {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'Accept-encoding': 'gzip, deflate',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(message)
+        body: JSON.stringify(message),
       });
 
       if (!response.ok) {
@@ -104,7 +126,7 @@ class NotificationService {
       }
 
       const result = await response.json();
-      
+
       if (result.data && result.data.status === 'error') {
         throw new Error(result.data.message);
       }
@@ -117,6 +139,10 @@ class NotificationService {
   }
 
   // Construir opciones de notificación
+  /**
+   *
+   * @param notification
+   */
   buildNotificationOptions(notification) {
     const options = {};
 
@@ -150,7 +176,7 @@ class NotificationService {
         icon: notification.android.icon,
         color: notification.android.color,
         sticky: notification.android.sticky || false,
-        ...notification.android
+        ...notification.android,
       };
     }
 
@@ -161,7 +187,7 @@ class NotificationService {
         badge: notification.ios.badge,
         categoryId: notification.ios.categoryId,
         threadId: notification.ios.threadId,
-        ...notification.ios
+        ...notification.ios,
       };
     }
 
@@ -169,6 +195,11 @@ class NotificationService {
   }
 
   // Limpiar tokens de push inválidos
+  /**
+   *
+   * @param userId
+   * @param results
+   */
   async cleanInvalidPushTokens(userId, results) {
     try {
       const user = await User.findById(userId);
@@ -176,16 +207,24 @@ class NotificationService {
 
       const invalidTokens = [];
       results.forEach((result, index) => {
-        if (result.status === 'rejected' || 
-            (result.status === 'fulfilled' && result.value.data && result.value.data.status === 'error')) {
+        if (
+          result.status === 'rejected' ||
+          (result.status === 'fulfilled' &&
+            result.value.data &&
+            result.value.data.status === 'error')
+        ) {
           invalidTokens.push(user.pushTokens[index]);
         }
       });
 
       if (invalidTokens.length > 0) {
-        user.pushTokens = user.pushTokens.filter(token => !invalidTokens.includes(token));
+        user.pushTokens = user.pushTokens.filter(
+          token => !invalidTokens.includes(token)
+        );
         await user.save();
-        console.log(`Tokens inválidos limpiados para usuario ${userId}: ${invalidTokens.length}`);
+        console.log(
+          `Tokens inválidos limpiados para usuario ${userId}: ${invalidTokens.length}`
+        );
       }
     } catch (error) {
       console.error('Error limpiando tokens inválidos:', error);
@@ -193,6 +232,11 @@ class NotificationService {
   }
 
   // Enviar notificación por email
+  /**
+   *
+   * @param userId
+   * @param notification
+   */
   async sendEmailNotification(userId, notification) {
     try {
       const user = await User.findById(userId);
@@ -204,7 +248,7 @@ class NotificationService {
       // Aquí implementarías el envío de email
       // Por ejemplo, usando Nodemailer, SendGrid, etc.
       console.log(`Email enviado a ${user.email}: ${notification.title}`);
-      
+
       return true;
     } catch (error) {
       console.error('Error enviando notificación por email:', error);
@@ -213,6 +257,11 @@ class NotificationService {
   }
 
   // Enviar notificación por SMS
+  /**
+   *
+   * @param userId
+   * @param notification
+   */
   async sendSMSNotification(userId, notification) {
     try {
       const user = await User.findById(userId);
@@ -224,7 +273,7 @@ class NotificationService {
       // Aquí implementarías el envío de SMS
       // Por ejemplo, usando Twilio, AWS SNS, etc.
       console.log(`SMS enviado a ${user.phone}: ${notification.body}`);
-      
+
       return true;
     } catch (error) {
       console.error('Error enviando notificación por SMS:', error);
@@ -233,6 +282,11 @@ class NotificationService {
   }
 
   // Enviar notificación in-app
+  /**
+   *
+   * @param userId
+   * @param notification
+   */
   async sendInAppNotification(userId, notification) {
     try {
       // Guardar notificación en la base de datos
@@ -244,14 +298,14 @@ class NotificationService {
         data: notification.data,
         priority: notification.priority,
         read: false,
-        createdAt: new Date()
+        createdAt: new Date(),
       });
 
       await inAppNotification.save();
 
       // Enviar por WebSocket si el usuario está conectado
       // Esto se maneja en el ChatWebSocketService
-      
+
       return true;
     } catch (error) {
       console.error('Error enviando notificación in-app:', error);
@@ -260,23 +314,42 @@ class NotificationService {
   }
 
   // Enviar notificación por múltiples canales
-  async sendMultiChannelNotification(userId, notification, channels = ['push', 'in_app']) {
+  /**
+   *
+   * @param userId
+   * @param notification
+   * @param channels
+   */
+  async sendMultiChannelNotification(
+    userId,
+    notification,
+    channels = ['push', 'in_app']
+  ) {
     try {
       const results = {};
 
       for (const channel of channels) {
         switch (channel) {
           case 'push':
-            results.push = await this.sendPushNotification(userId, notification);
+            results.push = await this.sendPushNotification(
+              userId,
+              notification
+            );
             break;
           case 'email':
-            results.email = await this.sendEmailNotification(userId, notification);
+            results.email = await this.sendEmailNotification(
+              userId,
+              notification
+            );
             break;
           case 'sms':
             results.sms = await this.sendSMSNotification(userId, notification);
             break;
           case 'in_app':
-            results.in_app = await this.sendInAppNotification(userId, notification);
+            results.in_app = await this.sendInAppNotification(
+              userId,
+              notification
+            );
             break;
         }
       }
@@ -289,12 +362,18 @@ class NotificationService {
   }
 
   // Notificaciones de eventos
+  /**
+   *
+   * @param userId
+   * @param eventId
+   * @param inviterId
+   */
   async sendEventInvite(userId, eventId, inviterId) {
     try {
       const [user, event, inviter] = await Promise.all([
         User.findById(userId),
         Event.findById(eventId),
-        User.findById(inviterId)
+        User.findById(inviterId),
       ]);
 
       if (!user || !event || !inviter) {
@@ -309,12 +388,12 @@ class NotificationService {
           eventId: event._id,
           inviterId: inviter._id,
           eventTitle: event.title,
-          eventDate: event.startDate
+          eventDate: event.startDate,
         },
         priority: this.priorityLevels.HIGH,
         categoryId: 'event',
         sound: 'default',
-        badge: 1
+        badge: 1,
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -324,11 +403,17 @@ class NotificationService {
     }
   }
 
+  /**
+   *
+   * @param userId
+   * @param eventId
+   * @param minutesBefore
+   */
   async sendEventReminder(userId, eventId, minutesBefore = 60) {
     try {
       const [user, event] = await Promise.all([
         User.findById(userId),
-        Event.findById(eventId)
+        Event.findById(eventId),
       ]);
 
       if (!user || !event) {
@@ -343,12 +428,12 @@ class NotificationService {
           eventId: event._id,
           eventTitle: event.title,
           eventDate: event.startDate,
-          minutesBefore
+          minutesBefore,
         },
         priority: this.priorityLevels.HIGH,
         categoryId: 'reminder',
         sound: 'default',
-        badge: 1
+        badge: 1,
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -358,11 +443,17 @@ class NotificationService {
     }
   }
 
+  /**
+   *
+   * @param userId
+   * @param eventId
+   * @param updateType
+   */
   async sendEventUpdate(userId, eventId, updateType) {
     try {
       const [user, event] = await Promise.all([
         User.findById(userId),
-        Event.findById(eventId)
+        Event.findById(eventId),
       ]);
 
       if (!user || !event) {
@@ -370,10 +461,10 @@ class NotificationService {
       }
 
       const updateMessages = {
-        'date': 'La fecha del evento ha cambiado',
-        'location': 'La ubicación del evento ha cambiado',
-        'cancelled': 'El evento ha sido cancelado',
-        'details': 'Los detalles del evento han sido actualizados'
+        date: 'La fecha del evento ha cambiado',
+        location: 'La ubicación del evento ha cambiado',
+        cancelled: 'El evento ha sido cancelado',
+        details: 'Los detalles del evento han sido actualizados',
       };
 
       const notification = {
@@ -383,11 +474,11 @@ class NotificationService {
         data: {
           eventId: event._id,
           eventTitle: event.title,
-          updateType
+          updateType,
         },
         priority: this.priorityLevels.NORMAL,
         categoryId: 'event',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -398,12 +489,18 @@ class NotificationService {
   }
 
   // Notificaciones de tribus
+  /**
+   *
+   * @param userId
+   * @param tribeId
+   * @param inviterId
+   */
   async sendTribeInvite(userId, tribeId, inviterId) {
     try {
       const [user, tribe, inviter] = await Promise.all([
         User.findById(userId),
         Tribe.findById(tribeId),
-        User.findById(inviterId)
+        User.findById(inviterId),
       ]);
 
       if (!user || !tribe || !inviter) {
@@ -417,12 +514,12 @@ class NotificationService {
         data: {
           tribeId: tribe._id,
           inviterId: inviter._id,
-          tribeName: tribe.name
+          tribeName: tribe.name,
         },
         priority: this.priorityLevels.HIGH,
         categoryId: 'tribe',
         sound: 'default',
-        badge: 1
+        badge: 1,
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -433,11 +530,18 @@ class NotificationService {
   }
 
   // Notificaciones de chat
+  /**
+   *
+   * @param userId
+   * @param chatId
+   * @param senderId
+   * @param messagePreview
+   */
   async sendNewMessageNotification(userId, chatId, senderId, messagePreview) {
     try {
       const [user, sender] = await Promise.all([
         User.findById(userId),
-        User.findById(senderId)
+        User.findById(senderId),
       ]);
 
       if (!user || !sender) {
@@ -452,12 +556,12 @@ class NotificationService {
           chatId,
           senderId: sender._id,
           senderName: sender.firstName,
-          messagePreview
+          messagePreview,
         },
         priority: this.priorityLevels.NORMAL,
         categoryId: 'chat',
         sound: 'default',
-        badge: 1
+        badge: 1,
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -468,11 +572,18 @@ class NotificationService {
   }
 
   // Notificaciones de menciones
+  /**
+   *
+   * @param userId
+   * @param mentionedBy
+   * @param context
+   * @param contextId
+   */
   async sendMentionNotification(userId, mentionedBy, context, contextId) {
     try {
       const [user, mentionedByUser] = await Promise.all([
         User.findById(userId),
-        User.findById(mentionedBy)
+        User.findById(mentionedBy),
       ]);
 
       if (!user || !mentionedByUser) {
@@ -487,11 +598,11 @@ class NotificationService {
           mentionedBy: mentionedByUser._id,
           mentionedByName: mentionedByUser.firstName,
           context,
-          contextId
+          contextId,
         },
         priority: this.priorityLevels.NORMAL,
         categoryId: 'social',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -502,11 +613,18 @@ class NotificationService {
   }
 
   // Notificaciones de likes
+  /**
+   *
+   * @param userId
+   * @param likedBy
+   * @param contentType
+   * @param contentId
+   */
   async sendLikeNotification(userId, likedBy, contentType, contentId) {
     try {
       const [user, likedByUser] = await Promise.all([
         User.findById(userId),
-        User.findById(likedBy)
+        User.findById(likedBy),
       ]);
 
       if (!user || !likedByUser) {
@@ -521,11 +639,11 @@ class NotificationService {
           likedBy: likedByUser._id,
           likedByName: likedByUser.firstName,
           contentType,
-          contentId
+          contentId,
         },
         priority: this.priorityLevels.LOW,
         categoryId: 'social',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -536,11 +654,25 @@ class NotificationService {
   }
 
   // Notificaciones de comentarios
-  async sendCommentNotification(userId, commentedBy, contentType, contentId, commentPreview) {
+  /**
+   *
+   * @param userId
+   * @param commentedBy
+   * @param contentType
+   * @param contentId
+   * @param commentPreview
+   */
+  async sendCommentNotification(
+    userId,
+    commentedBy,
+    contentType,
+    contentId,
+    commentPreview
+  ) {
     try {
       const [user, commentedByUser] = await Promise.all([
         User.findById(userId),
-        User.findById(commentedBy)
+        User.findById(commentedBy),
       ]);
 
       if (!user || !commentedByUser) {
@@ -556,11 +688,11 @@ class NotificationService {
           commentedByName: commentedByUser.firstName,
           contentType,
           contentId,
-          commentPreview
+          commentPreview,
         },
         priority: this.priorityLevels.NORMAL,
         categoryId: 'social',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -571,11 +703,16 @@ class NotificationService {
   }
 
   // Notificaciones de seguimiento
+  /**
+   *
+   * @param userId
+   * @param followedBy
+   */
   async sendFollowNotification(userId, followedBy) {
     try {
       const [user, followedByUser] = await Promise.all([
         User.findById(userId),
-        User.findById(followedBy)
+        User.findById(followedBy),
       ]);
 
       if (!user || !followedByUser) {
@@ -588,11 +725,11 @@ class NotificationService {
         body: `${followedByUser.firstName} comenzó a seguirte`,
         data: {
           followedBy: followedByUser._id,
-          followedByName: followedByUser.firstName
+          followedByName: followedByUser.firstName,
         },
         priority: this.priorityLevels.LOW,
         categoryId: 'social',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -603,6 +740,13 @@ class NotificationService {
   }
 
   // Notificaciones del sistema
+  /**
+   *
+   * @param userId
+   * @param title
+   * @param body
+   * @param data
+   */
   async sendSystemNotification(userId, title, body, data = {}) {
     try {
       const notification = {
@@ -612,7 +756,7 @@ class NotificationService {
         data,
         priority: this.priorityLevels.NORMAL,
         categoryId: 'system',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -623,6 +767,13 @@ class NotificationService {
   }
 
   // Notificaciones de seguridad
+  /**
+   *
+   * @param userId
+   * @param title
+   * @param body
+   * @param data
+   */
   async sendSecurityNotification(userId, title, body, data = {}) {
     try {
       const notification = {
@@ -633,7 +784,7 @@ class NotificationService {
         priority: this.priorityLevels.HIGH,
         categoryId: 'security',
         sound: 'default',
-        badge: 1
+        badge: 1,
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -644,6 +795,13 @@ class NotificationService {
   }
 
   // Notificaciones promocionales
+  /**
+   *
+   * @param userId
+   * @param title
+   * @param body
+   * @param data
+   */
   async sendPromotionalNotification(userId, title, body, data = {}) {
     try {
       const notification = {
@@ -653,7 +811,7 @@ class NotificationService {
         data,
         priority: this.priorityLevels.LOW,
         categoryId: 'promotional',
-        sound: 'default'
+        sound: 'default',
       };
 
       return await this.sendMultiChannelNotification(userId, notification);
@@ -664,16 +822,34 @@ class NotificationService {
   }
 
   // Enviar notificación masiva
-  async sendBulkNotification(userIds, notification, channels = ['push', 'in_app']) {
+  /**
+   *
+   * @param userIds
+   * @param notification
+   * @param channels
+   */
+  async sendBulkNotification(
+    userIds,
+    notification,
+    channels = ['push', 'in_app']
+  ) {
     try {
       const results = await Promise.allSettled(
-        userIds.map(userId => this.sendMultiChannelNotification(userId, notification, channels))
+        userIds.map(userId =>
+          this.sendMultiChannelNotification(userId, notification, channels)
+        )
       );
 
-      const successful = results.filter(result => result.status === 'fulfilled').length;
-      const failed = results.filter(result => result.status === 'rejected').length;
+      const successful = results.filter(
+        result => result.status === 'fulfilled'
+      ).length;
+      const failed = results.filter(
+        result => result.status === 'rejected'
+      ).length;
 
-      console.log(`Notificaciones masivas enviadas: ${successful} exitosas, ${failed} fallidas`);
+      console.log(
+        `Notificaciones masivas enviadas: ${successful} exitosas, ${failed} fallidas`
+      );
 
       return {
         total: userIds.length,
@@ -682,8 +858,8 @@ class NotificationService {
         results: results.map((result, index) => ({
           userId: userIds[index],
           success: result.status === 'fulfilled',
-          error: result.status === 'rejected' ? result.reason : null
-        }))
+          error: result.status === 'rejected' ? result.reason : null,
+        })),
       };
     } catch (error) {
       console.error('Error enviando notificaciones masivas:', error);
@@ -691,19 +867,25 @@ class NotificationService {
         total: userIds.length,
         successful: 0,
         failed: userIds.length,
-        error: error.message
+        error: error.message,
       };
     }
   }
 
   // Programar notificación
+  /**
+   *
+   * @param userId
+   * @param notification
+   * @param scheduledTime
+   */
   async scheduleNotification(userId, notification, scheduledTime) {
     try {
       const scheduledNotification = new ScheduledNotification({
         userId,
         notification,
         scheduledTime,
-        status: 'pending'
+        status: 'pending',
       });
 
       await scheduledNotification.save();
@@ -719,9 +901,14 @@ class NotificationService {
   }
 
   // Cancelar notificación programada
+  /**
+   *
+   * @param notificationId
+   */
   async cancelScheduledNotification(notificationId) {
     try {
-      const scheduledNotification = await ScheduledNotification.findById(notificationId);
+      const scheduledNotification =
+        await ScheduledNotification.findById(notificationId);
       if (scheduledNotification) {
         scheduledNotification.status = 'cancelled';
         await scheduledNotification.save();
@@ -735,6 +922,11 @@ class NotificationService {
   }
 
   // Obtener estadísticas de notificaciones
+  /**
+   *
+   * @param userId
+   * @param timeRange
+   */
   async getNotificationStats(userId, timeRange = '7d') {
     try {
       const startDate = new Date();
@@ -755,18 +947,18 @@ class NotificationService {
       const stats = await InAppNotification.aggregate([
         {
           $match: {
-            userId: userId,
-            createdAt: { $gte: startDate }
-          }
+            userId,
+            createdAt: { $gte: startDate },
+          },
         },
         {
           $group: {
             _id: '$type',
             count: { $sum: 1 },
             read: { $sum: { $cond: ['$read', 1, 0] } },
-            unread: { $sum: { $cond: ['$read', 0, 1] } }
-          }
-        }
+            unread: { $sum: { $cond: ['$read', 0, 1] } },
+          },
+        },
       ]);
 
       return stats;
@@ -777,6 +969,10 @@ class NotificationService {
   }
 
   // Marcar notificación como leída
+  /**
+   *
+   * @param notificationId
+   */
   async markNotificationAsRead(notificationId) {
     try {
       const notification = await InAppNotification.findById(notificationId);
@@ -794,6 +990,10 @@ class NotificationService {
   }
 
   // Marcar todas las notificaciones como leídas
+  /**
+   *
+   * @param userId
+   */
   async markAllNotificationsAsRead(userId) {
     try {
       const result = await InAppNotification.updateMany(
@@ -802,12 +1002,19 @@ class NotificationService {
       );
       return result.modifiedCount;
     } catch (error) {
-      console.error('Error marcando todas las notificaciones como leídas:', error);
+      console.error(
+        'Error marcando todas las notificaciones como leídas:',
+        error
+      );
       return 0;
     }
   }
 
   // Limpiar notificaciones antiguas
+  /**
+   *
+   * @param daysOld
+   */
   async cleanupOldNotifications(daysOld = 30) {
     try {
       const cutoffDate = new Date();
@@ -815,7 +1022,7 @@ class NotificationService {
 
       const result = await InAppNotification.deleteMany({
         createdAt: { $lt: cutoffDate },
-        read: true
+        read: true,
       });
 
       console.log(`Notificaciones antiguas limpiadas: ${result.deletedCount}`);

@@ -5,19 +5,19 @@ class PushNotificationConfig {
     this.expoConfig = {
       accessToken: process.env.EXPO_ACCESS_TOKEN,
       projectId: process.env.EXPO_PROJECT_ID,
-      pushUrl: 'https://exp.host/--/api/v2/push/send'
+      pushUrl: 'https://exp.host/--/api/v2/push/send',
     };
 
     this.fcmConfig = {
       serverKey: process.env.FCM_SERVER_KEY,
-      projectId: process.env.FCM_PROJECT_ID
+      projectId: process.env.FCM_PROJECT_ID,
     };
 
     this.apnsConfig = {
       keyId: process.env.APNS_KEY_ID,
       teamId: process.env.APNS_TEAM_ID,
       bundleId: process.env.APNS_BUNDLE_ID,
-      privateKey: process.env.APNS_PRIVATE_KEY
+      privateKey: process.env.APNS_PRIVATE_KEY,
     };
 
     this.defaultSettings = {
@@ -25,7 +25,7 @@ class PushNotificationConfig {
       priority: 'normal',
       badge: 1,
       ttl: 86400, // 24 horas
-      expiration: null
+      expiration: null,
     };
 
     this.platformSettings = {
@@ -36,21 +36,21 @@ class PushNotificationConfig {
         vibrate: [0, 250, 250, 250],
         icon: 'ic_notification',
         color: '#2196F3',
-        sticky: false
+        sticky: false,
       },
       ios: {
         sound: 'default',
         badge: 1,
         categoryId: 'default',
-        threadId: null
+        threadId: null,
       },
       web: {
         icon: '/icons/icon-192x192.png',
         badge: '/icons/badge-72x72.png',
         tag: 'default',
         requireInteraction: false,
-        silent: false
-      }
+        silent: false,
+      },
     };
   }
 
@@ -91,7 +91,11 @@ class PushNotificationConfig {
 
   // Verificar si APNS está configurado
   isAPNSConfigured() {
-    return !!(this.apnsConfig.keyId && this.apnsConfig.teamId && this.apnsConfig.bundleId);
+    return !!(
+      this.apnsConfig.keyId &&
+      this.apnsConfig.teamId &&
+      this.apnsConfig.bundleId
+    );
   }
 
   // Obtener configuración de notificaciones por tipo
@@ -104,12 +108,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'events',
           priority: 'high',
-          color: '#4CAF50'
+          color: '#4CAF50',
         },
         ios: {
           categoryId: 'event_invite',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       event_reminder: {
         priority: 'high',
@@ -118,12 +122,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'reminders',
           priority: 'high',
-          color: '#FF9800'
+          color: '#FF9800',
         },
         ios: {
           categoryId: 'event_reminder',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       new_message: {
         priority: 'normal',
@@ -132,12 +136,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'messages',
           priority: 'normal',
-          color: '#2196F3'
+          color: '#2196F3',
         },
         ios: {
           categoryId: 'new_message',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       mention: {
         priority: 'normal',
@@ -146,12 +150,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'social',
           priority: 'normal',
-          color: '#9C27B0'
+          color: '#9C27B0',
         },
         ios: {
           categoryId: 'mention',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       like: {
         priority: 'low',
@@ -160,12 +164,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'social',
           priority: 'low',
-          color: '#E91E63'
+          color: '#E91E63',
         },
         ios: {
           categoryId: 'like',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       comment: {
         priority: 'normal',
@@ -174,12 +178,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'social',
           priority: 'normal',
-          color: '#FF5722'
+          color: '#FF5722',
         },
         ios: {
           categoryId: 'comment',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       follow: {
         priority: 'low',
@@ -188,12 +192,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'social',
           priority: 'low',
-          color: '#00BCD4'
+          color: '#00BCD4',
         },
         ios: {
           categoryId: 'follow',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       system: {
         priority: 'normal',
@@ -202,12 +206,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'system',
           priority: 'normal',
-          color: '#607D8B'
+          color: '#607D8B',
         },
         ios: {
           categoryId: 'system',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       security: {
         priority: 'high',
@@ -216,12 +220,12 @@ class PushNotificationConfig {
         android: {
           channelId: 'security',
           priority: 'high',
-          color: '#F44336'
+          color: '#F44336',
         },
         ios: {
           categoryId: 'security',
-          sound: 'default'
-        }
+          sound: 'default',
+        },
       },
       promotional: {
         priority: 'low',
@@ -230,13 +234,13 @@ class PushNotificationConfig {
         android: {
           channelId: 'promotional',
           priority: 'low',
-          color: '#795548'
+          color: '#795548',
         },
         ios: {
           categoryId: 'promotional',
-          sound: 'default'
-        }
-      }
+          sound: 'default',
+        },
+      },
     };
 
     return typeConfigs[type] || this.defaultSettings;
@@ -253,7 +257,7 @@ class PushNotificationConfig {
         sound: 'default',
         vibration: true,
         light: true,
-        lightColor: '#2196F3'
+        lightColor: '#2196F3',
       },
       {
         id: 'events',
@@ -263,7 +267,7 @@ class PushNotificationConfig {
         sound: 'default',
         vibration: true,
         light: true,
-        lightColor: '#4CAF50'
+        lightColor: '#4CAF50',
       },
       {
         id: 'reminders',
@@ -273,7 +277,7 @@ class PushNotificationConfig {
         sound: 'default',
         vibration: true,
         light: true,
-        lightColor: '#FF9800'
+        lightColor: '#FF9800',
       },
       {
         id: 'messages',
@@ -283,7 +287,7 @@ class PushNotificationConfig {
         sound: 'default',
         vibration: true,
         light: true,
-        lightColor: '#2196F3'
+        lightColor: '#2196F3',
       },
       {
         id: 'social',
@@ -292,7 +296,7 @@ class PushNotificationConfig {
         importance: 2, // IMPORTANCE_LOW
         sound: 'default',
         vibration: false,
-        light: false
+        light: false,
       },
       {
         id: 'system',
@@ -301,7 +305,7 @@ class PushNotificationConfig {
         importance: 3, // IMPORTANCE_DEFAULT
         sound: 'default',
         vibration: false,
-        light: false
+        light: false,
       },
       {
         id: 'security',
@@ -311,7 +315,7 @@ class PushNotificationConfig {
         sound: 'default',
         vibration: true,
         light: true,
-        lightColor: '#F44336'
+        lightColor: '#F44336',
       },
       {
         id: 'promotional',
@@ -320,8 +324,8 @@ class PushNotificationConfig {
         importance: 1, // IMPORTANCE_MIN
         sound: 'default',
         vibration: false,
-        light: false
-      }
+        light: false,
+      },
     ];
   }
 
@@ -334,9 +338,9 @@ class PushNotificationConfig {
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'event_invite',
@@ -344,19 +348,19 @@ class PushNotificationConfig {
           {
             id: 'accept',
             title: 'Aceptar',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'decline',
             title: 'Rechazar',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'event_reminder',
@@ -364,14 +368,14 @@ class PushNotificationConfig {
           {
             id: 'snooze',
             title: 'Posponer',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'new_message',
@@ -379,14 +383,14 @@ class PushNotificationConfig {
           {
             id: 'reply',
             title: 'Responder',
-            options: ['foreground', 'authenticationRequired']
+            options: ['foreground', 'authenticationRequired'],
           },
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'mention',
@@ -394,14 +398,14 @@ class PushNotificationConfig {
           {
             id: 'reply',
             title: 'Responder',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'like',
@@ -409,9 +413,9 @@ class PushNotificationConfig {
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'comment',
@@ -419,14 +423,14 @@ class PushNotificationConfig {
           {
             id: 'reply',
             title: 'Responder',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'follow',
@@ -434,14 +438,14 @@ class PushNotificationConfig {
           {
             id: 'follow_back',
             title: 'Seguir',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'view',
             title: 'Ver perfil',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'system',
@@ -449,9 +453,9 @@ class PushNotificationConfig {
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
-          }
-        ]
+            options: ['foreground'],
+          },
+        ],
       },
       {
         id: 'security',
@@ -459,14 +463,14 @@ class PushNotificationConfig {
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'dismiss',
             title: 'Descartar',
-            options: ['destructive']
-          }
-        ]
+            options: ['destructive'],
+          },
+        ],
       },
       {
         id: 'promotional',
@@ -474,15 +478,15 @@ class PushNotificationConfig {
           {
             id: 'view',
             title: 'Ver',
-            options: ['foreground']
+            options: ['foreground'],
           },
           {
             id: 'dismiss',
             title: 'Descartar',
-            options: ['destructive']
-          }
-        ]
-      }
+            options: ['destructive'],
+          },
+        ],
+      },
     ];
   }
 
@@ -493,10 +497,10 @@ class PushNotificationConfig {
         enabled: false,
         start: '22:00',
         end: '08:00',
-        timezone: 'UTC'
+        timezone: 'UTC',
       },
       userConfigurable: true,
-      allowedTypes: ['security', 'event_reminder']
+      allowedTypes: ['security', 'event_reminder'],
     };
   }
 
@@ -506,7 +510,7 @@ class PushNotificationConfig {
       maxAttempts: 3,
       backoffMultiplier: 2,
       initialDelay: 1000, // 1 segundo
-      maxDelay: 30000 // 30 segundos
+      maxDelay: 30000, // 30 segundos
     };
   }
 
@@ -516,7 +520,7 @@ class PushNotificationConfig {
       maxNotificationsPerMinute: 60,
       maxNotificationsPerHour: 1000,
       maxNotificationsPerDay: 10000,
-      burstLimit: 10
+      burstLimit: 10,
     };
   }
 
@@ -529,7 +533,7 @@ class PushNotificationConfig {
       trackClick: true,
       trackDismiss: true,
       trackConversion: true,
-      retentionWindow: 30 // días
+      retentionWindow: 30, // días
     };
   }
 
@@ -541,7 +545,7 @@ class PushNotificationConfig {
       behaviorTracking: true,
       a_bTesting: true,
       dynamicContent: true,
-      smartScheduling: true
+      smartScheduling: true,
     };
   }
 
@@ -553,7 +557,7 @@ class PushNotificationConfig {
       tokenValidation: true,
       rateLimiting: true,
       contentFiltering: true,
-      auditLogging: true
+      auditLogging: true,
     };
   }
 }

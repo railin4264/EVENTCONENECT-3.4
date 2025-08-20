@@ -1,6 +1,7 @@
-const { User } = require('../../models');
 const bcrypt = require('bcryptjs');
+
 const { database } = require('../../config');
+const { User } = require('../../models');
 
 class UserSeeder {
   constructor() {
@@ -9,6 +10,7 @@ class UserSeeder {
 
   /**
    * Generate sample users for development and testing
+   * @param count
    */
   async generateUsers(count = 50) {
     try {
@@ -32,8 +34,8 @@ class UserSeeder {
             address: 'New York, NY, USA',
             city: 'New York',
             state: 'NY',
-            country: 'USA'
-          }
+            country: 'USA',
+          },
         },
         {
           username: 'johndoe',
@@ -51,8 +53,8 @@ class UserSeeder {
             address: 'Los Angeles, CA, USA',
             city: 'Los Angeles',
             state: 'CA',
-            country: 'USA'
-          }
+            country: 'USA',
+          },
         },
         {
           username: 'janesmith',
@@ -70,8 +72,8 @@ class UserSeeder {
             address: 'Chicago, IL, USA',
             city: 'Chicago',
             state: 'IL',
-            country: 'USA'
-          }
+            country: 'USA',
+          },
         },
         {
           username: 'mikejohnson',
@@ -89,8 +91,8 @@ class UserSeeder {
             address: 'San Francisco, CA, USA',
             city: 'San Francisco',
             state: 'CA',
-            country: 'USA'
-          }
+            country: 'USA',
+          },
         },
         {
           username: 'sarahwilson',
@@ -108,9 +110,9 @@ class UserSeeder {
             address: 'Miami, FL, USA',
             city: 'Miami',
             state: 'FL',
-            country: 'USA'
-          }
-        }
+            country: 'USA',
+          },
+        },
       ];
 
       // Generate additional random users
@@ -126,14 +128,13 @@ class UserSeeder {
           ...userData,
           password: hashedPassword,
           notificationPreferences: this.generateNotificationPreferences(),
-          stats: this.generateUserStats()
+          stats: this.generateUserStats(),
         });
         this.users.push(user);
       }
 
       console.log(`✅ Generated ${this.users.length} sample users`);
       return this.users;
-
     } catch (error) {
       console.error('❌ Error generating users:', error);
       throw error;
@@ -142,28 +143,107 @@ class UserSeeder {
 
   /**
    * Generate a random user with realistic data
+   * @param index
    */
   generateRandomUser(index) {
     const firstNames = [
-      'Alex', 'Jordan', 'Taylor', 'Casey', 'Riley', 'Morgan', 'Quinn', 'Avery',
-      'Blake', 'Cameron', 'Drew', 'Emery', 'Finley', 'Gray', 'Harper', 'Indigo',
-      'Jamie', 'Kendall', 'Logan', 'Mason', 'Nova', 'Oakley', 'Parker', 'Quinn',
-      'River', 'Sage', 'Tatum', 'Unity', 'Vale', 'Winter', 'Xander', 'Yuki', 'Zara'
+      'Alex',
+      'Jordan',
+      'Taylor',
+      'Casey',
+      'Riley',
+      'Morgan',
+      'Quinn',
+      'Avery',
+      'Blake',
+      'Cameron',
+      'Drew',
+      'Emery',
+      'Finley',
+      'Gray',
+      'Harper',
+      'Indigo',
+      'Jamie',
+      'Kendall',
+      'Logan',
+      'Mason',
+      'Nova',
+      'Oakley',
+      'Parker',
+      'Quinn',
+      'River',
+      'Sage',
+      'Tatum',
+      'Unity',
+      'Vale',
+      'Winter',
+      'Xander',
+      'Yuki',
+      'Zara',
     ];
 
     const lastNames = [
-      'Anderson', 'Brown', 'Davis', 'Garcia', 'Johnson', 'Jones', 'Miller',
-      'Moore', 'Smith', 'Taylor', 'Thomas', 'White', 'Wilson', 'Young',
-      'Adams', 'Baker', 'Campbell', 'Carter', 'Clark', 'Collins', 'Cook',
-      'Cooper', 'Evans', 'Green', 'Hall', 'Harris', 'Jackson', 'Lee',
-      'Lewis', 'Martin', 'Mitchell', 'Nelson', 'Parker', 'Phillips'
+      'Anderson',
+      'Brown',
+      'Davis',
+      'Garcia',
+      'Johnson',
+      'Jones',
+      'Miller',
+      'Moore',
+      'Smith',
+      'Taylor',
+      'Thomas',
+      'White',
+      'Wilson',
+      'Young',
+      'Adams',
+      'Baker',
+      'Campbell',
+      'Carter',
+      'Clark',
+      'Collins',
+      'Cook',
+      'Cooper',
+      'Evans',
+      'Green',
+      'Hall',
+      'Harris',
+      'Jackson',
+      'Lee',
+      'Lewis',
+      'Martin',
+      'Mitchell',
+      'Nelson',
+      'Parker',
+      'Phillips',
     ];
 
     const interests = [
-      'music', 'art', 'technology', 'sports', 'food', 'travel', 'business',
-      'education', 'health', 'fitness', 'photography', 'writing', 'gaming',
-      'fashion', 'beauty', 'automotive', 'pets', 'gardening', 'diy',
-      'parenting', 'finance', 'real-estate', 'politics', 'science'
+      'music',
+      'art',
+      'technology',
+      'sports',
+      'food',
+      'travel',
+      'business',
+      'education',
+      'health',
+      'fitness',
+      'photography',
+      'writing',
+      'gaming',
+      'fashion',
+      'beauty',
+      'automotive',
+      'pets',
+      'gardening',
+      'diy',
+      'parenting',
+      'finance',
+      'real-estate',
+      'politics',
+      'science',
     ];
 
     const cities = [
@@ -171,18 +251,20 @@ class UserSeeder {
       { name: 'Los Angeles', coords: [-118.2437, 34.0522], state: 'CA' },
       { name: 'Chicago', coords: [-87.6298, 41.8781], state: 'IL' },
       { name: 'Houston', coords: [-95.3698, 29.7604], state: 'TX' },
-      { name: 'Phoenix', coords: [-112.0740, 33.4484], state: 'AZ' },
+      { name: 'Phoenix', coords: [-112.074, 33.4484], state: 'AZ' },
       { name: 'Philadelphia', coords: [-75.1652, 39.9526], state: 'PA' },
       { name: 'San Antonio', coords: [-98.4936, 29.4241], state: 'TX' },
       { name: 'San Diego', coords: [-117.1611, 32.7157], state: 'CA' },
-      { name: 'Dallas', coords: [-96.7970, 32.7767], state: 'TX' },
-      { name: 'San Jose', coords: [-121.8863, 37.3382], state: 'CA' }
+      { name: 'Dallas', coords: [-96.797, 32.7767], state: 'TX' },
+      { name: 'San Jose', coords: [-121.8863, 37.3382], state: 'CA' },
     ];
 
     const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
     const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
     const city = cities[Math.floor(Math.random() * cities.length)];
-    const userInterests = interests.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 5) + 2);
+    const userInterests = interests
+      .sort(() => 0.5 - Math.random())
+      .slice(0, Math.floor(Math.random() * 5) + 2);
 
     return {
       username: `${firstName.toLowerCase()}${lastName.toLowerCase()}${index}`,
@@ -198,22 +280,27 @@ class UserSeeder {
         type: 'Point',
         coordinates: [
           city.coords[0] + (Math.random() - 0.5) * 0.1, // Add some randomness
-          city.coords[1] + (Math.random() - 0.5) * 0.1
+          city.coords[1] + (Math.random() - 0.5) * 0.1,
         ],
         address: `${city.name}, ${city.state}, USA`,
         city: city.name,
         state: city.state,
-        country: 'USA'
+        country: 'USA',
       },
       age: Math.floor(Math.random() * 42) + 18, // 18-60
       gender: ['male', 'female', 'other'][Math.floor(Math.random() * 3)],
       phone: this.generateRandomPhone(),
-      website: Math.random() > 0.7 ? `https://${firstName.toLowerCase()}.com` : undefined
+      website:
+        Math.random() > 0.7
+          ? `https://${firstName.toLowerCase()}.com`
+          : undefined,
     };
   }
 
   /**
    * Generate a random bio based on interests
+   * @param firstName
+   * @param interests
    */
   generateRandomBio(firstName, interests) {
     const bios = [
@@ -221,7 +308,7 @@ class UserSeeder {
       `When not working, ${firstName} enjoys ${interests.join(', ')} and building community.`,
       `${firstName} believes in the power of ${interests[0]} to bring people together.`,
       `A dedicated ${interests[0]} enthusiast, ${firstName} is always looking for new experiences.`,
-      `${firstName} loves exploring ${interests.join(' and ')} while meeting amazing people.`
+      `${firstName} loves exploring ${interests.join(' and ')} while meeting amazing people.`,
     ];
 
     return bios[Math.floor(Math.random() * bios.length)];
@@ -231,7 +318,18 @@ class UserSeeder {
    * Generate random phone number
    */
   generateRandomPhone() {
-    const areaCodes = ['212', '310', '312', '713', '602', '215', '210', '619', '214', '408'];
+    const areaCodes = [
+      '212',
+      '310',
+      '312',
+      '713',
+      '602',
+      '215',
+      '210',
+      '619',
+      '214',
+      '408',
+    ];
     const areaCode = areaCodes[Math.floor(Math.random() * areaCodes.length)];
     const prefix = Math.floor(Math.random() * 900) + 100;
     const lineNumber = Math.floor(Math.random() * 9000) + 1000;
@@ -253,7 +351,7 @@ class UserSeeder {
       system_announcement: Math.random() > 0.3,
       push: Math.random() > 0.2,
       email: Math.random() > 0.3,
-      sms: Math.random() > 0.1
+      sms: Math.random() > 0.1,
     };
   }
 
@@ -270,7 +368,7 @@ class UserSeeder {
       totalEventsAttended: Math.floor(Math.random() * 50),
       totalEventsHosted: Math.floor(Math.random() * 15),
       totalReviews: Math.floor(Math.random() * 30),
-      averageRating: parseFloat((Math.random() * 2 + 3).toFixed(1))
+      averageRating: parseFloat((Math.random() * 2 + 3).toFixed(1)),
     };
   }
 
@@ -284,7 +382,9 @@ class UserSeeder {
       // Check if users already exist
       const existingUsers = await User.countDocuments();
       if (existingUsers > 0) {
-        console.log(`⚠️  Users already exist (${existingUsers}). Skipping seeding.`);
+        console.log(
+          `⚠️  Users already exist (${existingUsers}). Skipping seeding.`
+        );
         return [];
       }
 
@@ -296,7 +396,6 @@ class UserSeeder {
 
       console.log(`✅ Successfully seeded ${insertedUsers.length} users`);
       return insertedUsers;
-
     } catch (error) {
       console.error('❌ Error seeding users:', error);
       throw error;
@@ -320,11 +419,14 @@ class UserSeeder {
 
   /**
    * Get sample users for testing
+   * @param limit
    */
   async getSampleUsers(limit = 10) {
     try {
       const users = await User.find({ isVerified: true })
-        .select('username email firstName lastName bio interests location rating')
+        .select(
+          'username email firstName lastName bio interests location rating'
+        )
         .limit(limit);
       return users;
     } catch (error) {

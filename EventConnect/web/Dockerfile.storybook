@@ -1,0 +1,30 @@
+# Storybook Dockerfile for EventConnect Web Frontend
+FROM node:18-alpine AS base
+
+# Install dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    musl-dev
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 6006
+
+# Start Storybook
+CMD ["npm", "run", "storybook"]

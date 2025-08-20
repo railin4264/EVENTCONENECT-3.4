@@ -1,13 +1,13 @@
 // Import all models
-const User = require('./User');
-const Event = require('./Event');
-const Tribe = require('./Tribe');
-const Post = require('./Post');
 const Chat = require('./Chat');
-const Notification = require('./Notification');
-const Review = require('./Review');
+const Event = require('./Event');
 const InAppNotification = require('./InAppNotification');
+const Notification = require('./Notification');
+const Post = require('./Post');
+const Review = require('./Review');
 const ScheduledNotification = require('./ScheduledNotification');
+const Tribe = require('./Tribe');
+const User = require('./User');
 
 // Export all models
 module.exports = {
@@ -19,5 +19,5 @@ module.exports = {
   Notification,
   Review,
   InAppNotification,
-  ScheduledNotification
+  ScheduledNotification,
 };

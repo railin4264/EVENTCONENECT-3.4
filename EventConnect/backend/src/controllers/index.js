@@ -1,11 +1,11 @@
 const authController = require('./authController');
+const chatController = require('./chatController');
 const eventController = require('./eventController');
-const tribeController = require('./tribeController');
+const notificationController = require('./NotificationController');
 const postController = require('./postController');
 const reviewController = require('./reviewController');
-const chatController = require('./chatController');
-const notificationController = require('./NotificationController');
 const searchController = require('./searchController');
+const tribeController = require('./tribeController');
 const userController = require('./userController');
 
 module.exports = {
@@ -17,5 +17,5 @@ module.exports = {
   chatController,
   notificationController: new notificationController(),
   searchController,
-  userController
+  userController,
 };

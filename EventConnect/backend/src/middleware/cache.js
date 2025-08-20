@@ -1,12 +1,13 @@
-const redisClient = require('../config/redis');
 const crypto = require('crypto');
+
+const redisClient = require('../config/redis');
 
 // Cache configuration
 const cacheConfig = {
   defaultTTL: 300, // 5 minutes in seconds
   maxTTL: 86400, // 24 hours in seconds
   prefix: 'cache:',
-  compression: true
+  compression: true,
 };
 
 // Cache middleware
@@ -20,10 +21,10 @@ const cache = (ttl = cacheConfig.defaultTTL, keyGenerator = null) => {
 
       // Generate cache key
       const cacheKey = keyGenerator ? keyGenerator(req) : generateCacheKey(req);
-      
+
       // Try to get from cache
       const cachedData = await redisClient.get(cacheKey);
-      
+
       if (cachedData) {
         // Return cached data
         res.json(JSON.parse(cachedData));
@@ -32,9 +33,9 @@ const cache = (ttl = cacheConfig.defaultTTL, keyGenerator = null) => {
 
       // Store original send method
       const originalSend = res.send;
-      
+
       // Override send method to cache response
-      res.send = async function(data) {
+      res.send = async function (data) {
         try {
           // Cache the response
           if (data && typeof data === 'object') {
@@ -44,11 +45,11 @@ const cache = (ttl = cacheConfig.defaultTTL, keyGenerator = null) => {
         } catch (error) {
           console.error('Error caching response:', error);
         }
-        
+
         // Call original send method
         return originalSend.call(this, data);
       };
-      
+
       next();
     } catch (error) {
       console.error('Cache middleware error:', error);
@@ -58,31 +59,31 @@ const cache = (ttl = cacheConfig.defaultTTL, keyGenerator = null) => {
 };
 
 // Generate cache key from request
-const generateCacheKey = (req) => {
+const generateCacheKey = req => {
   const keyParts = [
     req.method,
     req.originalUrl,
     req.user ? req.user.id : 'anonymous',
     JSON.stringify(req.query),
-    JSON.stringify(req.params)
+    JSON.stringify(req.params),
   ];
-  
+
   const keyString = keyParts.join('|');
   const hash = crypto.createHash('md5').update(keyString).digest('hex');
-  
+
   return `${cacheConfig.prefix}${hash}`;
 };
 
 // Custom cache key generator for specific routes
-const routeCacheKey = (route) => {
-  return (req) => {
+const routeCacheKey = route => {
+  return req => {
     return `${cacheConfig.prefix}${route}:${req.user ? req.user.id : 'anonymous'}:${JSON.stringify(req.query)}`;
   };
 };
 
 // Model-specific cache key generator
 const modelCacheKey = (modelName, identifier = 'id') => {
-  return (req) => {
+  return req => {
     const id = req.params[identifier] || req.query[identifier];
     return `${cacheConfig.prefix}${modelName}:${id}`;
   };
@@ -90,9 +91,12 @@ const modelCacheKey = (modelName, identifier = 'id') => {
 
 // User-specific cache key generator
 const userCacheKey = (prefix = '') => {
-  return (req) => {
+  return req => {
     const userId = req.user ? req.user.id : 'anonymous';
-    const queryHash = crypto.createHash('md5').update(JSON.stringify(req.query)).digest('hex');
+    const queryHash = crypto
+      .createHash('md5')
+      .update(JSON.stringify(req.query))
+      .digest('hex');
     return `${cacheConfig.prefix}${prefix}:user:${userId}:${queryHash}`;
   };
 };
@@ -103,9 +107,9 @@ const invalidateCache = (patterns = []) => {
     try {
       // Store original send method
       const originalSend = res.send;
-      
+
       // Override send method to invalidate cache after successful operations
-      res.send = async function(data) {
+      res.send = async function (data) {
         try {
           // Invalidate cache patterns
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -114,11 +118,11 @@ const invalidateCache = (patterns = []) => {
         } catch (error) {
           console.error('Error invalidating cache:', error);
         }
-        
+
         // Call original send method
         return originalSend.call(this, data);
       };
-      
+
       next();
     } catch (error) {
       console.error('Cache invalidation middleware error:', error);
@@ -132,31 +136,35 @@ const invalidateCachePatterns = async (patterns, req) => {
   try {
     for (const pattern of patterns) {
       let cachePattern = pattern;
-      
+
       // Replace placeholders with actual values
       if (req.params.id) {
         cachePattern = cachePattern.replace(':id', req.params.id);
       }
-      
+
       if (req.user) {
         cachePattern = cachePattern.replace(':userId', req.user.id);
       }
-      
+
       if (req.params.eventId) {
         cachePattern = cachePattern.replace(':eventId', req.params.eventId);
       }
-      
+
       if (req.params.tribeId) {
         cachePattern = cachePattern.replace(':tribeId', req.params.tribeId);
       }
-      
+
       // Get all keys matching the pattern
-      const keys = await redisClient.keys(`${cacheConfig.prefix}${cachePattern}`);
-      
+      const keys = await redisClient.keys(
+        `${cacheConfig.prefix}${cachePattern}`
+      );
+
       // Delete matching keys
       if (keys.length > 0) {
         await Promise.all(keys.map(key => redisClient.del(key)));
-        console.log(`🗑️ Cache invalidated: ${keys.length} keys for pattern ${cachePattern}`);
+        console.log(
+          `🗑️ Cache invalidated: ${keys.length} keys for pattern ${cachePattern}`
+        );
       }
     }
   } catch (error) {
@@ -171,7 +179,7 @@ const warmCache = (dataProvider, key, ttl = cacheConfig.defaultTTL) => {
       // Check if cache is warm
       const cacheKey = `${cacheConfig.prefix}${key}`;
       const cachedData = await redisClient.get(cacheKey);
-      
+
       if (!cachedData) {
         // Warm the cache in background
         setImmediate(async () => {
@@ -186,7 +194,7 @@ const warmCache = (dataProvider, key, ttl = cacheConfig.defaultTTL) => {
           }
         });
       }
-      
+
       next();
     } catch (error) {
       console.error('Cache warming middleware error:', error);
@@ -213,20 +221,20 @@ const getCacheStats = async () => {
   try {
     const keys = await redisClient.keys(`${cacheConfig.prefix}*`);
     const totalKeys = keys.length;
-    
+
     // Get memory usage
     const memoryInfo = await redisClient.client.info('memory');
     const memoryUsage = parseMemoryInfo(memoryInfo);
-    
+
     // Get cache hit rate (this would need to be implemented with counters)
     const hitRate = await getCacheHitRate();
-    
+
     return {
       totalKeys,
       memoryUsage,
       hitRate,
       prefix: cacheConfig.prefix,
-      defaultTTL: cacheConfig.defaultTTL
+      defaultTTL: cacheConfig.defaultTTL,
     };
   } catch (error) {
     console.error('Error getting cache stats:', error);
@@ -235,22 +243,22 @@ const getCacheStats = async () => {
 };
 
 // Parse Redis memory info
-const parseMemoryInfo = (memoryInfo) => {
+const parseMemoryInfo = memoryInfo => {
   try {
     const lines = memoryInfo.split('\r\n');
     const memory = {};
-    
+
     lines.forEach(line => {
       if (line.includes(':')) {
         const [key, value] = line.split(':');
         memory[key] = value;
       }
     });
-    
+
     return {
       usedMemory: memory.used_memory_human || 'N/A',
       usedMemoryPeak: memory.used_memory_peak_human || 'N/A',
-      usedMemoryRss: memory.used_memory_rss_human || 'N/A'
+      usedMemoryRss: memory.used_memory_rss_human || 'N/A',
     };
   } catch (error) {
     return { error: 'Could not parse memory info' };
@@ -265,7 +273,7 @@ const getCacheHitRate = async () => {
     return {
       hits: 0,
       misses: 0,
-      rate: 'N/A'
+      rate: 'N/A',
     };
   } catch (error) {
     return { error: 'Could not get hit rate' };
@@ -283,17 +291,22 @@ const userCache = (prefix = '', ttl = cacheConfig.defaultTTL) => {
 };
 
 // Cache middleware for search results
-const searchCache = (ttl = 600) => { // 10 minutes for search results
-  return cache(ttl, (req) => {
+const searchCache = (ttl = 600) => {
+  // 10 minutes for search results
+  return cache(ttl, req => {
     const searchQuery = req.query.q || req.query.search || '';
-    const queryHash = crypto.createHash('md5').update(searchQuery).digest('hex');
+    const queryHash = crypto
+      .createHash('md5')
+      .update(searchQuery)
+      .digest('hex');
     return `${cacheConfig.prefix}search:${queryHash}`;
   });
 };
 
 // Cache middleware for location-based queries
-const locationCache = (ttl = 300) => { // 5 minutes for location data
-  return cache(ttl, (req) => {
+const locationCache = (ttl = 300) => {
+  // 5 minutes for location data
+  return cache(ttl, req => {
     const { lat, lng, radius } = req.query;
     const locationKey = `${lat}:${lng}:${radius}`;
     const hash = crypto.createHash('md5').update(locationKey).digest('hex');
@@ -303,7 +316,7 @@ const locationCache = (ttl = 300) => { // 5 minutes for location data
 
 // Cache middleware for paginated results
 const paginationCache = (ttl = 300) => {
-  return cache(ttl, (req) => {
+  return cache(ttl, req => {
     const { page, limit, sort, order } = req.query;
     const paginationKey = `${page}:${limit}:${sort}:${order}`;
     const hash = crypto.createHash('md5').update(paginationKey).digest('hex');
@@ -313,7 +326,7 @@ const paginationCache = (ttl = 300) => {
 
 // Cache middleware for API responses
 const apiCache = (ttl = 300) => {
-  return cache(ttl, (req) => {
+  return cache(ttl, req => {
     const apiKey = `${req.method}:${req.originalUrl}`;
     const userKey = req.user ? req.user.id : 'anonymous';
     const queryKey = JSON.stringify(req.query);
@@ -324,47 +337,59 @@ const apiCache = (ttl = 300) => {
 };
 
 // Cache middleware for static data
-const staticCache = (ttl = 86400) => { // 24 hours for static data
-  return cache(ttl, (req) => {
+const staticCache = (ttl = 86400) => {
+  // 24 hours for static data
+  return cache(ttl, req => {
     return `${cacheConfig.prefix}static:${req.originalUrl}`;
   });
 };
 
 // Cache middleware for user profile data
-const profileCache = (ttl = 1800) => { // 30 minutes for profile data
-  return cache(ttl, (req) => {
+const profileCache = (ttl = 1800) => {
+  // 30 minutes for profile data
+  return cache(ttl, req => {
     const userId = req.params.userId || req.user?.id || 'anonymous';
     return `${cacheConfig.prefix}profile:${userId}`;
   });
 };
 
 // Cache middleware for event data
-const eventCache = (ttl = 900) => { // 15 minutes for event data
-  return cache(ttl, (req) => {
+const eventCache = (ttl = 900) => {
+  // 15 minutes for event data
+  return cache(ttl, req => {
     const eventId = req.params.eventId || req.params.id;
-    return eventId ? `${cacheConfig.prefix}event:${eventId}` : `${cacheConfig.prefix}events:list`;
+    return eventId
+      ? `${cacheConfig.prefix}event:${eventId}`
+      : `${cacheConfig.prefix}events:list`;
   });
 };
 
 // Cache middleware for tribe data
-const tribeCache = (ttl = 900) => { // 15 minutes for tribe data
-  return cache(ttl, (req) => {
+const tribeCache = (ttl = 900) => {
+  // 15 minutes for tribe data
+  return cache(ttl, req => {
     const tribeId = req.params.tribeId || req.params.id;
-    return tribeId ? `${cacheConfig.prefix}tribe:${tribeId}` : `${cacheConfig.prefix}tribes:list`;
+    return tribeId
+      ? `${cacheConfig.prefix}tribe:${tribeId}`
+      : `${cacheConfig.prefix}tribes:list`;
   });
 };
 
 // Cache middleware for post data
-const postCache = (ttl = 600) => { // 10 minutes for post data
-  return cache(ttl, (req) => {
+const postCache = (ttl = 600) => {
+  // 10 minutes for post data
+  return cache(ttl, req => {
     const postId = req.params.postId || req.params.id;
-    return postId ? `${cacheConfig.prefix}post:${postId}` : `${cacheConfig.prefix}posts:list`;
+    return postId
+      ? `${cacheConfig.prefix}post:${postId}`
+      : `${cacheConfig.prefix}posts:list`;
   });
 };
 
 // Cache middleware for user feed
-const feedCache = (ttl = 300) => { // 5 minutes for feed data
-  return cache(ttl, (req) => {
+const feedCache = (ttl = 300) => {
+  // 5 minutes for feed data
+  return cache(ttl, req => {
     const userId = req.user?.id || 'anonymous';
     const { page, limit, filter } = req.query;
     const feedKey = `${userId}:${page}:${limit}:${filter}`;
@@ -380,7 +405,7 @@ module.exports = {
   invalidateCache,
   warmCache,
   cacheStats,
-  
+
   // Specific cache middleware
   modelCache,
   userCache,
@@ -394,7 +419,7 @@ module.exports = {
   tribeCache,
   postCache,
   feedCache,
-  
+
   // Utility functions
   generateCacheKey,
   routeCacheKey,
@@ -402,7 +427,7 @@ module.exports = {
   userCacheKey,
   invalidateCachePatterns,
   getCacheStats,
-  
+
   // Configuration
-  cacheConfig
+  cacheConfig,
 };

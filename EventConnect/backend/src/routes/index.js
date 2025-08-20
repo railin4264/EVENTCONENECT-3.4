@@ -1,13 +1,13 @@
 const authRoutes = require('./auth');
+const chatRoutes = require('./chat');
 const eventRoutes = require('./events');
-const tribeRoutes = require('./tribes');
+const locationRoutes = require('./location');
+const notificationRoutes = require('./notifications');
 const postRoutes = require('./posts');
 const reviewRoutes = require('./reviews');
-const chatRoutes = require('./chat');
-const notificationRoutes = require('./notifications');
 const searchRoutes = require('./search');
+const tribeRoutes = require('./tribes');
 const userRoutes = require('./users');
-const locationRoutes = require('./location');
 
 module.exports = {
   authRoutes,
@@ -19,5 +19,5 @@ module.exports = {
   notificationRoutes,
   searchRoutes,
   userRoutes,
-  locationRoutes
+  locationRoutes,
 };

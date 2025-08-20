@@ -1,18 +1,32 @@
 const bcrypt = require('bcryptjs');
-const { User } = require('../models');
+
 const { jwt, redis } = require('../config');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
-const { validateUserRegistration, validateUserLogin } = require('../middleware/validation');
+const {
+  validateUserRegistration,
+  validateUserLogin,
+} = require('../middleware/validation');
+const { User } = require('../models');
 
 class AuthController {
   // Register new user
   register = asyncHandler(async (req, res, next) => {
     try {
-      const { email, password, username, firstName, lastName, dateOfBirth, phone, acceptTerms, acceptMarketing } = req.body;
+      const {
+        email,
+        password,
+        username,
+        firstName,
+        lastName,
+        dateOfBirth,
+        phone,
+        acceptTerms,
+        acceptMarketing,
+      } = req.body;
 
       // Check if user already exists
       const existingUser = await User.findOne({
-        $or: [{ email }, { username }]
+        $or: [{ email }, { username }],
       });
 
       if (existingUser) {
@@ -41,7 +55,7 @@ class AuthController {
         acceptMarketing,
         isActive: true,
         isVerified: false, // Will be verified via email
-        role: 'user'
+        role: 'user',
       });
 
       await user.save();
@@ -51,14 +65,18 @@ class AuthController {
         userId: user._id,
         email: user.email,
         username: user.username,
-        role: user.role
+        role: user.role,
       });
 
       // Store refresh token in Redis
-      const tokenId = await jwt.storeRefreshToken(user._id.toString(), tokens.refreshToken, {
-        userAgent: req.get('User-Agent'),
-        ip: req.ip
-      });
+      const tokenId = await jwt.storeRefreshToken(
+        user._id.toString(),
+        tokens.refreshToken,
+        {
+          userAgent: req.get('User-Agent'),
+          ip: req.ip,
+        }
+      );
 
       // Remove password from response
       const userResponse = user.toObject();
@@ -73,10 +91,10 @@ class AuthController {
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             expiresIn: tokens.expiresIn,
-            refreshExpiresIn: tokens.refreshExpiresIn
+            refreshExpiresIn: tokens.refreshExpiresIn,
           },
-          tokenId
-        }
+          tokenId,
+        },
       });
     } catch (error) {
       next(error);
@@ -90,7 +108,7 @@ class AuthController {
 
       // Find user by email or username
       const user = await User.findOne({
-        $or: [{ email }, { username: email }]
+        $or: [{ email }, { username: email }],
       }).select('+password');
 
       if (!user) {
@@ -117,14 +135,18 @@ class AuthController {
         userId: user._id,
         email: user.email,
         username: user.username,
-        role: user.role
+        role: user.role,
       });
 
       // Store refresh token in Redis
-      const tokenId = await jwt.storeRefreshToken(user._id.toString(), tokens.refreshToken, {
-        userAgent: req.get('User-Agent'),
-        ip: req.ip
-      });
+      const tokenId = await jwt.storeRefreshToken(
+        user._id.toString(),
+        tokens.refreshToken,
+        {
+          userAgent: req.get('User-Agent'),
+          ip: req.ip,
+        }
+      );
 
       // Remove password from response
       const userResponse = user.toObject();
@@ -139,10 +161,10 @@ class AuthController {
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             expiresIn: tokens.expiresIn,
-            refreshExpiresIn: tokens.refreshExpiresIn
+            refreshExpiresIn: tokens.refreshExpiresIn,
           },
-          tokenId
-        }
+          tokenId,
+        },
       });
     } catch (error) {
       next(error);
@@ -165,7 +187,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Logout exitoso'
+        message: 'Logout exitoso',
       });
     } catch (error) {
       next(error);
@@ -183,7 +205,7 @@ class AuthController {
 
       // Verify refresh token
       const decoded = jwt.verifyRefreshToken(refreshToken);
-      
+
       // Get user
       const user = await User.findById(decoded.userId).select('-password');
       if (!user || !user.isActive) {
@@ -195,14 +217,18 @@ class AuthController {
         userId: user._id,
         email: user.email,
         username: user.username,
-        role: user.role
+        role: user.role,
       });
 
       // Store new refresh token
-      const tokenId = await jwt.storeRefreshToken(user._id.toString(), tokens.refreshToken, {
-        userAgent: req.get('User-Agent'),
-        ip: req.ip
-      });
+      const tokenId = await jwt.storeRefreshToken(
+        user._id.toString(),
+        tokens.refreshToken,
+        {
+          userAgent: req.get('User-Agent'),
+          ip: req.ip,
+        }
+      );
 
       res.status(200).json({
         success: true,
@@ -212,10 +238,10 @@ class AuthController {
             accessToken: tokens.accessToken,
             refreshToken: tokens.refreshToken,
             expiresIn: tokens.expiresIn,
-            refreshExpiresIn: tokens.refreshExpiresIn
+            refreshExpiresIn: tokens.refreshExpiresIn,
           },
-          tokenId
-        }
+          tokenId,
+        },
       });
     } catch (error) {
       next(error);
@@ -226,14 +252,14 @@ class AuthController {
   getProfile = asyncHandler(async (req, res, next) => {
     try {
       const user = await User.findById(req.user.id).select('-password');
-      
+
       if (!user) {
         throw new AppError('Usuario no encontrado', 404);
       }
 
       res.status(200).json({
         success: true,
-        data: { user }
+        data: { user },
       });
     } catch (error) {
       next(error);
@@ -253,11 +279,10 @@ class AuthController {
       delete updateData.isActive;
       delete updateData.isVerified;
 
-      const user = await User.findByIdAndUpdate(
-        userId,
-        updateData,
-        { new: true, runValidators: true }
-      ).select('-password');
+      const user = await User.findByIdAndUpdate(userId, updateData, {
+        new: true,
+        runValidators: true,
+      }).select('-password');
 
       if (!user) {
         throw new AppError('Usuario no encontrado', 404);
@@ -266,7 +291,7 @@ class AuthController {
       res.status(200).json({
         success: true,
         message: 'Perfil actualizado exitosamente',
-        data: { user }
+        data: { user },
       });
     } catch (error) {
       next(error);
@@ -285,7 +310,10 @@ class AuthController {
       }
 
       // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      const isCurrentPasswordValid = await bcrypt.compare(
+        currentPassword,
+        user.password
+      );
       if (!isCurrentPasswordValid) {
         throw new AppError('Contraseña actual incorrecta', 400);
       }
@@ -304,7 +332,8 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Contraseña cambiada exitosamente. Por favor, inicia sesión nuevamente.'
+        message:
+          'Contraseña cambiada exitosamente. Por favor, inicia sesión nuevamente.',
       });
     } catch (error) {
       next(error);
@@ -321,13 +350,14 @@ class AuthController {
         // Don't reveal if user exists or not
         return res.status(200).json({
           success: true,
-          message: 'Si el email existe, se enviará un enlace de restablecimiento'
+          message:
+            'Si el email existe, se enviará un enlace de restablecimiento',
         });
       }
 
       // Generate reset token
       const resetTokenData = jwt.generatePasswordResetToken(user._id);
-      
+
       // Store reset token hash in user document
       user.passwordResetToken = resetTokenData.resetTokenHash;
       user.passwordResetExpires = resetTokenData.expiresAt;
@@ -340,8 +370,8 @@ class AuthController {
         message: 'Enlace de restablecimiento enviado al email',
         data: {
           resetToken: resetTokenData.resetToken, // Remove this in production
-          expiresAt: resetTokenData.expiresAt
-        }
+          expiresAt: resetTokenData.expiresAt,
+        },
       });
     } catch (error) {
       next(error);
@@ -359,16 +389,22 @@ class AuthController {
 
       // Hash the token to compare with stored hash
       const crypto = require('crypto');
-      const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const resetTokenHash = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
 
       // Find user with valid reset token
       const user = await User.findOne({
         passwordResetToken: resetTokenHash,
-        passwordResetExpires: { $gt: Date.now() }
+        passwordResetExpires: { $gt: Date.now() },
       });
 
       if (!user) {
-        throw new AppError('Token de restablecimiento inválido o expirado', 400);
+        throw new AppError(
+          'Token de restablecimiento inválido o expirado',
+          400
+        );
       }
 
       // Hash new password
@@ -387,7 +423,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Contraseña restablecida exitosamente'
+        message: 'Contraseña restablecida exitosamente',
       });
     } catch (error) {
       next(error);
@@ -405,12 +441,15 @@ class AuthController {
 
       // Hash the token to compare with stored hash
       const crypto = require('crypto');
-      const verificationTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const verificationTokenHash = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
 
       // Find user with valid verification token
       const user = await User.findOne({
         emailVerificationToken: verificationTokenHash,
-        emailVerificationExpires: { $gt: Date.now() }
+        emailVerificationExpires: { $gt: Date.now() },
       });
 
       if (!user) {
@@ -426,7 +465,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Email verificado exitosamente'
+        message: 'Email verificado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -448,8 +487,10 @@ class AuthController {
       }
 
       // Generate new verification token
-      const verificationTokenData = jwt.generateEmailVerificationToken(user._id);
-      
+      const verificationTokenData = jwt.generateEmailVerificationToken(
+        user._id
+      );
+
       // Store verification token hash
       user.emailVerificationToken = verificationTokenData.verificationTokenHash;
       user.emailVerificationExpires = verificationTokenData.expiresAt;
@@ -461,8 +502,8 @@ class AuthController {
         message: 'Email de verificación reenviado',
         data: {
           verificationToken: verificationTokenData.verificationToken, // Remove this in production
-          expiresAt: verificationTokenData.expiresAt
-        }
+          expiresAt: verificationTokenData.expiresAt,
+        },
       });
     } catch (error) {
       next(error);
@@ -478,7 +519,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        data: { activeTokens }
+        data: { activeTokens },
       });
     } catch (error) {
       next(error);
@@ -499,7 +540,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Sesión revocada exitosamente'
+        message: 'Sesión revocada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -510,12 +551,12 @@ class AuthController {
   revokeAllOtherSessions = asyncHandler(async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const currentTokenId = req.body.currentTokenId;
+      const { currentTokenId } = req.body;
 
       if (currentTokenId) {
         // Get all active tokens
         const activeTokens = await jwt.getUserActiveTokens(userId);
-        
+
         // Revoke all except current
         for (const token of activeTokens) {
           if (token.tokenId !== currentTokenId) {
@@ -529,7 +570,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Otras sesiones revocadas exitosamente'
+        message: 'Otras sesiones revocadas exitosamente',
       });
     } catch (error) {
       next(error);

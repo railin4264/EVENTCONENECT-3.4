@@ -1,7 +1,10 @@
-const { Post, User, Event, Tribe } = require('../models');
 const { cloudinary } = require('../config');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
-const { validatePostCreation, validatePostUpdate } = require('../middleware/validation');
+const {
+  validatePostCreation,
+  validatePostUpdate,
+} = require('../middleware/validation');
+const { Post, User, Event, Tribe } = require('../models');
 
 class PostController {
   // Create new post
@@ -16,10 +19,16 @@ class PostController {
 
       // Handle media uploads if any
       if (req.files && req.files.length > 0) {
-        const uploadResults = await cloudinary.uploadPostMedia(req.files, 'temp');
-        
+        const uploadResults = await cloudinary.uploadPostMedia(
+          req.files,
+          'temp'
+        );
+
         if (uploadResults.failureCount > 0) {
-          console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
+          console.warn(
+            'Algunas imágenes no se pudieron subir:',
+            uploadResults.failed
+          );
         }
 
         postData.media = uploadResults.successful.map(result => ({
@@ -28,7 +37,7 @@ class PostController {
           type: result.resource_type,
           width: result.width,
           height: result.height,
-          format: result.format
+          format: result.format,
         }));
       }
 
@@ -42,7 +51,7 @@ class PostController {
       res.status(201).json({
         success: true,
         message: 'Post creado exitosamente',
-        data: { post }
+        data: { post },
       });
     } catch (error) {
       next(error);
@@ -64,7 +73,7 @@ class PostController {
         search,
         sortBy = 'createdAt',
         sortOrder = 'desc',
-        following = false
+        following = false,
       } = req.query;
 
       const userId = req.user?.id;
@@ -108,7 +117,7 @@ class PostController {
         query.$or = [
           { content: { $regex: search, $options: 'i' } },
           { title: { $regex: search, $options: 'i' } },
-          { tags: { $in: [new RegExp(search, 'i')] } }
+          { tags: { $in: [new RegExp(search, 'i')] } },
         ];
       }
 
@@ -129,9 +138,9 @@ class PostController {
                 total: 0,
                 hasNextPage: false,
                 hasPrevPage: false,
-                limit: parseInt(limit)
-              }
-            }
+                limit: parseInt(limit),
+              },
+            },
           });
         }
       }
@@ -142,7 +151,7 @@ class PostController {
 
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      
+
       const posts = await Post.find(query)
         .populate('author', 'username firstName lastName avatar')
         .populate('event', 'title category')
@@ -172,9 +181,9 @@ class PostController {
             total,
             hasNextPage,
             hasPrevPage,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -208,9 +217,12 @@ class PostController {
 
       if (userId) {
         isLiked = post.likes.some(like => like._id.toString() === userId);
-        isSaved = post.saves && post.saves.some(save => save.toString() === userId);
-        isShared = post.shares && post.shares.some(share => share.author._id.toString() === userId);
-        
+        isSaved =
+          post.saves && post.saves.some(save => save.toString() === userId);
+        isShared =
+          post.shares &&
+          post.shares.some(share => share.author._id.toString() === userId);
+
         if (post.author._id.toString() === userId) {
           userRole = 'author';
         } else {
@@ -230,9 +242,9 @@ class PostController {
             isLiked,
             isSaved,
             isShared,
-            userRole
-          }
-        }
+            userRole,
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -258,10 +270,16 @@ class PostController {
 
       // Handle media uploads if any
       if (req.files && req.files.length > 0) {
-        const uploadResults = await cloudinary.uploadPostMedia(req.files, postId);
-        
+        const uploadResults = await cloudinary.uploadPostMedia(
+          req.files,
+          postId
+        );
+
         if (uploadResults.failureCount > 0) {
-          console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
+          console.warn(
+            'Algunas imágenes no se pudieron subir:',
+            uploadResults.failed
+          );
         }
 
         const newMedia = uploadResults.successful.map(result => ({
@@ -270,7 +288,7 @@ class PostController {
           type: result.resource_type,
           width: result.width,
           height: result.height,
-          format: result.format
+          format: result.format,
         }));
 
         // Add new media to existing media
@@ -278,16 +296,15 @@ class PostController {
       }
 
       // Update post
-      const updatedPost = await Post.findByIdAndUpdate(
-        postId,
-        updateData,
-        { new: true, runValidators: true }
-      ).populate('author', 'username firstName lastName avatar');
+      const updatedPost = await Post.findByIdAndUpdate(postId, updateData, {
+        new: true,
+        runValidators: true,
+      }).populate('author', 'username firstName lastName avatar');
 
       res.status(200).json({
         success: true,
         message: 'Post actualizado exitosamente',
-        data: { post: updatedPost }
+        data: { post: updatedPost },
       });
     } catch (error) {
       next(error);
@@ -324,7 +341,7 @@ class PostController {
 
       res.status(200).json({
         success: true,
-        message: 'Post eliminado exitosamente'
+        message: 'Post eliminado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -361,8 +378,8 @@ class PostController {
         message: isLiked ? 'Post deslikeado' : 'Post likeado',
         data: {
           isLiked: !isLiked,
-          likeCount: post.likeCount
-        }
+          likeCount: post.likeCount,
+        },
       });
     } catch (error) {
       next(error);
@@ -404,8 +421,8 @@ class PostController {
         message: isSaved ? 'Post removido de guardados' : 'Post guardado',
         data: {
           isSaved: !isSaved,
-          saveCount: post.saveCount
-        }
+          saveCount: post.saveCount,
+        },
       });
     } catch (error) {
       next(error);
@@ -434,7 +451,7 @@ class PostController {
         author: userId,
         platform: platform || 'internal',
         message: message || '',
-        sharedAt: new Date()
+        sharedAt: new Date(),
       });
 
       post.shareCount = (post.shareCount || 0) + 1;
@@ -444,8 +461,8 @@ class PostController {
         success: true,
         message: 'Post compartido exitosamente',
         data: {
-          shareCount: post.shareCount
-        }
+          shareCount: post.shareCount,
+        },
       });
     } catch (error) {
       next(error);
@@ -473,7 +490,7 @@ class PostController {
         author: userId,
         content,
         parentComment: parentCommentId || null,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       post.comments.push(comment);
@@ -481,7 +498,10 @@ class PostController {
       await post.save();
 
       // Populate comment author
-      await post.populate('comments.author', 'username firstName lastName avatar');
+      await post.populate(
+        'comments.author',
+        'username firstName lastName avatar'
+      );
 
       // Get the newly added comment
       const newComment = post.comments[post.comments.length - 1];
@@ -491,8 +511,8 @@ class PostController {
         message: 'Comentario agregado exitosamente',
         data: {
           comment: newComment,
-          commentCount: post.commentCount
-        }
+          commentCount: post.commentCount,
+        },
       });
     } catch (error) {
       next(error);
@@ -519,7 +539,10 @@ class PostController {
 
       // Check ownership
       if (comment.author.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para editar este comentario', 403);
+        throw new AppError(
+          'No tienes permisos para editar este comentario',
+          403
+        );
       }
 
       // Update comment
@@ -530,12 +553,15 @@ class PostController {
       await post.save();
 
       // Populate comment author
-      await post.populate('comments.author', 'username firstName lastName avatar');
+      await post.populate(
+        'comments.author',
+        'username firstName lastName avatar'
+      );
 
       res.status(200).json({
         success: true,
         message: 'Comentario actualizado exitosamente',
-        data: { comment }
+        data: { comment },
       });
     } catch (error) {
       next(error);
@@ -561,7 +587,10 @@ class PostController {
 
       // Check ownership or admin
       if (comment.author.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para eliminar este comentario', 403);
+        throw new AppError(
+          'No tienes permisos para eliminar este comentario',
+          403
+        );
       }
 
       // Remove comment
@@ -571,7 +600,7 @@ class PostController {
 
       res.status(200).json({
         success: true,
-        message: 'Comentario eliminado exitosamente'
+        message: 'Comentario eliminado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -584,7 +613,7 @@ class PostController {
       const { userId } = req.params;
       const { type = 'all', page = 1, limit = 20 } = req.query;
 
-      let query = { author: userId, status: 'active' };
+      const query = { author: userId, status: 'active' };
 
       // Type filter
       if (type && type !== 'all') {
@@ -615,9 +644,9 @@ class PostController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -634,7 +663,7 @@ class PostController {
 
       const posts = await Post.find({
         saves: userId,
-        status: 'active'
+        status: 'active',
       })
         .populate('author', 'username firstName lastName avatar')
         .populate('event', 'title category')
@@ -644,7 +673,10 @@ class PostController {
         .limit(parseInt(limit))
         .lean();
 
-      const total = await Post.countDocuments({ saves: userId, status: 'active' });
+      const total = await Post.countDocuments({
+        saves: userId,
+        status: 'active',
+      });
       const totalPages = Math.ceil(total / parseInt(limit));
 
       res.status(200).json({
@@ -657,9 +689,9 @@ class PostController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -678,8 +710,8 @@ class PostController {
         {
           $match: {
             status: 'active',
-            createdAt: { $gte: dateFrom }
-          }
+            createdAt: { $gte: dateFrom },
+          },
         },
         {
           $addFields: {
@@ -688,27 +720,27 @@ class PostController {
                 { $multiply: ['$views', 0.2] },
                 { $multiply: ['$likeCount', 0.4] },
                 { $multiply: ['$commentCount', 0.3] },
-                { $multiply: ['$shareCount', 0.1] }
-              ]
-            }
-          }
+                { $multiply: ['$shareCount', 0.1] },
+              ],
+            },
+          },
         },
         {
-          $sort: { score: -1 }
+          $sort: { score: -1 },
         },
         {
-          $limit: parseInt(limit)
+          $limit: parseInt(limit),
         },
         {
           $lookup: {
             from: 'users',
             localField: 'author',
             foreignField: '_id',
-            as: 'author'
-          }
+            as: 'author',
+          },
         },
         {
-          $unwind: '$author'
+          $unwind: '$author',
         },
         {
           $project: {
@@ -727,14 +759,14 @@ class PostController {
             'author.username': 1,
             'author.firstName': 1,
             'author.lastName': 1,
-            'author.avatar': 1
-          }
-        }
+            'author.avatar': 1,
+          },
+        },
       ]);
 
       res.status(200).json({
         success: true,
-        data: { posts }
+        data: { posts },
       });
     } catch (error) {
       next(error);
@@ -751,7 +783,7 @@ class PostController {
 
       const posts = await Post.find({
         event: eventId,
-        status: 'active'
+        status: 'active',
       })
         .populate('author', 'username firstName lastName avatar')
         .populate('event', 'title category')
@@ -760,7 +792,10 @@ class PostController {
         .limit(parseInt(limit))
         .lean();
 
-      const total = await Post.countDocuments({ event: eventId, status: 'active' });
+      const total = await Post.countDocuments({
+        event: eventId,
+        status: 'active',
+      });
       const totalPages = Math.ceil(total / parseInt(limit));
 
       res.status(200).json({
@@ -773,9 +808,9 @@ class PostController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -792,7 +827,7 @@ class PostController {
 
       const posts = await Post.find({
         tribe: tribeId,
-        status: 'active'
+        status: 'active',
       })
         .populate('author', 'username firstName lastName avatar')
         .populate('tribe', 'name category')
@@ -801,7 +836,10 @@ class PostController {
         .limit(parseInt(limit))
         .lean();
 
-      const total = await Post.countDocuments({ tribe: tribeId, status: 'active' });
+      const total = await Post.countDocuments({
+        tribe: tribeId,
+        status: 'active',
+      });
       const totalPages = Math.ceil(total / parseInt(limit));
 
       res.status(200).json({
@@ -814,9 +852,9 @@ class PostController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -838,7 +876,7 @@ class PostController {
         dateTo,
         page = 1,
         limit = 20,
-        sortBy = 'relevance'
+        sortBy = 'relevance',
       } = req.body;
 
       // Build search query
@@ -912,9 +950,9 @@ class PostController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -926,7 +964,7 @@ class PostController {
     try {
       const { postId } = req.params;
       const userId = req.user.id;
-      const files = req.files;
+      const { files } = req;
 
       if (!files || files.length === 0) {
         throw new AppError('No se proporcionaron archivos', 400);
@@ -939,14 +977,20 @@ class PostController {
       }
 
       if (post.author.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para subir medios a este post', 403);
+        throw new AppError(
+          'No tienes permisos para subir medios a este post',
+          403
+        );
       }
 
       // Upload media to Cloudinary
       const uploadResults = await cloudinary.uploadPostMedia(files, postId);
 
       if (uploadResults.failureCount > 0) {
-        console.warn('Algunos archivos no se pudieron subir:', uploadResults.failed);
+        console.warn(
+          'Algunos archivos no se pudieron subir:',
+          uploadResults.failed
+        );
       }
 
       // Update post with new media
@@ -956,7 +1000,7 @@ class PostController {
         type: result.resource_type,
         width: result.width,
         height: result.height,
-        format: result.format
+        format: result.format,
       }));
 
       post.media = [...(post.media || []), ...newMedia];
@@ -968,8 +1012,8 @@ class PostController {
         data: {
           uploadedMedia: newMedia,
           totalMedia: post.media.length,
-          uploadResults
-        }
+          uploadResults,
+        },
       });
     } catch (error) {
       next(error);
@@ -989,7 +1033,10 @@ class PostController {
       }
 
       if (post.author.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para eliminar medios de este post', 403);
+        throw new AppError(
+          'No tienes permisos para eliminar medios de este post',
+          403
+        );
       }
 
       // Find media
@@ -1009,7 +1056,7 @@ class PostController {
 
       res.status(200).json({
         success: true,
-        message: 'Medio eliminado exitosamente'
+        message: 'Medio eliminado exitosamente',
       });
     } catch (error) {
       next(error);

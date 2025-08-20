@@ -1,0 +1,148 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongo:
+    image: mongo:7.0
+    container_name: eventconnect-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: eventconnect
+    volumes:
+      - mongo_data:/data/db
+      - ./backend/mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - eventconnect-network
+
+  # Redis Cache
+  redis:
+    image: redis:7.2-alpine
+    container_name: eventconnect-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass password123
+    volumes:
+      - redis_data:/data
+    networks:
+      - eventconnect-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      target: development
+    container_name: eventconnect-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGODB_URI=mongodb://admin:password123@mongo:27017/eventconnect?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - REDIS_PASSWORD=password123
+      - JWT_SECRET=your-super-secret-jwt-key-dev
+      - JWT_REFRESH_SECRET=your-refresh-secret-dev
+      - CORS_ORIGIN=http://localhost:3000
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - eventconnect-network
+
+  # Web Frontend
+  web:
+    build:
+      context: ./web
+      target: development
+    container_name: eventconnect-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+      - NEXT_PUBLIC_GA_ID=your-google-analytics-id
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - eventconnect-network
+
+  # Mobile Development (Optional)
+  mobile:
+    build:
+      context: ./mobile
+      target: development
+    container_name: eventconnect-mobile
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+      - "19000:19000"
+      - "19001:19001"
+      - "19002:19002"
+    environment:
+      - NODE_ENV=development
+      - EXPO_PUBLIC_API_URL=http://localhost:5000
+      - EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+    volumes:
+      - ./mobile:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - eventconnect-network
+    tty: true
+    stdin_open: true
+
+  # MongoDB Admin Interface
+  mongo-express:
+    image: mongo-express:1.0.0
+    container_name: eventconnect-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongo:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: password123
+    depends_on:
+      - mongo
+    networks:
+      - eventconnect-network
+
+  # Redis Admin Interface
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: eventconnect-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8082:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:password123
+    depends_on:
+      - redis
+    networks:
+      - eventconnect-network
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  eventconnect-network:
+    driver: bridge

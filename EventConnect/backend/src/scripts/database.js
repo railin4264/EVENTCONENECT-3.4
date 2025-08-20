@@ -1,13 +1,18 @@
 const mongoose = require('mongoose');
+
 const { database, redis } = require('../config');
-const { UserSeeder, EventSeeder } = require('./seeders');
+
 const { InitialMigration } = require('./migrations');
+const { UserSeeder, EventSeeder } = require('./seeders');
 
 /**
  * Database management script
  * Handles migrations, seeding, and database operations
  */
 class DatabaseManager {
+  /**
+   *
+   */
   constructor() {
     this.isConnected = false;
   }
@@ -31,7 +36,6 @@ class DatabaseManager {
       console.log('🔌 Connecting to Redis...');
       await redis.connect();
       console.log('✅ Redis connected successfully');
-
     } catch (error) {
       console.error('❌ Database connection failed:', error);
       throw error;
@@ -57,7 +61,6 @@ class DatabaseManager {
       console.log('🔌 Disconnecting from Redis...');
       await redis.disconnect();
       console.log('✅ Redis disconnected successfully');
-
     } catch (error) {
       console.error('❌ Database disconnection failed:', error);
       throw error;
@@ -71,9 +74,7 @@ class DatabaseManager {
     try {
       console.log('🚀 Running database migrations...');
 
-      const migrations = [
-        new InitialMigration()
-      ];
+      const migrations = [new InitialMigration()];
 
       for (const migration of migrations) {
         console.log(`\n📋 Running migration: ${migration.migrationName}`);
@@ -82,7 +83,6 @@ class DatabaseManager {
 
       console.log('\n✅ All migrations completed successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Migration failed:', error);
       throw error;
@@ -96,9 +96,7 @@ class DatabaseManager {
     try {
       console.log('🔄 Rolling back database migrations...');
 
-      const migrations = [
-        new InitialMigration()
-      ];
+      const migrations = [new InitialMigration()];
 
       for (const migration of migrations.reverse()) {
         console.log(`\n📋 Rolling back migration: ${migration.migrationName}`);
@@ -107,7 +105,6 @@ class DatabaseManager {
 
       console.log('\n✅ All migrations rolled back successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Migration rollback failed:', error);
       throw error;
@@ -132,9 +129,8 @@ class DatabaseManager {
       console.log('\n✅ Database seeding completed successfully');
       return {
         users: users.length,
-        events: events.length
+        events: events.length,
       };
-
     } catch (error) {
       console.error('❌ Database seeding failed:', error);
       throw error;
@@ -156,7 +152,6 @@ class DatabaseManager {
 
       console.log('✅ Database cleared successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Database clearing failed:', error);
       throw error;
@@ -175,7 +170,6 @@ class DatabaseManager {
 
       console.log('✅ Database reset completed successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Database reset failed:', error);
       throw error;
@@ -187,15 +181,15 @@ class DatabaseManager {
    */
   async getStatus() {
     try {
-      const db = mongoose.connection.db;
+      const { db } = mongoose.connection;
       const collections = await db.listCollections().toArray();
-      
+
       const stats = {
         connection: this.isConnected ? 'connected' : 'disconnected',
         database: mongoose.connection.name,
         collections: collections.length,
         collectionsList: collections.map(c => c.name),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
       // Get collection counts
@@ -209,12 +203,11 @@ class DatabaseManager {
       }
 
       return stats;
-
     } catch (error) {
       return {
         connection: this.isConnected ? 'connected' : 'disconnected',
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -235,7 +228,7 @@ class DatabaseManager {
       console.log('✅ Redis health check passed');
 
       // Check collections
-      const db = mongoose.connection.db;
+      const { db } = mongoose.connection;
       const collections = await db.listCollections().toArray();
       console.log(`✅ Found ${collections.length} collections`);
 
@@ -244,32 +237,32 @@ class DatabaseManager {
         mongo: mongoStatus,
         redis: redisStatus,
         collections: collections.length,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
       console.log('✅ Database health check completed');
       return healthReport;
-
     } catch (error) {
       console.error('❌ Database health check failed:', error);
       return {
         status: 'unhealthy',
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
 
   /**
    * Create database backup
+   * @param backupPath
    */
   async createBackup(backupPath = './backup') {
     try {
       console.log('💾 Creating database backup...');
-      
+
       const result = await database.backupDatabase(backupPath);
       console.log('✅ Database backup created successfully');
-      
+
       return result;
     } catch (error) {
       console.error('❌ Database backup failed:', error);
@@ -279,14 +272,15 @@ class DatabaseManager {
 
   /**
    * Restore database from backup
+   * @param backupFile
    */
   async restoreBackup(backupFile) {
     try {
       console.log('📥 Restoring database from backup...');
-      
+
       const result = await database.restoreDatabase(backupFile);
       console.log('✅ Database restored successfully');
-      
+
       return result;
     } catch (error) {
       console.error('❌ Database restore failed:', error);
@@ -375,7 +369,6 @@ async function main() {
         manager.showHelp();
         break;
     }
-
   } catch (error) {
     console.error('❌ Operation failed:', error);
     process.exit(1);

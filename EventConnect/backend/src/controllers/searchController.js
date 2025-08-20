@@ -1,20 +1,20 @@
-const { Event, Tribe, User, Post } = require('../models');
-const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { cache } = require('../middleware/cache');
+const { AppError, asyncHandler } = require('../middleware/errorHandler');
+const { Event, Tribe, User, Post } = require('../models');
 
 class SearchController {
   // Global search across all entities
   globalSearch = asyncHandler(async (req, res, next) => {
     try {
-      const { 
-        query, 
-        types = ['events', 'tribes', 'users', 'posts'], 
-        filters = {}, 
-        page = 1, 
+      const {
+        query,
+        types = ['events', 'tribes', 'users', 'posts'],
+        filters = {},
+        page = 1,
         limit = 20,
         sort = 'relevance',
         location,
-        radius = 50
+        radius = 50,
       } = req.body;
 
       if (!query || query.trim().length < 2) {
@@ -27,28 +27,56 @@ class SearchController {
 
       // Search events
       if (types.includes('events')) {
-        const eventResults = await this.searchEvents(query, filters, location, radius, page, limit, sort);
+        const eventResults = await this.searchEvents(
+          query,
+          filters,
+          location,
+          radius,
+          page,
+          limit,
+          sort
+        );
         results.events = eventResults.data;
         totalResults += eventResults.total;
       }
 
       // Search tribes
       if (types.includes('tribes')) {
-        const tribeResults = await this.searchTribes(query, filters, location, radius, page, limit, sort);
+        const tribeResults = await this.searchTribes(
+          query,
+          filters,
+          location,
+          radius,
+          page,
+          limit,
+          sort
+        );
         results.tribes = tribeResults.data;
         totalResults += tribeResults.total;
       }
 
       // Search users
       if (types.includes('users')) {
-        const userResults = await this.searchUsers(query, filters, page, limit, sort);
+        const userResults = await this.searchUsers(
+          query,
+          filters,
+          page,
+          limit,
+          sort
+        );
         results.users = userResults.data;
         totalResults += userResults.total;
       }
 
       // Search posts
       if (types.includes('posts')) {
-        const postResults = await this.searchPosts(query, filters, page, limit, sort);
+        const postResults = await this.searchPosts(
+          query,
+          filters,
+          page,
+          limit,
+          sort
+        );
         results.posts = postResults.data;
         totalResults += postResults.total;
       }
@@ -57,7 +85,10 @@ class SearchController {
       const combinedResults = this.combineAndSortResults(results, query, sort);
 
       // Apply pagination to combined results
-      const paginatedResults = combinedResults.slice(skip, skip + parseInt(limit));
+      const paginatedResults = combinedResults.slice(
+        skip,
+        skip + parseInt(limit)
+      );
       const totalPages = Math.ceil(totalResults / parseInt(limit));
 
       res.status(200).json({
@@ -70,12 +101,12 @@ class SearchController {
             total: totalResults,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
+            limit: parseInt(limit),
           },
           query,
           types,
-          filters
-        }
+          filters,
+        },
       });
     } catch (error) {
       next(error);
@@ -83,317 +114,350 @@ class SearchController {
   });
 
   // Search events
-  searchEvents = asyncHandler(async (query, filters = {}, location = null, radius = 50, page = 1, limit = 20, sort = 'relevance') => {
-    try {
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+  searchEvents = asyncHandler(
+    async (
+      query,
+      filters = {},
+      location = null,
+      radius = 50,
+      page = 1,
+      limit = 20,
+      sort = 'relevance'
+    ) => {
+      try {
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      // Build search query
-      const searchQuery = {
-        $and: [
-          {
-            $or: [
-              { title: { $regex: query, $options: 'i' } },
-              { description: { $regex: query, $options: 'i' } },
-              { tags: { $in: [new RegExp(query, 'i')] } },
-              { category: { $regex: query, $options: 'i' } }
-            ]
-          },
-          { status: 'active' }
-        ]
-      };
+        // Build search query
+        const searchQuery = {
+          $and: [
+            {
+              $or: [
+                { title: { $regex: query, $options: 'i' } },
+                { description: { $regex: query, $options: 'i' } },
+                { tags: { $in: [new RegExp(query, 'i')] } },
+                { category: { $regex: query, $options: 'i' } },
+              ],
+            },
+            { status: 'active' },
+          ],
+        };
 
-      // Apply filters
-      if (filters.category) {
-        searchQuery.$and.push({ category: filters.category });
-      }
-      if (filters.dateRange) {
-        const { start, end } = filters.dateRange;
-        if (start) searchQuery.$and.push({ startDate: { $gte: new Date(start) } });
-        if (end) searchQuery.$and.push({ endDate: { $lte: new Date(end) } });
-      }
-      if (filters.priceRange) {
-        const { min, max } = filters.priceRange;
-        if (min !== undefined) searchQuery.$and.push({ 'pricing.price': { $gte: min } });
-        if (max !== undefined) searchQuery.$and.push({ 'pricing.price': { $lte: max } });
-      }
-      if (filters.isFree !== undefined) {
-        searchQuery.$and.push({ 'pricing.isFree': filters.isFree });
-      }
+        // Apply filters
+        if (filters.category) {
+          searchQuery.$and.push({ category: filters.category });
+        }
+        if (filters.dateRange) {
+          const { start, end } = filters.dateRange;
+          if (start)
+            searchQuery.$and.push({ startDate: { $gte: new Date(start) } });
+          if (end) searchQuery.$and.push({ endDate: { $lte: new Date(end) } });
+        }
+        if (filters.priceRange) {
+          const { min, max } = filters.priceRange;
+          if (min !== undefined)
+            searchQuery.$and.push({ 'pricing.price': { $gte: min } });
+          if (max !== undefined)
+            searchQuery.$and.push({ 'pricing.price': { $lte: max } });
+        }
+        if (filters.isFree !== undefined) {
+          searchQuery.$and.push({ 'pricing.isFree': filters.isFree });
+        }
 
-      // Apply location filter if provided
-      if (location && location.coordinates) {
-        searchQuery.$and.push({
-          'location.coordinates': {
-            $near: {
-              $geometry: {
-                type: 'Point',
-                coordinates: location.coordinates
+        // Apply location filter if provided
+        if (location && location.coordinates) {
+          searchQuery.$and.push({
+            'location.coordinates': {
+              $near: {
+                $geometry: {
+                  type: 'Point',
+                  coordinates: location.coordinates,
+                },
+                $maxDistance: radius * 1000, // Convert km to meters
               },
-              $maxDistance: radius * 1000 // Convert km to meters
-            }
-          }
-        });
+            },
+          });
+        }
+
+        // Build sort object
+        let sortObject = {};
+        switch (sort) {
+          case 'date':
+            sortObject = { startDate: 1 };
+            break;
+          case 'price':
+            sortObject = { 'pricing.price': 1 };
+            break;
+          case 'popularity':
+            sortObject = { attendeeCount: -1 };
+            break;
+          case 'relevance':
+          default:
+            // Relevance score will be calculated in the application layer
+            sortObject = { createdAt: -1 };
+            break;
+        }
+
+        const events = await Event.find(searchQuery)
+          .populate('host', 'username firstName lastName avatar')
+          .sort(sortObject)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean();
+
+        const total = await Event.countDocuments(searchQuery);
+
+        return {
+          data: events,
+          total,
+        };
+      } catch (error) {
+        throw new AppError('Error buscando eventos', 500);
       }
-
-      // Build sort object
-      let sortObject = {};
-      switch (sort) {
-        case 'date':
-          sortObject = { startDate: 1 };
-          break;
-        case 'price':
-          sortObject = { 'pricing.price': 1 };
-          break;
-        case 'popularity':
-          sortObject = { attendeeCount: -1 };
-          break;
-        case 'relevance':
-        default:
-          // Relevance score will be calculated in the application layer
-          sortObject = { createdAt: -1 };
-          break;
-      }
-
-      const events = await Event.find(searchQuery)
-        .populate('host', 'username firstName lastName avatar')
-        .sort(sortObject)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean();
-
-      const total = await Event.countDocuments(searchQuery);
-
-      return {
-        data: events,
-        total
-      };
-    } catch (error) {
-      throw new AppError('Error buscando eventos', 500);
     }
-  });
+  );
 
   // Search tribes
-  searchTribes = asyncHandler(async (query, filters = {}, location = null, radius = 50, page = 1, limit = 20, sort = 'relevance') => {
-    try {
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+  searchTribes = asyncHandler(
+    async (
+      query,
+      filters = {},
+      location = null,
+      radius = 50,
+      page = 1,
+      limit = 20,
+      sort = 'relevance'
+    ) => {
+      try {
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      // Build search query
-      const searchQuery = {
-        $and: [
-          {
-            $or: [
-              { name: { $regex: query, $options: 'i' } },
-              { description: { $regex: query, $options: 'i' } },
-              { tags: { $in: [new RegExp(query, 'i')] } },
-              { category: { $regex: query, $options: 'i' } }
-            ]
-          },
-          { status: 'active' }
-        ]
-      };
+        // Build search query
+        const searchQuery = {
+          $and: [
+            {
+              $or: [
+                { name: { $regex: query, $options: 'i' } },
+                { description: { $regex: query, $options: 'i' } },
+                { tags: { $in: [new RegExp(query, 'i')] } },
+                { category: { $regex: query, $options: 'i' } },
+              ],
+            },
+            { status: 'active' },
+          ],
+        };
 
-      // Apply filters
-      if (filters.category) {
-        searchQuery.$and.push({ category: filters.category });
-      }
-      if (filters.isPublic !== undefined) {
-        searchQuery.$and.push({ isPublic: filters.isPublic });
-      }
-      if (filters.memberCount) {
-        const { min, max } = filters.memberCount;
-        if (min !== undefined) searchQuery.$and.push({ memberCount: { $gte: min } });
-        if (max !== undefined) searchQuery.$and.push({ memberCount: { $lte: max } });
-      }
+        // Apply filters
+        if (filters.category) {
+          searchQuery.$and.push({ category: filters.category });
+        }
+        if (filters.isPublic !== undefined) {
+          searchQuery.$and.push({ isPublic: filters.isPublic });
+        }
+        if (filters.memberCount) {
+          const { min, max } = filters.memberCount;
+          if (min !== undefined)
+            searchQuery.$and.push({ memberCount: { $gte: min } });
+          if (max !== undefined)
+            searchQuery.$and.push({ memberCount: { $lte: max } });
+        }
 
-      // Apply location filter if provided
-      if (location && location.coordinates) {
-        searchQuery.$and.push({
-          'location.coordinates': {
-            $near: {
-              $geometry: {
-                type: 'Point',
-                coordinates: location.coordinates
+        // Apply location filter if provided
+        if (location && location.coordinates) {
+          searchQuery.$and.push({
+            'location.coordinates': {
+              $near: {
+                $geometry: {
+                  type: 'Point',
+                  coordinates: location.coordinates,
+                },
+                $maxDistance: radius * 1000,
               },
-              $maxDistance: radius * 1000
-            }
-          }
-        });
+            },
+          });
+        }
+
+        // Build sort object
+        let sortObject = {};
+        switch (sort) {
+          case 'memberCount':
+            sortObject = { memberCount: -1 };
+            break;
+          case 'createdAt':
+            sortObject = { createdAt: -1 };
+            break;
+          case 'popularity':
+            sortObject = { likeCount: -1 };
+            break;
+          case 'relevance':
+          default:
+            sortObject = { createdAt: -1 };
+            break;
+        }
+
+        const tribes = await Tribe.find(searchQuery)
+          .populate('creator', 'username firstName lastName avatar')
+          .sort(sortObject)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean();
+
+        const total = await Tribe.countDocuments(searchQuery);
+
+        return {
+          data: tribes,
+          total,
+        };
+      } catch (error) {
+        throw new AppError('Error buscando tribus', 500);
       }
-
-      // Build sort object
-      let sortObject = {};
-      switch (sort) {
-        case 'memberCount':
-          sortObject = { memberCount: -1 };
-          break;
-        case 'createdAt':
-          sortObject = { createdAt: -1 };
-          break;
-        case 'popularity':
-          sortObject = { likeCount: -1 };
-          break;
-        case 'relevance':
-        default:
-          sortObject = { createdAt: -1 };
-          break;
-      }
-
-      const tribes = await Tribe.find(searchQuery)
-        .populate('creator', 'username firstName lastName avatar')
-        .sort(sortObject)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean();
-
-      const total = await Tribe.countDocuments(searchQuery);
-
-      return {
-        data: tribes,
-        total
-      };
-    } catch (error) {
-      throw new AppError('Error buscando tribus', 500);
     }
-  });
+  );
 
   // Search users
-  searchUsers = asyncHandler(async (query, filters = {}, page = 1, limit = 20, sort = 'relevance') => {
-    try {
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+  searchUsers = asyncHandler(
+    async (query, filters = {}, page = 1, limit = 20, sort = 'relevance') => {
+      try {
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      // Build search query
-      const searchQuery = {
-        $and: [
-          {
-            $or: [
-              { username: { $regex: query, $options: 'i' } },
-              { firstName: { $regex: query, $options: 'i' } },
-              { lastName: { $regex: query, $options: 'i' } },
-              { bio: { $regex: query, $options: 'i' } },
-              { interests: { $in: [new RegExp(query, 'i')] } }
-            ]
-          },
-          { status: 'active' }
-        ]
-      };
+        // Build search query
+        const searchQuery = {
+          $and: [
+            {
+              $or: [
+                { username: { $regex: query, $options: 'i' } },
+                { firstName: { $regex: query, $options: 'i' } },
+                { lastName: { $regex: query, $options: 'i' } },
+                { bio: { $regex: query, $options: 'i' } },
+                { interests: { $in: [new RegExp(query, 'i')] } },
+              ],
+            },
+            { status: 'active' },
+          ],
+        };
 
-      // Apply filters
-      if (filters.role) {
-        searchQuery.$and.push({ role: filters.role });
+        // Apply filters
+        if (filters.role) {
+          searchQuery.$and.push({ role: filters.role });
+        }
+        if (filters.isVerified !== undefined) {
+          searchQuery.$and.push({ isVerified: filters.isVerified });
+        }
+        if (filters.location) {
+          searchQuery.$and.push({
+            'location.city': { $regex: filters.location, $options: 'i' },
+          });
+        }
+
+        // Build sort object
+        let sortObject = {};
+        switch (sort) {
+          case 'username':
+            sortObject = { username: 1 };
+            break;
+          case 'createdAt':
+            sortObject = { createdAt: -1 };
+            break;
+          case 'popularity':
+            sortObject = { followerCount: -1 };
+            break;
+          case 'relevance':
+          default:
+            sortObject = { createdAt: -1 };
+            break;
+        }
+
+        const users = await User.find(searchQuery)
+          .select(
+            'username firstName lastName avatar bio location isVerified role followerCount'
+          )
+          .sort(sortObject)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean();
+
+        const total = await User.countDocuments(searchQuery);
+
+        return {
+          data: users,
+          total,
+        };
+      } catch (error) {
+        throw new AppError('Error buscando usuarios', 500);
       }
-      if (filters.isVerified !== undefined) {
-        searchQuery.$and.push({ isVerified: filters.isVerified });
-      }
-      if (filters.location) {
-        searchQuery.$and.push({ 'location.city': { $regex: filters.location, $options: 'i' } });
-      }
-
-      // Build sort object
-      let sortObject = {};
-      switch (sort) {
-        case 'username':
-          sortObject = { username: 1 };
-          break;
-        case 'createdAt':
-          sortObject = { createdAt: -1 };
-          break;
-        case 'popularity':
-          sortObject = { followerCount: -1 };
-          break;
-        case 'relevance':
-        default:
-          sortObject = { createdAt: -1 };
-          break;
-      }
-
-      const users = await User.find(searchQuery)
-        .select('username firstName lastName avatar bio location isVerified role followerCount')
-        .sort(sortObject)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean();
-
-      const total = await User.countDocuments(searchQuery);
-
-      return {
-        data: users,
-        total
-      };
-    } catch (error) {
-      throw new AppError('Error buscando usuarios', 500);
     }
-  });
+  );
 
   // Search posts
-  searchPosts = asyncHandler(async (query, filters = {}, page = 1, limit = 20, sort = 'relevance') => {
-    try {
-      const skip = (parseInt(page) - 1) * parseInt(limit);
+  searchPosts = asyncHandler(
+    async (query, filters = {}, page = 1, limit = 20, sort = 'relevance') => {
+      try {
+        const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      // Build search query
-      const searchQuery = {
-        $and: [
-          {
-            $or: [
-              { content: { $regex: query, $options: 'i' } },
-              { tags: { $in: [new RegExp(query, 'i')] } }
-            ]
-          },
-          { status: 'active' }
-        ]
-      };
+        // Build search query
+        const searchQuery = {
+          $and: [
+            {
+              $or: [
+                { content: { $regex: query, $options: 'i' } },
+                { tags: { $in: [new RegExp(query, 'i')] } },
+              ],
+            },
+            { status: 'active' },
+          ],
+        };
 
-      // Apply filters
-      if (filters.type) {
-        searchQuery.$and.push({ type: filters.type });
-      }
-      if (filters.author) {
-        searchQuery.$and.push({ author: filters.author });
-      }
-      if (filters.hasMedia !== undefined) {
-        if (filters.hasMedia) {
-          searchQuery.$and.push({ 'media.0': { $exists: true } });
-        } else {
-          searchQuery.$and.push({ 'media.0': { $exists: false } });
+        // Apply filters
+        if (filters.type) {
+          searchQuery.$and.push({ type: filters.type });
         }
+        if (filters.author) {
+          searchQuery.$and.push({ author: filters.author });
+        }
+        if (filters.hasMedia !== undefined) {
+          if (filters.hasMedia) {
+            searchQuery.$and.push({ 'media.0': { $exists: true } });
+          } else {
+            searchQuery.$and.push({ 'media.0': { $exists: false } });
+          }
+        }
+
+        // Build sort object
+        let sortObject = {};
+        switch (sort) {
+          case 'date':
+            sortObject = { createdAt: -1 };
+            break;
+          case 'likes':
+            sortObject = { likeCount: -1 };
+            break;
+          case 'comments':
+            sortObject = { commentCount: -1 };
+            break;
+          case 'relevance':
+          default:
+            sortObject = { createdAt: -1 };
+            break;
+        }
+
+        const posts = await Post.find(searchQuery)
+          .populate('author', 'username firstName lastName avatar')
+          .populate('event', 'title startDate')
+          .populate('tribe', 'name category')
+          .sort(sortObject)
+          .skip(skip)
+          .limit(parseInt(limit))
+          .lean();
+
+        const total = await Post.countDocuments(searchQuery);
+
+        return {
+          data: posts,
+          total,
+        };
+      } catch (error) {
+        throw new AppError('Error buscando posts', 500);
       }
-
-      // Build sort object
-      let sortObject = {};
-      switch (sort) {
-        case 'date':
-          sortObject = { createdAt: -1 };
-          break;
-        case 'likes':
-          sortObject = { likeCount: -1 };
-          break;
-        case 'comments':
-          sortObject = { commentCount: -1 };
-          break;
-        case 'relevance':
-        default:
-          sortObject = { createdAt: -1 };
-          break;
-      }
-
-      const posts = await Post.find(searchQuery)
-        .populate('author', 'username firstName lastName avatar')
-        .populate('event', 'title startDate')
-        .populate('tribe', 'name category')
-        .sort(sortObject)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .lean();
-
-      const total = await Post.countDocuments(searchQuery);
-
-      return {
-        data: posts,
-        total
-      };
-    } catch (error) {
-      throw new AppError('Error buscando posts', 500);
     }
-  });
+  );
 
   // Get search suggestions
   getSearchSuggestions = asyncHandler(async (req, res, next) => {
@@ -403,7 +467,7 @@ class SearchController {
       if (!query || query.trim().length < 2) {
         return res.status(200).json({
           success: true,
-          data: { suggestions: [] }
+          data: { suggestions: [] },
         });
       }
 
@@ -413,34 +477,38 @@ class SearchController {
       if (type === 'all' || type === 'events') {
         const eventSuggestions = await Event.find({
           title: { $regex: query, $options: 'i' },
-          status: 'active'
+          status: 'active',
         })
-        .select('title category')
-        .limit(5)
-        .lean();
+          .select('title category')
+          .limit(5)
+          .lean();
 
-        suggestions.push(...eventSuggestions.map(e => ({
-          type: 'event',
-          text: e.title,
-          category: e.category
-        })));
+        suggestions.push(
+          ...eventSuggestions.map(e => ({
+            type: 'event',
+            text: e.title,
+            category: e.category,
+          }))
+        );
       }
 
       // Get tribe suggestions
       if (type === 'all' || type === 'tribes') {
         const tribeSuggestions = await Tribe.find({
           name: { $regex: query, $options: 'i' },
-          status: 'active'
+          status: 'active',
         })
-        .select('name category')
-        .limit(5)
-        .lean();
+          .select('name category')
+          .limit(5)
+          .lean();
 
-        suggestions.push(...tribeSuggestions.map(t => ({
-          type: 'tribe',
-          text: t.name,
-          category: t.category
-        })));
+        suggestions.push(
+          ...tribeSuggestions.map(t => ({
+            type: 'tribe',
+            text: t.name,
+            category: t.category,
+          }))
+        );
       }
 
       // Get user suggestions
@@ -449,19 +517,21 @@ class SearchController {
           $or: [
             { username: { $regex: query, $options: 'i' } },
             { firstName: { $regex: query, $options: 'i' } },
-            { lastName: { $regex: query, $options: 'i' } }
+            { lastName: { $regex: query, $options: 'i' } },
           ],
-          status: 'active'
+          status: 'active',
         })
-        .select('username firstName lastName')
-        .limit(5)
-        .lean();
+          .select('username firstName lastName')
+          .limit(5)
+          .lean();
 
-        suggestions.push(...userSuggestions.map(u => ({
-          type: 'user',
-          text: `${u.firstName} ${u.lastName}`,
-          username: u.username
-        })));
+        suggestions.push(
+          ...userSuggestions.map(u => ({
+            type: 'user',
+            text: `${u.firstName} ${u.lastName}`,
+            username: u.username,
+          }))
+        );
       }
 
       // Get tag suggestions
@@ -472,14 +542,16 @@ class SearchController {
           { $match: { tags: { $regex: query, $options: 'i' } } },
           { $group: { _id: '$tags', count: { $sum: 1 } } },
           { $sort: { count: -1 } },
-          { $limit: 5 }
+          { $limit: 5 },
         ]);
 
-        suggestions.push(...tagSuggestions.map(t => ({
-          type: 'tag',
-          text: t._id,
-          count: t.count
-        })));
+        suggestions.push(
+          ...tagSuggestions.map(t => ({
+            type: 'tag',
+            text: t._id,
+            count: t.count,
+          }))
+        );
       }
 
       // Sort suggestions by relevance
@@ -491,7 +563,7 @@ class SearchController {
 
       res.status(200).json({
         success: true,
-        data: { suggestions: suggestions.slice(0, 10) }
+        data: { suggestions: suggestions.slice(0, 10) },
       });
     } catch (error) {
       next(error);
@@ -511,13 +583,19 @@ class SearchController {
           dateFilter = { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) };
           break;
         case 'week':
-          dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+          dateFilter = {
+            $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+          };
           break;
         case 'month':
-          dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+          dateFilter = {
+            $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+          };
           break;
         default:
-          dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+          dateFilter = {
+            $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
+          };
       }
 
       // Get trending event searches
@@ -525,7 +603,7 @@ class SearchController {
         { $match: { status: 'active', createdAt: dateFilter } },
         { $group: { _id: '$category', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
-        { $limit: parseInt(limit) }
+        { $limit: parseInt(limit) },
       ]);
 
       // Get trending tribe searches
@@ -533,7 +611,7 @@ class SearchController {
         { $match: { status: 'active', createdAt: dateFilter } },
         { $group: { _id: '$category', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
-        { $limit: parseInt(limit) }
+        { $limit: parseInt(limit) },
       ]);
 
       // Get trending tags
@@ -542,18 +620,18 @@ class SearchController {
         { $unwind: '$tags' },
         { $group: { _id: '$tags', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
-        { $limit: parseInt(limit) }
+        { $limit: parseInt(limit) },
       ]);
 
       const trendingSearches = {
         events: trendingEvents,
         tribes: trendingTribes,
-        tags: trendingTags
+        tags: trendingTags,
       };
 
       res.status(200).json({
         success: true,
-        data: { trendingSearches }
+        data: { trendingSearches },
       });
     } catch (error) {
       next(error);
@@ -583,12 +661,12 @@ class SearchController {
       const analytics = {
         searchHistory,
         popularSearches,
-        searchMetrics
+        searchMetrics,
       };
 
       res.status(200).json({
         success: true,
-        data: { analytics }
+        data: { analytics },
       });
     } catch (error) {
       next(error);
@@ -605,7 +683,7 @@ class SearchController {
         combined.push({
           ...event,
           _searchType: 'event',
-          _relevanceScore: this.calculateRelevanceScore(event, query, 'event')
+          _relevanceScore: this.calculateRelevanceScore(event, query, 'event'),
         });
       });
     }
@@ -616,7 +694,7 @@ class SearchController {
         combined.push({
           ...tribe,
           _searchType: 'tribe',
-          _relevanceScore: this.calculateRelevanceScore(tribe, query, 'tribe')
+          _relevanceScore: this.calculateRelevanceScore(tribe, query, 'tribe'),
         });
       });
     }
@@ -627,7 +705,7 @@ class SearchController {
         combined.push({
           ...user,
           _searchType: 'user',
-          _relevanceScore: this.calculateRelevanceScore(user, query, 'user')
+          _relevanceScore: this.calculateRelevanceScore(user, query, 'user'),
         });
       });
     }
@@ -638,7 +716,7 @@ class SearchController {
         combined.push({
           ...post,
           _searchType: 'post',
-          _relevanceScore: this.calculateRelevanceScore(post, query, 'post')
+          _relevanceScore: this.calculateRelevanceScore(post, query, 'post'),
         });
       });
     }
@@ -660,10 +738,13 @@ class SearchController {
       case 'event':
         if (item.title.toLowerCase().includes(queryLower)) score += 10;
         if (item.description.toLowerCase().includes(queryLower)) score += 5;
-        if (item.tags.some(tag => tag.toLowerCase().includes(queryLower))) score += 3;
+        if (item.tags.some(tag => tag.toLowerCase().includes(queryLower)))
+          score += 3;
         if (item.category.toLowerCase().includes(queryLower)) score += 2;
         // Boost recent events
-        const daysSinceCreation = (Date.now() - new Date(item.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        const daysSinceCreation =
+          (Date.now() - new Date(item.createdAt).getTime()) /
+          (1000 * 60 * 60 * 24);
         if (daysSinceCreation < 7) score += 2;
         if (daysSinceCreation < 30) score += 1;
         break;
@@ -671,7 +752,8 @@ class SearchController {
       case 'tribe':
         if (item.name.toLowerCase().includes(queryLower)) score += 10;
         if (item.description.toLowerCase().includes(queryLower)) score += 5;
-        if (item.tags.some(tag => tag.toLowerCase().includes(queryLower))) score += 3;
+        if (item.tags.some(tag => tag.toLowerCase().includes(queryLower)))
+          score += 3;
         if (item.category.toLowerCase().includes(queryLower)) score += 2;
         // Boost popular tribes
         score += Math.min(item.memberCount / 100, 5);
@@ -688,7 +770,11 @@ class SearchController {
 
       case 'post':
         if (item.content.toLowerCase().includes(queryLower)) score += 8;
-        if (item.tags && item.tags.some(tag => tag.toLowerCase().includes(queryLower))) score += 3;
+        if (
+          item.tags &&
+          item.tags.some(tag => tag.toLowerCase().includes(queryLower))
+        )
+          score += 3;
         // Boost popular posts
         score += Math.min(item.likeCount / 50, 3);
         score += Math.min(item.commentCount / 20, 2);
