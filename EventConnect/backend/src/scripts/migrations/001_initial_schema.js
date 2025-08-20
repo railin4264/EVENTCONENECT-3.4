@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+
 const { database } = require('../../config');
 
 /**
@@ -6,9 +7,13 @@ const { database } = require('../../config');
  * Creates all necessary collections and indexes
  */
 class InitialMigration {
+  /**
+   *
+   */
   constructor() {
     this.migrationName = '001_initial_schema';
-    this.description = 'Create initial database schema with all collections and indexes';
+    this.description =
+      'Create initial database schema with all collections and indexes';
   }
 
   /**
@@ -19,7 +24,7 @@ class InitialMigration {
       console.log(`🚀 Running migration: ${this.migrationName}`);
       console.log(`📝 Description: ${this.description}`);
 
-      const db = mongoose.connection.db;
+      const { db } = mongoose.connection;
 
       // Create collections if they don't exist
       await this.createCollections(db);
@@ -32,7 +37,6 @@ class InitialMigration {
 
       console.log('✅ Migration completed successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Migration failed:', error);
       throw error;
@@ -46,7 +50,7 @@ class InitialMigration {
     try {
       console.log(`🔄 Rolling back migration: ${this.migrationName}`);
 
-      const db = mongoose.connection.db;
+      const { db } = mongoose.connection;
 
       // Drop all collections
       const collections = await db.listCollections().toArray();
@@ -57,7 +61,6 @@ class InitialMigration {
 
       console.log('✅ Rollback completed successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Rollback failed:', error);
       throw error;
@@ -66,6 +69,7 @@ class InitialMigration {
 
   /**
    * Create all necessary collections
+   * @param db
    */
   async createCollections(db) {
     console.log('📚 Creating collections...');
@@ -77,7 +81,7 @@ class InitialMigration {
       'posts',
       'chats',
       'notifications',
-      'reviews'
+      'reviews',
     ];
 
     for (const collectionName of collections) {
@@ -85,7 +89,8 @@ class InitialMigration {
         await db.createCollection(collectionName);
         console.log(`✅ Created collection: ${collectionName}`);
       } catch (error) {
-        if (error.code === 48) { // Collection already exists
+        if (error.code === 48) {
+          // Collection already exists
           console.log(`⚠️  Collection already exists: ${collectionName}`);
         } else {
           throw error;
@@ -129,7 +134,7 @@ class InitialMigration {
    */
   async createUserIndexes() {
     const User = mongoose.model('User');
-    
+
     try {
       // Unique indexes
       await User.collection.createIndex({ email: 1 }, { unique: true });
@@ -155,10 +160,14 @@ class InitialMigration {
    */
   async createEventIndexes() {
     const Event = mongoose.model('Event');
-    
+
     try {
       // Search indexes
-      await Event.collection.createIndex({ title: 'text', description: 'text', tags: 'text' });
+      await Event.collection.createIndex({
+        title: 'text',
+        description: 'text',
+        tags: 'text',
+      });
       await Event.collection.createIndex({ category: 1 });
       await Event.collection.createIndex({ subcategory: 1 });
       await Event.collection.createIndex({ startDate: 1 });
@@ -187,10 +196,14 @@ class InitialMigration {
    */
   async createTribeIndexes() {
     const Tribe = mongoose.model('Tribe');
-    
+
     try {
       // Search indexes
-      await Tribe.collection.createIndex({ name: 'text', description: 'text', tags: 'text' });
+      await Tribe.collection.createIndex({
+        name: 'text',
+        description: 'text',
+        tags: 'text',
+      });
       await Tribe.collection.createIndex({ category: 1 });
       await Tribe.collection.createIndex({ creator: 1 });
       await Tribe.collection.createIndex({ location: '2dsphere' });
@@ -214,7 +227,7 @@ class InitialMigration {
    */
   async createPostIndexes() {
     const Post = mongoose.model('Post');
-    
+
     try {
       // Search indexes
       await Post.collection.createIndex({ content: 'text', tags: 'text' });
@@ -243,7 +256,7 @@ class InitialMigration {
    */
   async createChatIndexes() {
     const Chat = mongoose.model('Chat');
-    
+
     try {
       // Search indexes
       await Chat.collection.createIndex({ type: 1 });
@@ -270,7 +283,7 @@ class InitialMigration {
    */
   async createNotificationIndexes() {
     const Notification = mongoose.model('Notification');
-    
+
     try {
       // Search indexes
       await Notification.collection.createIndex({ recipient: 1 });
@@ -283,7 +296,10 @@ class InitialMigration {
       // Compound indexes
       await Notification.collection.createIndex({ recipient: 1, status: 1 });
       await Notification.collection.createIndex({ recipient: 1, type: 1 });
-      await Notification.collection.createIndex({ recipient: 1, createdAt: -1 });
+      await Notification.collection.createIndex({
+        recipient: 1,
+        createdAt: -1,
+      });
 
       console.log('✅ Notification indexes created');
     } catch (error) {
@@ -296,7 +312,7 @@ class InitialMigration {
    */
   async createReviewIndexes() {
     const Review = mongoose.model('Review');
-    
+
     try {
       // Search indexes
       await Review.collection.createIndex({ reviewer: 1 });
@@ -324,9 +340,11 @@ class InitialMigration {
   async createInitialAdmin() {
     try {
       const User = mongoose.model('User');
-      
+
       // Check if admin user already exists
-      const existingAdmin = await User.findOne({ email: 'admin@eventconnect.com' });
+      const existingAdmin = await User.findOne({
+        email: 'admin@eventconnect.com',
+      });
       if (existingAdmin) {
         console.log('⚠️  Admin user already exists, skipping creation');
         return;
@@ -353,7 +371,7 @@ class InitialMigration {
           address: 'New York, NY, USA',
           city: 'New York',
           state: 'NY',
-          country: 'USA'
+          country: 'USA',
         },
         notificationPreferences: {
           event_invitation: true,
@@ -366,13 +384,12 @@ class InitialMigration {
           system_announcement: true,
           push: true,
           email: true,
-          sms: false
-        }
+          sms: false,
+        },
       });
 
       await adminUser.save();
       console.log('✅ Initial admin user created');
-
     } catch (error) {
       console.error('❌ Error creating admin user:', error);
     }
@@ -383,15 +400,15 @@ class InitialMigration {
    */
   async getStatus() {
     try {
-      const db = mongoose.connection.db;
+      const { db } = mongoose.connection;
       const collections = await db.listCollections().toArray();
-      
+
       return {
         name: this.migrationName,
         description: this.description,
         status: 'completed',
         collections: collections.map(c => c.name),
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     } catch (error) {
       return {
@@ -399,7 +416,7 @@ class InitialMigration {
         description: this.description,
         status: 'error',
         error: error.message,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }

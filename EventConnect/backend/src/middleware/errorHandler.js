@@ -1,13 +1,22 @@
 const redisClient = require('../config/redis');
 
 // Custom error class
+/**
+ *
+ */
 class AppError extends Error {
+  /**
+   *
+   * @param message
+   * @param statusCode
+   * @param isOperational
+   */
   constructor(message, statusCode, isOperational = true) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-    
+
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -25,7 +34,7 @@ const errorHandler = (err, req, res, next) => {
     method: req.method,
     ip: req.ip,
     userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 
   // Mongoose bad ObjectId
@@ -44,7 +53,9 @@ const errorHandler = (err, req, res, next) => {
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors).map(val => val.message).join('. ');
+    const message = Object.values(err.errors)
+      .map(val => val.message)
+      .join('. ');
     error = new AppError(message, 400);
   }
 
@@ -97,7 +108,7 @@ const errorHandler = (err, req, res, next) => {
     success: false,
     message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-    ...(process.env.NODE_ENV === 'development' && { error: err })
+    ...(process.env.NODE_ENV === 'development' && { error: err }),
   });
 };
 
@@ -108,40 +119,40 @@ const notFound = (req, res, next) => {
 };
 
 // Async error wrapper
-const asyncHandler = (fn) => {
+const asyncHandler = fn => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
 // Global error handler for unhandled rejections
-const handleUnhandledRejection = (err) => {
+const handleUnhandledRejection = err => {
   console.error('Unhandled Rejection:', err);
   console.error('Stack:', err.stack);
-  
+
   // Close server gracefully
   process.exit(1);
 };
 
 // Global error handler for uncaught exceptions
-const handleUncaughtException = (err) => {
+const handleUncaughtException = err => {
   console.error('Uncaught Exception:', err);
   console.error('Stack:', err.stack);
-  
+
   // Close server gracefully
   process.exit(1);
 };
 
 // Graceful shutdown
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = signal => {
   console.log(`\n🔄 Recibida señal ${signal}. Cerrando servidor...`);
-  
+
   // Close Redis connection
   if (redisClient.isConnected) {
     redisClient.client.quit();
     console.log('✅ Conexión a Redis cerrada');
   }
-  
+
   // Close server
   process.exit(0);
 };
@@ -157,7 +168,7 @@ const logError = (error, req = null) => {
     method: req?.method || 'N/A',
     ip: req?.ip || 'N/A',
     userAgent: req?.get('User-Agent') || 'N/A',
-    userId: req?.user?.id || 'N/A'
+    userId: req?.user?.id || 'N/A',
   };
 
   // Log to console in development
@@ -167,7 +178,7 @@ const logError = (error, req = null) => {
 
   // TODO: In production, send to external logging service
   // Example: Winston, Loggly, Sentry, etc.
-  
+
   return errorLog;
 };
 
@@ -175,31 +186,31 @@ const logError = (error, req = null) => {
 const rateLimitExceeded = (req, res) => {
   const error = new AppError('Demasiadas solicitudes desde esta IP', 429);
   logError(error, req);
-  
+
   res.status(429).json({
     success: false,
     message: 'Demasiadas solicitudes. Intente de nuevo más tarde',
-    retryAfter: Math.ceil(process.env.RATE_LIMIT_WINDOW_MS / 1000)
+    retryAfter: Math.ceil(process.env.RATE_LIMIT_WINDOW_MS / 1000),
   });
 };
 
 // Validation error formatter
-const formatValidationErrors = (errors) => {
+const formatValidationErrors = errors => {
   return errors.array().map(error => ({
     field: error.param,
     message: error.msg,
     value: error.value,
-    location: error.location
+    location: error.location,
   }));
 };
 
 // Database error handler
-const handleDatabaseError = (error) => {
+const handleDatabaseError = error => {
   if (error.name === 'ValidationError') {
     return {
       statusCode: 400,
       message: 'Error de validación de datos',
-      details: Object.values(error.errors).map(err => err.message)
+      details: Object.values(error.errors).map(err => err.message),
     };
   }
 
@@ -207,86 +218,86 @@ const handleDatabaseError = (error) => {
     const field = Object.keys(error.keyValue)[0];
     return {
       statusCode: 400,
-      message: `El valor '${error.keyValue[field]}' ya existe para el campo '${field}'`
+      message: `El valor '${error.keyValue[field]}' ya existe para el campo '${field}'`,
     };
   }
 
   if (error.name === 'CastError') {
     return {
       statusCode: 400,
-      message: 'ID inválido proporcionado'
+      message: 'ID inválido proporcionado',
     };
   }
 
   return {
     statusCode: 500,
-    message: 'Error de base de datos'
+    message: 'Error de base de datos',
   };
 };
 
 // File upload error handler
-const handleFileUploadError = (error) => {
+const handleFileUploadError = error => {
   if (error.code === 'LIMIT_FILE_SIZE') {
     return {
       statusCode: 400,
-      message: 'El archivo es demasiado grande'
+      message: 'El archivo es demasiado grande',
     };
   }
 
   if (error.code === 'LIMIT_FILE_COUNT') {
     return {
       statusCode: 400,
-      message: 'Demasiados archivos'
+      message: 'Demasiados archivos',
     };
   }
 
   if (error.code === 'LIMIT_UNEXPECTED_FILE') {
     return {
       statusCode: 400,
-      message: 'Campo de archivo inesperado'
+      message: 'Campo de archivo inesperado',
     };
   }
 
   return {
     statusCode: 400,
-    message: 'Error al subir archivo'
+    message: 'Error al subir archivo',
   };
 };
 
 // Authentication error handler
-const handleAuthError = (error) => {
+const handleAuthError = error => {
   if (error.name === 'JsonWebTokenError') {
     return {
       statusCode: 401,
-      message: 'Token inválido'
+      message: 'Token inválido',
     };
   }
 
   if (error.name === 'TokenExpiredError') {
     return {
       statusCode: 401,
-      message: 'Token expirado'
+      message: 'Token expirado',
     };
   }
 
   if (error.name === 'NotBeforeError') {
     return {
       statusCode: 401,
-      message: 'Token no válido aún'
+      message: 'Token no válido aún',
     };
   }
 
   return {
     statusCode: 401,
-    message: 'Error de autenticación'
+    message: 'Error de autenticación',
   };
 };
 
 // Permission error handler
-const handlePermissionError = (error) => {
+const handlePermissionError = error => {
   return {
     statusCode: 403,
-    message: 'No tiene permisos para realizar esta acción'
+    message: 'No tiene permisos para realizar esta acción',
   };
 };
 
@@ -294,7 +305,7 @@ const handlePermissionError = (error) => {
 const handleNotFoundError = (resource = 'Recurso') => {
   return {
     statusCode: 404,
-    message: `${resource} no encontrado`
+    message: `${resource} no encontrado`,
   };
 };
 
@@ -302,7 +313,7 @@ const handleNotFoundError = (resource = 'Recurso') => {
 const handleConflictError = (message = 'Conflicto de datos') => {
   return {
     statusCode: 409,
-    message
+    message,
   };
 };
 
@@ -311,7 +322,7 @@ const handleTooManyRequestsError = (retryAfter = 60) => {
   return {
     statusCode: 429,
     message: 'Demasiadas solicitudes. Intente de nuevo más tarde',
-    retryAfter
+    retryAfter,
   };
 };
 
@@ -319,7 +330,7 @@ const handleTooManyRequestsError = (retryAfter = 60) => {
 const handleServiceUnavailableError = (service = 'servicio') => {
   return {
     statusCode: 503,
-    message: `${service} no disponible temporalmente`
+    message: `${service} no disponible temporalmente`,
   };
 };
 
@@ -341,5 +352,5 @@ module.exports = {
   handleNotFoundError,
   handleConflictError,
   handleTooManyRequestsError,
-  handleServiceUnavailableError
+  handleServiceUnavailableError,
 };

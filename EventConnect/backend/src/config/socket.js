@@ -1,4 +1,5 @@
 const socketIo = require('socket.io');
+
 const jwt = require('./jwt');
 const redis = require('./redis');
 
@@ -16,9 +17,9 @@ class SocketManager {
     try {
       const defaultOptions = {
         cors: {
-          origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-          methods: ["GET", "POST"],
-          credentials: true
+          origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+          methods: ['GET', 'POST'],
+          credentials: true,
         },
         transports: ['websocket', 'polling'],
         allowEIO3: true,
@@ -29,19 +30,19 @@ class SocketManager {
         allowRequest: (req, callback) => {
           // Allow all requests for now, can be customized later
           callback(null, true);
-        }
+        },
       };
 
       this.io = socketIo(server, { ...defaultOptions, ...options });
-      
+
       // Set up middleware
       this.setupMiddleware();
-      
+
       // Set up event handlers
       this.setupEventHandlers();
-      
+
       console.log('🚀 Socket.IO inicializado correctamente');
-      
+
       return this.io;
     } catch (error) {
       console.error('❌ Error inicializando Socket.IO:', error);
@@ -55,8 +56,10 @@ class SocketManager {
       // Authentication middleware
       this.io.use(async (socket, next) => {
         try {
-          const token = socket.handshake.auth.token || socket.handshake.headers.authorization;
-          
+          const token =
+            socket.handshake.auth.token ||
+            socket.handshake.headers.authorization;
+
           if (!token) {
             // Allow connection without token for public events
             socket.isAuthenticated = false;
@@ -65,16 +68,16 @@ class SocketManager {
 
           // Remove 'Bearer ' prefix if present
           const cleanToken = token.replace('Bearer ', '');
-          
+
           try {
             const decoded = jwt.verifyAccessToken(cleanToken);
             socket.userId = decoded.userId || decoded.id;
             socket.user = decoded;
             socket.isAuthenticated = true;
-            
+
             // Store user connection info
             this.addUserConnection(socket.userId, socket.id);
-            
+
             next();
           } catch (error) {
             console.warn('⚠️ Token inválido en Socket.IO:', error.message);
@@ -93,27 +96,28 @@ class SocketManager {
         try {
           const clientId = socket.handshake.address;
           const now = Date.now();
-          
+
           // Simple rate limiting - can be enhanced with Redis
           if (!socket.rateLimit) {
             socket.rateLimit = {
               count: 0,
-              resetTime: now + 60000 // 1 minute
+              resetTime: now + 60000, // 1 minute
             };
           }
-          
+
           if (now > socket.rateLimit.resetTime) {
             socket.rateLimit.count = 0;
             socket.rateLimit.resetTime = now + 60000;
           }
-          
+
           socket.rateLimit.count++;
-          
-          if (socket.rateLimit.count > 100) { // 100 events per minute
+
+          if (socket.rateLimit.count > 100) {
+            // 100 events per minute
             console.warn(`⚠️ Rate limit excedido para cliente: ${clientId}`);
             return next(new Error('Rate limit excedido'));
           }
-          
+
           next();
         } catch (error) {
           console.error('❌ Error en rate limiting de Socket.IO:', error);
@@ -130,9 +134,9 @@ class SocketManager {
   // Setup event handlers
   setupEventHandlers() {
     try {
-      this.io.on('connection', (socket) => {
+      this.io.on('connection', socket => {
         console.log(`🔌 Nuevo cliente conectado: ${socket.id}`);
-        
+
         // Handle authentication
         if (socket.isAuthenticated) {
           console.log(`👤 Usuario autenticado conectado: ${socket.userId}`);
@@ -143,13 +147,15 @@ class SocketManager {
         }
 
         // Handle disconnection
-        socket.on('disconnect', (reason) => {
-          console.log(`🔌 Cliente desconectado: ${socket.id}, Razón: ${reason}`);
+        socket.on('disconnect', reason => {
+          console.log(
+            `🔌 Cliente desconectado: ${socket.id}, Razón: ${reason}`
+          );
           this.handleDisconnection(socket);
         });
 
         // Handle errors
-        socket.on('error', (error) => {
+        socket.on('error', error => {
           console.error(`❌ Error en socket ${socket.id}:`, error);
         });
 
@@ -159,7 +165,10 @@ class SocketManager {
 
       console.log('✅ Event handlers de Socket.IO configurados');
     } catch (error) {
-      console.error('❌ Error configurando event handlers de Socket.IO:', error);
+      console.error(
+        '❌ Error configurando event handlers de Socket.IO:',
+        error
+      );
     }
   }
 
@@ -181,13 +190,13 @@ class SocketManager {
       socket.emit('welcome', {
         message: 'Bienvenido a EventConnect',
         userId: socket.userId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // Notify other users about new connection
       socket.broadcast.emit('user_online', {
         userId: socket.userId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       console.log(`✅ Usuario ${socket.userId} configurado correctamente`);
@@ -201,11 +210,11 @@ class SocketManager {
     try {
       // Join public rooms
       socket.join('public');
-      
+
       // Send limited welcome message
       socket.emit('welcome_anonymous', {
         message: 'Bienvenido a EventConnect (modo anónimo)',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       console.log(`✅ Cliente anónimo ${socket.id} configurado correctamente`);
@@ -220,11 +229,11 @@ class SocketManager {
       if (socket.isAuthenticated && socket.userId) {
         // Remove user connection info
         this.removeUserConnection(socket.userId, socket.id);
-        
+
         // Notify other users about disconnection
         socket.broadcast.emit('user_offline', {
           userId: socket.userId,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
 
         // Leave all rooms
@@ -232,7 +241,9 @@ class SocketManager {
 
         console.log(`✅ Usuario ${socket.userId} desconectado correctamente`);
       } else {
-        console.log(`✅ Cliente anónimo ${socket.id} desconectado correctamente`);
+        console.log(
+          `✅ Cliente anónimo ${socket.id} desconectado correctamente`
+        );
       }
     } catch (error) {
       console.error('❌ Error manejando desconexión:', error);
@@ -243,57 +254,60 @@ class SocketManager {
   handleCustomEvents(socket) {
     try {
       // Join event room
-      socket.on('join_event', (data) => {
+      socket.on('join_event', data => {
         this.handleJoinEvent(socket, data);
       });
 
       // Leave event room
-      socket.on('leave_event', (data) => {
+      socket.on('leave_event', data => {
         this.handleLeaveEvent(socket, data);
       });
 
       // Join tribe room
-      socket.on('join_tribe', (data) => {
+      socket.on('join_tribe', data => {
         this.handleJoinTribe(socket, data);
       });
 
       // Leave tribe room
-      socket.on('leave_tribe', (data) => {
+      socket.on('leave_tribe', data => {
         this.handleLeaveTribe(socket, data);
       });
 
       // Send message to room
-      socket.on('send_message', (data) => {
+      socket.on('send_message', data => {
         this.handleSendMessage(socket, data);
       });
 
       // Typing indicator
-      socket.on('typing_start', (data) => {
+      socket.on('typing_start', data => {
         this.handleTypingStart(socket, data);
       });
 
-      socket.on('typing_stop', (data) => {
+      socket.on('typing_stop', data => {
         this.handleTypingStop(socket, data);
       });
 
       // User activity
-      socket.on('user_activity', (data) => {
+      socket.on('user_activity', data => {
         this.handleUserActivity(socket, data);
       });
 
       // Location update
-      socket.on('location_update', (data) => {
+      socket.on('location_update', data => {
         this.handleLocationUpdate(socket, data);
       });
 
       // Notification preferences
-      socket.on('notification_preferences', (data) => {
+      socket.on('notification_preferences', data => {
         this.handleNotificationPreferences(socket, data);
       });
 
       console.log('✅ Eventos personalizados de Socket.IO configurados');
     } catch (error) {
-      console.error('❌ Error configurando eventos personalizados de Socket.IO:', error);
+      console.error(
+        '❌ Error configurando eventos personalizados de Socket.IO:',
+        error
+      );
     }
   }
 
@@ -301,7 +315,9 @@ class SocketManager {
   handleJoinEvent(socket, data) {
     try {
       if (!socket.isAuthenticated) {
-        socket.emit('error', { message: 'Debes estar autenticado para unirte a eventos' });
+        socket.emit('error', {
+          message: 'Debes estar autenticado para unirte a eventos',
+        });
         return;
       }
 
@@ -319,13 +335,13 @@ class SocketManager {
       socket.to(eventRoom).emit('user_joined_event', {
         userId: socket.userId,
         eventId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       socket.emit('joined_event', {
         eventId,
         message: 'Te has unido al evento',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       console.log(`✅ Usuario ${socket.userId} se unió al evento ${eventId}`);
@@ -339,7 +355,9 @@ class SocketManager {
   handleLeaveEvent(socket, data) {
     try {
       if (!socket.isAuthenticated) {
-        socket.emit('error', { message: 'Debes estar autenticado para dejar eventos' });
+        socket.emit('error', {
+          message: 'Debes estar autenticado para dejar eventos',
+        });
         return;
       }
 
@@ -357,13 +375,13 @@ class SocketManager {
       socket.to(eventRoom).emit('user_left_event', {
         userId: socket.userId,
         eventId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       socket.emit('left_event', {
         eventId,
         message: 'Has dejado el evento',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       console.log(`✅ Usuario ${socket.userId} dejó el evento ${eventId}`);
@@ -377,7 +395,9 @@ class SocketManager {
   handleJoinTribe(socket, data) {
     try {
       if (!socket.isAuthenticated) {
-        socket.emit('error', { message: 'Debes estar autenticado para unirte a tribus' });
+        socket.emit('error', {
+          message: 'Debes estar autenticado para unirte a tribus',
+        });
         return;
       }
 
@@ -395,13 +415,13 @@ class SocketManager {
       socket.to(tribeRoom).emit('user_joined_tribe', {
         userId: socket.userId,
         tribeId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       socket.emit('joined_tribe', {
         tribeId,
         message: 'Te has unido a la tribu',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       console.log(`✅ Usuario ${socket.userId} se unió a la tribu ${tribeId}`);
@@ -415,7 +435,9 @@ class SocketManager {
   handleLeaveTribe(socket, data) {
     try {
       if (!socket.isAuthenticated) {
-        socket.emit('error', { message: 'Debes estar autenticado para dejar tribus' });
+        socket.emit('error', {
+          message: 'Debes estar autenticado para dejar tribus',
+        });
         return;
       }
 
@@ -433,13 +455,13 @@ class SocketManager {
       socket.to(tribeRoom).emit('user_left_tribe', {
         userId: socket.userId,
         tribeId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       socket.emit('left_tribe', {
         tribeId,
         message: 'Has dejado la tribu',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       console.log(`✅ Usuario ${socket.userId} dejó la tribu ${tribeId}`);
@@ -453,7 +475,9 @@ class SocketManager {
   handleSendMessage(socket, data) {
     try {
       if (!socket.isAuthenticated) {
-        socket.emit('error', { message: 'Debes estar autenticado para enviar mensajes' });
+        socket.emit('error', {
+          message: 'Debes estar autenticado para enviar mensajes',
+        });
         return;
       }
 
@@ -469,16 +493,16 @@ class SocketManager {
         message,
         type,
         timestamp: new Date().toISOString(),
-        socketId: socket.id
+        socketId: socket.id,
       };
 
       // Broadcast message to room
       socket.to(roomId).emit('new_message', messageData);
-      
+
       // Send confirmation to sender
       socket.emit('message_sent', {
         ...messageData,
-        status: 'sent'
+        status: 'sent',
       });
 
       console.log(`✅ Mensaje enviado por ${socket.userId} en ${roomId}`);
@@ -500,7 +524,7 @@ class SocketManager {
         userId: socket.userId,
         username: socket.user.username || 'Usuario',
         roomId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('❌ Error manejando inicio de escritura:', error);
@@ -519,7 +543,7 @@ class SocketManager {
         userId: socket.userId,
         username: socket.user.username || 'Usuario',
         roomId,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('❌ Error manejando parada de escritura:', error);
@@ -532,16 +556,16 @@ class SocketManager {
       if (!socket.isAuthenticated) return;
 
       const { activity, details } = data;
-      
+
       // Store user activity in Redis for analytics
       this.storeUserActivity(socket.userId, activity, details);
-      
+
       // Broadcast to relevant rooms if needed
       if (activity === 'online' || activity === 'away') {
         socket.broadcast.emit('user_status_change', {
           userId: socket.userId,
           status: activity,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     } catch (error) {
@@ -555,12 +579,16 @@ class SocketManager {
       if (!socket.isAuthenticated) return;
 
       const { latitude, longitude, accuracy } = data;
-      
+
       // Store user location in Redis
       this.storeUserLocation(socket.userId, { latitude, longitude, accuracy });
-      
+
       // Broadcast to nearby users if needed
-      this.broadcastLocationToNearbyUsers(socket.userId, { latitude, longitude, accuracy });
+      this.broadcastLocationToNearbyUsers(socket.userId, {
+        latitude,
+        longitude,
+        accuracy,
+      });
     } catch (error) {
       console.error('❌ Error manejando actualización de ubicación:', error);
     }
@@ -572,13 +600,13 @@ class SocketManager {
       if (!socket.isAuthenticated) return;
 
       const { preferences } = data;
-      
+
       // Store notification preferences in Redis
       this.storeNotificationPreferences(socket.userId, preferences);
-      
+
       socket.emit('preferences_updated', {
         message: 'Preferencias de notificación actualizadas',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('❌ Error manejando preferencias de notificación:', error);
@@ -667,7 +695,9 @@ class SocketManager {
     try {
       // In a real implementation, you would fetch user's events from database
       // For now, we'll just log this action
-      console.log(`📅 Preparando para unir usuario ${socket.userId} a salas de eventos`);
+      console.log(
+        `📅 Preparando para unir usuario ${socket.userId} a salas de eventos`
+      );
     } catch (error) {
       console.error('❌ Error uniendo usuario a salas de eventos:', error);
     }
@@ -678,7 +708,9 @@ class SocketManager {
     try {
       // In a real implementation, you would fetch user's tribes from database
       // For now, we'll just log this action
-      console.log(`👥 Preparando para unir usuario ${socket.userId} a salas de tribus`);
+      console.log(
+        `👥 Preparando para unir usuario ${socket.userId} a salas de tribus`
+      );
     } catch (error) {
       console.error('❌ Error uniendo usuario a salas de tribus:', error);
     }
@@ -691,9 +723,9 @@ class SocketManager {
       const activityData = {
         activity,
         details,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-      
+
       await redis.lpush(key, activityData);
       await redis.ltrim(key, 0, 99); // Keep only last 100 activities
     } catch (error) {
@@ -707,9 +739,9 @@ class SocketManager {
       const key = `user_location:${userId}`;
       const locationData = {
         ...location,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
-      
+
       await redis.setEx(key, 300, locationData); // Expire in 5 minutes
     } catch (error) {
       console.error('❌ Error almacenando ubicación del usuario:', error);
@@ -722,7 +754,10 @@ class SocketManager {
       const key = `user_notification_prefs:${userId}`;
       await redis.setEx(key, 86400, preferences); // Expire in 24 hours
     } catch (error) {
-      console.error('❌ Error almacenando preferencias de notificación:', error);
+      console.error(
+        '❌ Error almacenando preferencias de notificación:',
+        error
+      );
     }
   }
 
@@ -733,7 +768,10 @@ class SocketManager {
       // For now, we'll just log this action
       console.log(`📍 Ubicación de usuario ${userId} actualizada:`, location);
     } catch (error) {
-      console.error('❌ Error transmitiendo ubicación a usuarios cercanos:', error);
+      console.error(
+        '❌ Error transmitiendo ubicación a usuarios cercanos:',
+        error
+      );
     }
   }
 
@@ -742,7 +780,10 @@ class SocketManager {
     try {
       return this.connectedUsers.size;
     } catch (error) {
-      console.error('❌ Error obteniendo conteo de usuarios conectados:', error);
+      console.error(
+        '❌ Error obteniendo conteo de usuarios conectados:',
+        error
+      );
       return 0;
     }
   }
@@ -760,7 +801,9 @@ class SocketManager {
   // Get user's active rooms
   getUserActiveRooms(userId) {
     try {
-      return this.userRooms.has(userId) ? Array.from(this.userRooms.get(userId)) : [];
+      return this.userRooms.has(userId)
+        ? Array.from(this.userRooms.get(userId))
+        : [];
     } catch (error) {
       console.error('❌ Error obteniendo salas activas del usuario:', error);
       return [];

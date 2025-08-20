@@ -2,5 +2,5 @@
 const notificationValidator = require('./notificationValidator');
 
 module.exports = {
-  ...notificationValidator
+  ...notificationValidator,
 };

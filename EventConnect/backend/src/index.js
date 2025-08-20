@@ -1,43 +1,44 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
 const compression = require('compression');
+const cors = require('cors');
+const express = require('express');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 const RedisStore = require('connect-redis').default;
+const helmet = require('helmet');
+const morgan = require('morgan');
 const passport = require('passport');
 const socketIo = require('socket.io');
+
 const http = require('http');
 const path = require('path');
 require('dotenv').config();
 
 // Import configurations
 const config = require('./config');
-const logger = require('./utils/logger');
 const database = require('./database/connection');
-const redis = require('./utils/redis');
 
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
 const authMiddleware = require('./middleware/auth');
+const errorHandler = require('./middleware/errorHandler');
 const validationMiddleware = require('./middleware/validation');
 
 // Import routes
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const eventRoutes = require('./routes/events');
-const tribeRoutes = require('./routes/tribes');
 const aiRoutes = require('./routes/ai');
+const authRoutes = require('./routes/auth');
 const blockchainRoutes = require('./routes/blockchain');
-const paymentRoutes = require('./routes/payments');
+const eventRoutes = require('./routes/events');
 const notificationRoutes = require('./routes/notifications');
+const paymentRoutes = require('./routes/payments');
+const tribeRoutes = require('./routes/tribes');
+const userRoutes = require('./routes/users');
 
 // Import services
 const aiService = require('./services/aiService');
 const blockchainService = require('./services/blockchainService');
-const notificationService = require('./services/notificationService');
 const eventService = require('./services/eventService');
+const notificationService = require('./services/notificationService');
+const logger = require('./utils/logger');
+const redis = require('./utils/redis');
 
 // Import AI and Blockchain
 require('./ai/dnaAnalyzer');
@@ -49,34 +50,38 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: config.corsOrigins,
-    methods: ['GET', 'POST']
-  }
+    methods: ['GET', 'POST'],
+  },
 });
 
 // Global middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "wss:", "ws:"]
-    }
-  }
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'wss:', 'ws:'],
+      },
+    },
+  })
+);
 
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS configuration
-app.use(cors({
-  origin: config.corsOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+app.use(
+  cors({
+    origin: config.corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -84,30 +89,36 @@ const limiter = rateLimit({
   max: 100, // limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
 // Logging
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(
+  morgan('combined', {
+    stream: { write: message => logger.info(message.trim()) },
+  })
+);
 
 // Session configuration with Redis
 const redisStore = new RedisStore({
   client: redis,
-  prefix: 'eventconnect:session:'
+  prefix: 'eventconnect:session:',
 });
 
-app.use(session({
-  store: redisStore,
-  secret: config.sessionSecret,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: config.isProduction,
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+app.use(
+  session({
+    store: redisStore,
+    secret: config.sessionSecret,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: config.isProduction,
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
 
 // Passport configuration
 app.use(passport.initialize());
@@ -125,7 +136,7 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: config.nodeEnv,
-    version: config.version
+    version: config.version,
   });
 });
 
@@ -145,50 +156,60 @@ app.get('/api/dna/profile', authMiddleware.requireAuth, async (req, res) => {
     const userDNA = await aiService.analyzeUserDNA(req.user.id);
     res.json({
       success: true,
-      data: userDNA
+      data: userDNA,
     });
   } catch (error) {
     logger.error('DNA Profile Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error analyzing user DNA'
+      message: 'Error analyzing user DNA',
     });
   }
 });
 
 // Universal Tribes API
-app.get('/api/tribes/universal', authMiddleware.requireAuth, async (req, res) => {
-  try {
-    const tribes = await eventService.getUniversalTribes(req.user.id);
-    res.json({
-      success: true,
-      data: tribes
-    });
-  } catch (error) {
-    logger.error('Universal Tribes Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching universal tribes'
-    });
+app.get(
+  '/api/tribes/universal',
+  authMiddleware.requireAuth,
+  async (req, res) => {
+    try {
+      const tribes = await eventService.getUniversalTribes(req.user.id);
+      res.json({
+        success: true,
+        data: tribes,
+      });
+    } catch (error) {
+      logger.error('Universal Tribes Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error fetching universal tribes',
+      });
+    }
   }
-});
+);
 
 // Universal AI Guide API
-app.get('/api/ai/recommendations', authMiddleware.requireAuth, async (req, res) => {
-  try {
-    const recommendations = await aiService.getPersonalizedRecommendations(req.user.id);
-    res.json({
-      success: true,
-      data: recommendations
-    });
-  } catch (error) {
-    logger.error('AI Recommendations Error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error getting recommendations'
-    });
+app.get(
+  '/api/ai/recommendations',
+  authMiddleware.requireAuth,
+  async (req, res) => {
+    try {
+      const recommendations = await aiService.getPersonalizedRecommendations(
+        req.user.id
+      );
+      res.json({
+        success: true,
+        data: recommendations,
+      });
+    } catch (error) {
+      logger.error('AI Recommendations Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error getting recommendations',
+      });
+    }
   }
-});
+);
 
 // Universal Pulse API
 app.get('/api/pulse/events', authMiddleware.requireAuth, async (req, res) => {
@@ -202,23 +223,23 @@ app.get('/api/pulse/events', authMiddleware.requireAuth, async (req, res) => {
     );
     res.json({
       success: true,
-      data: pulseEvents
+      data: pulseEvents,
     });
   } catch (error) {
     logger.error('Pulse Events Error:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching pulse events'
+      message: 'Error fetching pulse events',
     });
   }
 });
 
 // Socket.IO for real-time features
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   logger.info(`User connected: ${socket.id}`);
 
   // Join user to their tribes
-  socket.on('join-tribes', async (userId) => {
+  socket.on('join-tribes', async userId => {
     try {
       const userTribes = await eventService.getUserTribes(userId);
       userTribes.forEach(tribe => {
@@ -231,7 +252,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle event creation
-  socket.on('create-event', async (eventData) => {
+  socket.on('create-event', async eventData => {
     try {
       const newEvent = await eventService.createEvent(eventData);
       io.to(`tribe:${eventData.tribeId}`).emit('event-created', newEvent);
@@ -243,7 +264,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle real-time messaging
-  socket.on('send-message', async (messageData) => {
+  socket.on('send-message', async messageData => {
     try {
       const message = await eventService.saveMessage(messageData);
       io.to(`tribe:${messageData.tribeId}`).emit('new-message', message);
@@ -253,7 +274,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle location updates
-  socket.on('update-location', async (locationData) => {
+  socket.on('update-location', async locationData => {
     try {
       await eventService.updateUserLocation(locationData.userId, locationData);
       // Emit to nearby users
@@ -279,7 +300,7 @@ app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
-    path: req.originalUrl
+    path: req.originalUrl,
   });
 });
 
@@ -309,4 +330,4 @@ server.listen(PORT, () => {
   logger.info(`📱 API Documentation: http://localhost:${PORT}/api/docs`);
 });
 
-module.exports = { app, server, io }; 
+module.exports = { app, server, io };

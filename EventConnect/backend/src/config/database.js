@@ -9,13 +9,13 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       bufferMaxEntries: 0,
-      bufferCommands: false
+      bufferCommands: false,
     });
 
     console.log(`✅ MongoDB conectado: ${conn.connection.host}`);
 
     // Connection event handlers
-    mongoose.connection.on('error', (err) => {
+    mongoose.connection.on('error', err => {
       console.error('❌ Error de MongoDB:', err);
     });
 
@@ -69,20 +69,20 @@ const checkDBHealth = async () => {
       0: 'disconnected',
       1: 'connected',
       2: 'connecting',
-      3: 'disconnecting'
+      3: 'disconnecting',
     };
-    
+
     return {
       status: state === 1 ? 'healthy' : 'unhealthy',
       state: states[state] || 'unknown',
       readyState: state,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
     return {
       status: 'error',
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 };
@@ -103,7 +103,7 @@ const getDBStats = async () => {
       totalSize: stats.totalSize,
       scaleFactor: stats.scaleFactor,
       fsUsedSize: stats.fsUsedSize,
-      fsTotalSize: stats.fsTotalSize
+      fsTotalSize: stats.fsTotalSize,
     };
   } catch (error) {
     console.error('Error getting DB stats:', error);
@@ -115,10 +115,18 @@ const getDBStats = async () => {
 const createIndexes = async () => {
   try {
     console.log('🔍 Creando índices de base de datos...');
-    
+
     // Import models
-    const { User, Event, Tribe, Post, Chat, Notification, Review } = require('../models');
-    
+    const {
+      User,
+      Event,
+      Tribe,
+      Post,
+      Chat,
+      Notification,
+      Review,
+    } = require('../models');
+
     // Create indexes for each model
     await Promise.all([
       User.createIndexes(),
@@ -127,9 +135,9 @@ const createIndexes = async () => {
       Post.createIndexes(),
       Chat.createIndexes(),
       Notification.createIndexes(),
-      Review.createIndexes()
+      Review.createIndexes(),
     ]);
-    
+
     console.log('✅ Índices de base de datos creados exitosamente');
   } catch (error) {
     console.error('❌ Error creando índices:', error);
@@ -140,14 +148,16 @@ const createIndexes = async () => {
 const dropAllCollections = async () => {
   try {
     console.log('🗑️ Eliminando todas las colecciones...');
-    
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    
+
+    const collections = await mongoose.connection.db
+      .listCollections()
+      .toArray();
+
     for (const collection of collections) {
       await mongoose.connection.db.dropCollection(collection.name);
       console.log(`✅ Colección ${collection.name} eliminada`);
     }
-    
+
     console.log('✅ Todas las colecciones eliminadas');
   } catch (error) {
     console.error('❌ Error eliminando colecciones:', error);
@@ -158,16 +168,16 @@ const dropAllCollections = async () => {
 const seedDatabase = async () => {
   try {
     console.log('🌱 Sembrando base de datos con datos iniciales...');
-    
+
     // Check if data already exists
     const { User } = require('../models');
     const userCount = await User.countDocuments();
-    
+
     if (userCount > 0) {
       console.log('⚠️ Base de datos ya contiene datos, omitiendo siembra');
       return;
     }
-    
+
     // Create admin user
     const adminUser = new User({
       username: 'admin',
@@ -177,14 +187,14 @@ const seedDatabase = async () => {
       lastName: 'User',
       role: 'admin',
       isVerified: true,
-      isActive: true
+      isActive: true,
     });
-    
+
     await adminUser.save();
     console.log('✅ Usuario administrador creado');
-    
+
     // Add more seed data as needed
-    
+
     console.log('✅ Base de datos sembrada exitosamente');
   } catch (error) {
     console.error('❌ Error sembrando base de datos:', error);
@@ -195,28 +205,28 @@ const seedDatabase = async () => {
 const backupDatabase = async (backupPath = './backup') => {
   try {
     console.log('💾 Creando respaldo de base de datos...');
-    
+
     const { exec } = require('child_process');
     const { promisify } = require('util');
     const execAsync = promisify(exec);
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupFile = `${backupPath}/backup-${timestamp}.gz`;
-    
+
     // Create backup directory if it doesn't exist
     const fs = require('fs');
     if (!fs.existsSync(backupPath)) {
       fs.mkdirSync(backupPath, { recursive: true });
     }
-    
+
     // Extract database name from connection string
     const dbName = process.env.MONGODB_URI.split('/').pop().split('?')[0];
-    
+
     // Create backup command
     const backupCommand = `mongodump --uri="${process.env.MONGODB_URI}" --archive="${backupFile}" --gzip`;
-    
+
     await execAsync(backupCommand);
-    
+
     console.log(`✅ Respaldo creado: ${backupFile}`);
     return backupFile;
   } catch (error) {
@@ -226,19 +236,19 @@ const backupDatabase = async (backupPath = './backup') => {
 };
 
 // Restore database from backup
-const restoreDatabase = async (backupFile) => {
+const restoreDatabase = async backupFile => {
   try {
     console.log(`🔄 Restaurando base de datos desde: ${backupFile}`);
-    
+
     const { exec } = require('child_process');
     const { promisify } = require('util');
     const execAsync = promisify(exec);
-    
+
     // Restore command
     const restoreCommand = `mongorestore --uri="${process.env.MONGODB_URI}" --archive="${backupFile}" --gzip`;
-    
+
     await execAsync(restoreCommand);
-    
+
     console.log('✅ Base de datos restaurada exitosamente');
   } catch (error) {
     console.error('❌ Error restaurando base de datos:', error);
@@ -254,5 +264,5 @@ module.exports = {
   dropAllCollections,
   seedDatabase,
   backupDatabase,
-  restoreDatabase
+  restoreDatabase,
 };

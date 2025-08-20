@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+
 const redisClient = require('../config/redis');
+const User = require('../models/User');
 
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
@@ -8,7 +9,10 @@ const protect = async (req, res, next) => {
     let token;
 
     // Check for token in headers
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith('Bearer')
+    ) {
       token = req.headers.authorization.split(' ')[1];
     }
     // Check for token in cookies
@@ -19,7 +23,7 @@ const protect = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'No se proporcionó token de acceso'
+        message: 'No se proporcionó token de acceso',
       });
     }
 
@@ -32,7 +36,7 @@ const protect = async (req, res, next) => {
       if (isBlacklisted) {
         return res.status(401).json({
           success: false,
-          message: 'Token inválido o expirado'
+          message: 'Token inválido o expirado',
         });
       }
 
@@ -41,7 +45,7 @@ const protect = async (req, res, next) => {
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: 'Usuario no encontrado'
+          message: 'Usuario no encontrado',
         });
       }
 
@@ -49,38 +53,36 @@ const protect = async (req, res, next) => {
       if (!user.isActive) {
         return res.status(401).json({
           success: false,
-          message: 'Cuenta desactivada'
+          message: 'Cuenta desactivada',
         });
       }
 
       // Add user to request object
       req.user = user;
       next();
-
     } catch (error) {
       if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({
           success: false,
-          message: 'Token inválido'
+          message: 'Token inválido',
         });
       } else if (error.name === 'TokenExpiredError') {
         return res.status(401).json({
           success: false,
-          message: 'Token expirado'
+          message: 'Token expirado',
         });
       } else {
         return res.status(401).json({
           success: false,
-          message: 'Error de autenticación'
+          message: 'Error de autenticación',
         });
       }
     }
-
   } catch (error) {
     console.error('Error en middleware de autenticación:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -91,7 +93,10 @@ const optionalAuth = async (req, res, next) => {
     let token;
 
     // Check for token in headers
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith('Bearer')
+    ) {
       token = req.headers.authorization.split(' ')[1];
     }
     // Check for token in cookies
@@ -120,7 +125,6 @@ const optionalAuth = async (req, res, next) => {
     }
 
     next();
-
   } catch (error) {
     console.error('Error en middleware de autenticación opcional:', error);
     next();
@@ -134,7 +138,7 @@ const adminOnly = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'No autorizado'
+        message: 'No autorizado',
       });
     }
 
@@ -142,17 +146,16 @@ const adminOnly = async (req, res, next) => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Acceso denegado. Se requieren privilegios de administrador'
+        message: 'Acceso denegado. Se requieren privilegios de administrador',
       });
     }
 
     next();
-
   } catch (error) {
     console.error('Error en middleware de admin:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -164,7 +167,7 @@ const moderatorOrAdmin = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'No autorizado'
+        message: 'No autorizado',
       });
     }
 
@@ -172,17 +175,17 @@ const moderatorOrAdmin = async (req, res, next) => {
     if (!['moderator', 'admin'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'Acceso denegado. Se requieren privilegios de moderador o administrador'
+        message:
+          'Acceso denegado. Se requieren privilegios de moderador o administrador',
       });
     }
 
     next();
-
   } catch (error) {
     console.error('Error en middleware de moderador:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -195,7 +198,7 @@ const ownerOrAdmin = (resourceField = 'userId') => {
       if (!req.user) {
         return res.status(401).json({
           success: false,
-          message: 'No autorizado'
+          message: 'No autorizado',
         });
       }
 
@@ -209,7 +212,7 @@ const ownerOrAdmin = (resourceField = 'userId') => {
       if (!resourceId) {
         return res.status(400).json({
           success: false,
-          message: 'ID de recurso no proporcionado'
+          message: 'ID de recurso no proporcionado',
         });
       }
 
@@ -220,14 +223,14 @@ const ownerOrAdmin = (resourceField = 'userId') => {
 
       return res.status(403).json({
         success: false,
-        message: 'Acceso denegado. Solo el propietario o administrador puede realizar esta acción'
+        message:
+          'Acceso denegado. Solo el propietario o administrador puede realizar esta acción',
       });
-
     } catch (error) {
       console.error('Error en middleware de propietario:', error);
       return res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   };
@@ -244,15 +247,18 @@ const rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
 
     // Clean old requests
     if (requests.has(ip)) {
-      requests.set(ip, requests.get(ip).filter(timestamp => timestamp > windowStart));
+      requests.set(
+        ip,
+        requests.get(ip).filter(timestamp => timestamp > windowStart)
+      );
     }
 
     const currentRequests = requests.get(ip) || [];
-    
+
     if (currentRequests.length >= maxRequests) {
       return res.status(429).json({
         success: false,
-        message: 'Demasiadas solicitudes. Intente de nuevo más tarde'
+        message: 'Demasiadas solicitudes. Intente de nuevo más tarde',
       });
     }
 
@@ -269,24 +275,24 @@ const requireVerification = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'No autorizado'
+        message: 'No autorizado',
       });
     }
 
     if (!req.user.isVerified) {
       return res.status(403).json({
         success: false,
-        message: 'Cuenta no verificada. Por favor verifique su email antes de continuar'
+        message:
+          'Cuenta no verificada. Por favor verifique su email antes de continuar',
       });
     }
 
     next();
-
   } catch (error) {
     console.error('Error en middleware de verificación:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -297,7 +303,7 @@ const requireProfile = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'No autorizado'
+        message: 'No autorizado',
       });
     }
 
@@ -305,17 +311,17 @@ const requireProfile = async (req, res, next) => {
     if (!req.user.firstName || !req.user.lastName || !req.user.location) {
       return res.status(403).json({
         success: false,
-        message: 'Perfil incompleto. Por favor complete su perfil antes de continuar'
+        message:
+          'Perfil incompleto. Por favor complete su perfil antes de continuar',
       });
     }
 
     next();
-
   } catch (error) {
     console.error('Error en middleware de perfil:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -326,24 +332,24 @@ const notBanned = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'No autorizado'
+        message: 'No autorizado',
       });
     }
 
     if (req.user.status === 'banned') {
       return res.status(403).json({
         success: false,
-        message: 'Su cuenta ha sido suspendida. Contacte al soporte para más información'
+        message:
+          'Su cuenta ha sido suspendida. Contacte al soporte para más información',
       });
     }
 
     next();
-
   } catch (error) {
     console.error('Error en middleware de ban:', error);
     return res.status(500).json({
       success: false,
-      message: 'Error interno del servidor'
+      message: 'Error interno del servidor',
     });
   }
 };
@@ -357,5 +363,5 @@ module.exports = {
   rateLimit,
   requireVerification,
   requireProfile,
-  notBanned
+  notBanned,
 };

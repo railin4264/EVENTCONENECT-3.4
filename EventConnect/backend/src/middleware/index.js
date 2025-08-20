@@ -1,11 +1,29 @@
 // Authentication and Authorization Middleware
 const auth = require('./auth');
-const { protect, optionalAuth, adminOnly, moderatorOrAdmin, ownerOrAdmin, rateLimit, requireVerification, requireProfile, notBanned } = auth;
+const {
+  protect,
+  optionalAuth,
+  adminOnly,
+  moderatorOrAdmin,
+  ownerOrAdmin,
+  rateLimit,
+  requireVerification,
+  requireProfile,
+  notBanned,
+} = auth;
 
 // Validation Middleware
+const cache = require('./cache');
+const errorHandler = require('./errorHandler');
+const logger = require('./logger');
+const notifications = require('./notifications');
+const optimization = require('./optimization');
+const pagination = require('./pagination');
+const security = require('./security');
+const upload = require('./upload');
 const validation = require('./validation');
-const { 
-  handleValidationErrors, 
+const {
+  handleValidationErrors,
   sanitizeHtmlContent,
   validateUserRegistration,
   validateUserLogin,
@@ -20,19 +38,18 @@ const {
   validatePagination,
   validateMongoId,
   validateFileUpload,
-  validateLocation
+  validateLocation,
 } = validation;
 
 // Error Handling Middleware
-const errorHandler = require('./errorHandler');
-const { 
-  AppError, 
-  errorHandler: globalErrorHandler, 
-  notFound, 
-  asyncHandler, 
-  handleUnhandledRejection, 
-  handleUncaughtException, 
-  gracefulShutdown, 
+const {
+  AppError,
+  errorHandler: globalErrorHandler,
+  notFound,
+  asyncHandler,
+  handleUnhandledRejection,
+  handleUncaughtException,
+  gracefulShutdown,
   logError,
   rateLimitExceeded,
   formatValidationErrors,
@@ -43,11 +60,10 @@ const {
   handleNotFoundError,
   handleConflictError,
   handleTooManyRequestsError,
-  handleServiceUnavailableError
+  handleServiceUnavailableError,
 } = errorHandler;
 
 // File Upload Middleware
-const upload = require('./upload');
 const {
   uploadSingle,
   uploadMultiple,
@@ -72,11 +88,10 @@ const {
   generateFileUrl,
   deleteFile,
   getFileInfo,
-  getFilesInfo
+  getFilesInfo,
 } = upload;
 
 // Logging Middleware
-const logger = require('./logger');
 const {
   devLogger,
   prodLogger,
@@ -88,11 +103,10 @@ const {
   performanceMonitor,
   securityLogger,
   rotateLogs,
-  scheduleLogRotation
+  scheduleLogRotation,
 } = logger;
 
 // Security Middleware
-const security = require('./security');
 const {
   securityMiddleware,
   routeSecurity,
@@ -110,11 +124,10 @@ const {
   validateMethod,
   validateReferrer,
   validateUserAgent,
-  requestFrequencyMonitor
+  requestFrequencyMonitor,
 } = security;
 
 // Optimization Middleware
-const optimization = require('./optimization');
 const {
   compressionMiddleware,
   gzipCompression,
@@ -130,11 +143,10 @@ const {
   responseOptimization,
   queryOptimization,
   imageOptimization,
-  apiOptimization
+  apiOptimization,
 } = optimization;
 
 // Pagination and Filtering Middleware
-const pagination = require('./pagination');
 const {
   paginate,
   sort,
@@ -154,21 +166,19 @@ const {
   executeQuery,
   createPaginationQuery,
   createSortQuery,
-  createFilterQuery
+  createFilterQuery,
 } = pagination;
 
 // Notifications and WebSocket Middleware
-const notifications = require('./notifications');
 const {
   wsManager,
   notificationService,
   webSocketMiddleware,
   WebSocketManager,
-  NotificationService
+  NotificationService,
 } = notifications;
 
 // Cache Middleware
-const cache = require('./cache');
 const {
   cache: cacheMiddleware,
   invalidateCache,
@@ -192,7 +202,7 @@ const {
   userCacheKey,
   invalidateCachePatterns,
   getCacheStats,
-  cacheConfig
+  cacheConfig,
 } = cache;
 
 // Export all middleware
@@ -207,7 +217,7 @@ module.exports = {
   requireVerification,
   requireProfile,
   notBanned,
-  
+
   // Validation
   handleValidationErrors,
   sanitizeHtmlContent,
@@ -225,7 +235,7 @@ module.exports = {
   validateMongoId,
   validateFileUpload,
   validateLocation,
-  
+
   // Error Handling
   AppError,
   globalErrorHandler,
@@ -245,7 +255,7 @@ module.exports = {
   handleConflictError,
   handleTooManyRequestsError,
   handleServiceUnavailableError,
-  
+
   // File Upload
   uploadSingle,
   uploadMultiple,
@@ -271,7 +281,7 @@ module.exports = {
   deleteFile,
   getFileInfo,
   getFilesInfo,
-  
+
   // Logging
   devLogger,
   prodLogger,
@@ -284,7 +294,7 @@ module.exports = {
   securityLogger: logger.securityLogger,
   rotateLogs,
   scheduleLogRotation,
-  
+
   // Security
   securityMiddleware,
   routeSecurity,
@@ -303,7 +313,7 @@ module.exports = {
   validateReferrer,
   validateUserAgent,
   requestFrequencyMonitor,
-  
+
   // Optimization
   compressionMiddleware,
   gzipCompression,
@@ -320,7 +330,7 @@ module.exports = {
   queryOptimization,
   imageOptimization,
   apiOptimization,
-  
+
   // Pagination
   paginate,
   sort,
@@ -341,14 +351,14 @@ module.exports = {
   createPaginationQuery,
   createSortQuery,
   createFilterQuery,
-  
+
   // Notifications
   wsManager,
   notificationService,
   webSocketMiddleware,
   WebSocketManager,
   NotificationService,
-  
+
   // Cache
   cacheMiddleware,
   invalidateCache,
@@ -373,7 +383,7 @@ module.exports = {
   invalidateCachePatterns,
   getCacheStats,
   cacheConfig,
-  
+
   // Complete modules
   auth,
   validation,
@@ -384,5 +394,5 @@ module.exports = {
   optimization,
   pagination,
   notifications,
-  cache
+  cache,
 };

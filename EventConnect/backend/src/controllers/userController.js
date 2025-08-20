@@ -1,8 +1,9 @@
-const User = require('../models/User');
-const Event = require('../models/Event');
-const Tribe = require('../models/Tribe');
-const Post = require('../models/Post');
 const { validationResult } = require('express-validator');
+
+const Event = require('../models/Event');
+const Post = require('../models/Post');
+const Tribe = require('../models/Tribe');
+const User = require('../models/User');
 
 // @desc    Get user profile
 // @route   GET /api/users/:id
@@ -10,15 +11,20 @@ const { validationResult } = require('express-validator');
 const getUserProfile = async (req, res) => {
   try {
     const { id } = req.params;
-    const { includeStats = true, includeEvents = false, includeTribes = false } = req.query;
+    const {
+      includeStats = true,
+      includeEvents = false,
+      includeTribes = false,
+    } = req.query;
 
-    const user = await User.findById(id)
-      .select('-password -refreshTokens -resetPasswordToken -resetPasswordExpire -emailVerificationToken -emailVerificationExpire');
+    const user = await User.findById(id).select(
+      '-password -refreshTokens -resetPasswordToken -resetPasswordExpire -emailVerificationToken -emailVerificationExpire'
+    );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -26,17 +32,19 @@ const getUserProfile = async (req, res) => {
     if (!user.isActive) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Check privacy settings
     const isOwnProfile = req.user && req.user.id === id;
     const isFollowing = req.user ? user.isFollowedBy(req.user.id) : false;
-    const isFriend = req.user ? user.isFollowing(req.user.id) && isFollowing : false;
+    const isFriend = req.user
+      ? user.isFollowing(req.user.id) && isFollowing
+      : false;
 
     // Determine what data to include based on privacy settings
-    let profileData = {
+    const profileData = {
       _id: user._id,
       username: user.username,
       firstName: user.firstName,
@@ -51,43 +59,57 @@ const getUserProfile = async (req, res) => {
       followersCount: user.followersCount,
       followingCount: user.followingCount,
       isFollowing,
-      isOwnProfile
+      isOwnProfile,
     };
 
     // Add stats if requested and allowed
-    if (includeStats && (isOwnProfile || user.preferences?.privacy?.profileVisibility === 'public' || isFriend)) {
+    if (
+      includeStats &&
+      (isOwnProfile ||
+        user.preferences?.privacy?.profileVisibility === 'public' ||
+        isFriend)
+    ) {
       profileData.stats = {
         eventsAttendedCount: user.eventsAttendedCount,
         eventsHostedCount: user.eventsHostedCount,
         tribesJoinedCount: user.tribesJoinedCount,
         tribesCreatedCount: user.tribesCreatedCount,
-        postsCreatedCount: user.postsCreatedCount
+        postsCreatedCount: user.postsCreatedCount,
       };
     }
 
     // Add events if requested and allowed
-    if (includeEvents && (isOwnProfile || user.preferences?.privacy?.eventVisibility === 'public' || isFriend)) {
+    if (
+      includeEvents &&
+      (isOwnProfile ||
+        user.preferences?.privacy?.eventVisibility === 'public' ||
+        isFriend)
+    ) {
       const events = await Event.findByHost(id, 5);
       profileData.recentEvents = events;
     }
 
     // Add tribes if requested and allowed
-    if (includeTribes && (isOwnProfile || user.preferences?.privacy?.tribeVisibility === 'public' || isFriend)) {
+    if (
+      includeTribes &&
+      (isOwnProfile ||
+        user.preferences?.privacy?.tribeVisibility === 'public' ||
+        isFriend)
+    ) {
       const tribes = await Tribe.findByCreator(id, 5);
       profileData.recentTribes = tribes;
     }
 
     res.json({
       success: true,
-      data: { user: profileData }
+      data: { user: profileData },
     });
-
   } catch (error) {
     console.error('Error obteniendo perfil del usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -97,27 +119,27 @@ const getUserProfile = async (req, res) => {
 // @access  Private
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select('-password -refreshTokens -resetPasswordToken -resetPasswordExpire -emailVerificationToken -emailVerificationExpire');
+    const user = await User.findById(req.user.id).select(
+      '-password -refreshTokens -resetPasswordToken -resetPasswordExpire -emailVerificationToken -emailVerificationExpire'
+    );
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      data: { user }
+      data: { user },
     });
-
   } catch (error) {
     console.error('Error obteniendo perfil actual:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -133,7 +155,7 @@ const updateProfile = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Errores de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
@@ -145,14 +167,14 @@ const updateProfile = async (req, res) => {
       gender,
       location,
       interests,
-      socialLinks
+      socialLinks,
     } = req.body;
 
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -180,15 +202,14 @@ const updateProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Perfil actualizado exitosamente',
-      data: { user: userResponse }
+      data: { user: userResponse },
     });
-
   } catch (error) {
     console.error('Error actualizando perfil:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -204,23 +225,17 @@ const updatePreferences = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Errores de validación',
-        errors: errors.array()
+        errors: errors.array(),
       });
     }
 
-    const {
-      notifications,
-      privacy,
-      theme,
-      language,
-      currency
-    } = req.body;
+    const { notifications, privacy, theme, language, currency } = req.body;
 
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -249,15 +264,14 @@ const updatePreferences = async (req, res) => {
     res.json({
       success: true,
       message: 'Preferencias actualizadas exitosamente',
-      data: { preferences: user.preferences }
+      data: { preferences: user.preferences },
     });
-
   } catch (error) {
     console.error('Error actualizando preferencias:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -273,7 +287,7 @@ const followUser = async (req, res) => {
     if (id === req.user.id) {
       return res.status(400).json({
         success: false,
-        message: 'No puedes seguirte a ti mismo'
+        message: 'No puedes seguirte a ti mismo',
       });
     }
 
@@ -281,7 +295,7 @@ const followUser = async (req, res) => {
     if (!userToFollow) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -289,7 +303,7 @@ const followUser = async (req, res) => {
     if (!currentUser) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario actual no encontrado'
+        message: 'Usuario actual no encontrado',
       });
     }
 
@@ -301,20 +315,20 @@ const followUser = async (req, res) => {
     if (isAlreadyFollowing) {
       return res.status(400).json({
         success: false,
-        message: 'Ya estás siguiendo a este usuario'
+        message: 'Ya estás siguiendo a este usuario',
       });
     }
 
     // Add to following
     currentUser.following.push({
       user: id,
-      followedAt: new Date()
+      followedAt: new Date(),
     });
 
     // Add to followers
     userToFollow.followers.push({
       user: req.user.id,
-      followedAt: new Date()
+      followedAt: new Date(),
     });
 
     await Promise.all([currentUser.save(), userToFollow.save()]);
@@ -322,18 +336,17 @@ const followUser = async (req, res) => {
     res.json({
       success: true,
       message: 'Usuario seguido exitosamente',
-      data: { 
+      data: {
         isFollowing: true,
-        followersCount: userToFollow.followersCount
-      }
+        followersCount: userToFollow.followersCount,
+      },
     });
-
   } catch (error) {
     console.error('Error siguiendo usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -349,7 +362,7 @@ const unfollowUser = async (req, res) => {
     if (!userToUnfollow) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -357,7 +370,7 @@ const unfollowUser = async (req, res) => {
     if (!currentUser) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario actual no encontrado'
+        message: 'Usuario actual no encontrado',
       });
     }
 
@@ -369,7 +382,7 @@ const unfollowUser = async (req, res) => {
     if (!isFollowing) {
       return res.status(400).json({
         success: false,
-        message: 'No estás siguiendo a este usuario'
+        message: 'No estás siguiendo a este usuario',
       });
     }
 
@@ -388,18 +401,17 @@ const unfollowUser = async (req, res) => {
     res.json({
       success: true,
       message: 'Usuario dejado de seguir exitosamente',
-      data: { 
+      data: {
         isFollowing: false,
-        followersCount: userToUnfollow.followersCount
-      }
+        followersCount: userToUnfollow.followersCount,
+      },
     });
-
   } catch (error) {
     console.error('Error dejando de seguir usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -416,19 +428,25 @@ const getUserFollowers = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Check privacy settings
     const isOwnProfile = req.user && req.user.id === id;
     const isFollowing = req.user ? user.isFollowedBy(req.user.id) : false;
-    const isFriend = req.user ? user.isFollowing(req.user.id) && isFollowing : false;
+    const isFriend = req.user
+      ? user.isFollowing(req.user.id) && isFollowing
+      : false;
 
-    if (user.preferences?.privacy?.profileVisibility === 'private' && !isOwnProfile && !isFriend) {
+    if (
+      user.preferences?.privacy?.profileVisibility === 'private' &&
+      !isOwnProfile &&
+      !isFriend
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta información'
+        message: 'No tienes acceso a esta información',
       });
     }
 
@@ -449,17 +467,16 @@ const getUserFollowers = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error obteniendo seguidores:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -476,19 +493,25 @@ const getUserFollowing = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Check privacy settings
     const isOwnProfile = req.user && req.user.id === id;
     const isFollowing = req.user ? user.isFollowedBy(req.user.id) : false;
-    const isFriend = req.user ? user.isFollowing(req.user.id) && isFollowing : false;
+    const isFriend = req.user
+      ? user.isFollowing(req.user.id) && isFollowing
+      : false;
 
-    if (user.preferences?.privacy?.profileVisibility === 'private' && !isOwnProfile && !isFriend) {
+    if (
+      user.preferences?.privacy?.profileVisibility === 'private' &&
+      !isOwnProfile &&
+      !isFriend
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta información'
+        message: 'No tienes acceso a esta información',
       });
     }
 
@@ -509,17 +532,16 @@ const getUserFollowing = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error obteniendo seguidos:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -536,19 +558,25 @@ const getUserEvents = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Check privacy settings
     const isOwnProfile = req.user && req.user.id === id;
     const isFollowing = req.user ? user.isFollowedBy(req.user.id) : false;
-    const isFriend = req.user ? user.isFollowing(req.user.id) && isFollowing : false;
+    const isFriend = req.user
+      ? user.isFollowing(req.user.id) && isFollowing
+      : false;
 
-    if (user.preferences?.privacy?.eventVisibility === 'private' && !isOwnProfile && !isFriend) {
+    if (
+      user.preferences?.privacy?.eventVisibility === 'private' &&
+      !isOwnProfile &&
+      !isFriend
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta información'
+        message: 'No tienes acceso a esta información',
       });
     }
 
@@ -563,20 +591,23 @@ const getUserEvents = async (req, res) => {
     if (type === 'attending' || type === 'all') {
       const attendingEvents = await Event.find({
         'attendees.user': id,
-        'attendees.status': 'confirmed'
+        'attendees.status': 'confirmed',
       })
-      .populate('host', 'username firstName lastName avatar')
-      .sort({ 'dateTime.start': 1 })
-      .limit(parseInt(limit));
-      
+        .populate('host', 'username firstName lastName avatar')
+        .sort({ 'dateTime.start': 1 })
+        .limit(parseInt(limit));
+
       events = [...events, ...attendingEvents];
     }
 
     // Remove duplicates and sort by date
-    events = events.filter((event, index, self) => 
-      index === self.findIndex(e => e._id.toString() === event._id.toString())
+    events = events.filter(
+      (event, index, self) =>
+        index === self.findIndex(e => e._id.toString() === event._id.toString())
     );
-    events.sort((a, b) => new Date(a.dateTime.start) - new Date(b.dateTime.start));
+    events.sort(
+      (a, b) => new Date(a.dateTime.start) - new Date(b.dateTime.start)
+    );
 
     total = events.length;
     const startIndex = (page - 1) * limit;
@@ -591,17 +622,16 @@ const getUserEvents = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error obteniendo eventos del usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -618,19 +648,25 @@ const getUserTribes = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Check privacy settings
     const isOwnProfile = req.user && req.user.id === id;
     const isFollowing = req.user ? user.isFollowedBy(req.user.id) : false;
-    const isFriend = req.user ? user.isFollowing(req.user.id) && isFollowing : false;
+    const isFriend = req.user
+      ? user.isFollowing(req.user.id) && isFollowing
+      : false;
 
-    if (user.preferences?.privacy?.tribeVisibility === 'private' && !isOwnProfile && !isFriend) {
+    if (
+      user.preferences?.privacy?.tribeVisibility === 'private' &&
+      !isOwnProfile &&
+      !isFriend
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta información'
+        message: 'No tienes acceso a esta información',
       });
     }
 
@@ -645,18 +681,19 @@ const getUserTribes = async (req, res) => {
     if (type === 'joined' || type === 'all') {
       const joinedTribes = await Tribe.find({
         'members.user': id,
-        'members.status': 'active'
+        'members.status': 'active',
       })
-      .populate('creator', 'username firstName lastName avatar')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
-      
+        .populate('creator', 'username firstName lastName avatar')
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit));
+
       tribes = [...tribes, ...joinedTribes];
     }
 
     // Remove duplicates and sort by creation date
-    tribes = tribes.filter((tribe, index, self) => 
-      index === self.findIndex(t => t._id.toString() === tribe._id.toString())
+    tribes = tribes.filter(
+      (tribe, index, self) =>
+        index === self.findIndex(t => t._id.toString() === tribe._id.toString())
     );
     tribes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -673,17 +710,16 @@ const getUserTribes = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error obteniendo tribus del usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -700,24 +736,33 @@ const getUserPosts = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     // Check privacy settings
     const isOwnProfile = req.user && req.user.id === id;
     const isFollowing = req.user ? user.isFollowedBy(req.user.id) : false;
-    const isFriend = req.user ? user.isFollowing(req.user.id) && isFollowing : false;
+    const isFriend = req.user
+      ? user.isFollowing(req.user.id) && isFollowing
+      : false;
 
-    if (user.preferences?.privacy?.profileVisibility === 'private' && !isOwnProfile && !isFriend) {
+    if (
+      user.preferences?.privacy?.profileVisibility === 'private' &&
+      !isOwnProfile &&
+      !isFriend
+    ) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes acceso a esta información'
+        message: 'No tienes acceso a esta información',
       });
     }
 
     const posts = await Post.findByAuthor(id, parseInt(limit));
-    const total = await Post.countDocuments({ author: id, status: 'published' });
+    const total = await Post.countDocuments({
+      author: id,
+      status: 'published',
+    });
 
     res.json({
       success: true,
@@ -727,17 +772,16 @@ const getUserPosts = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error obteniendo posts del usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -753,13 +797,13 @@ const searchUsers = async (req, res) => {
       limit = 20,
       category,
       location,
-      sort = 'relevance'
+      sort = 'relevance',
     } = req.query;
 
     if (!q || q.trim().length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'Término de búsqueda debe tener al menos 2 caracteres'
+        message: 'Término de búsqueda debe tener al menos 2 caracteres',
       });
     }
 
@@ -772,21 +816,21 @@ const searchUsers = async (req, res) => {
             { firstName: { $regex: q, $options: 'i' } },
             { lastName: { $regex: q, $options: 'i' } },
             { bio: { $regex: q, $options: 'i' } },
-            { interests: { $in: [new RegExp(q, 'i')] } }
-          ]
-        }
-      ]
+            { interests: { $in: [new RegExp(q, 'i')] } },
+          ],
+        },
+      ],
     };
 
     // Add category filter
     if (category) {
-      searchQuery.$and.push({ 'interests': { $in: [category] } });
+      searchQuery.$and.push({ interests: { $in: [category] } });
     }
 
     // Add location filter
     if (location) {
       searchQuery.$and.push({
-        'location.address.city': { $regex: location, $options: 'i' }
+        'location.address.city': { $regex: location, $options: 'i' },
       });
     }
 
@@ -800,14 +844,16 @@ const searchUsers = async (req, res) => {
         sortObj = { createdAt: -1 };
         break;
       case 'popular':
-        sortObj = { 'followersCount': -1 };
+        sortObj = { followersCount: -1 };
         break;
       default:
         sortObj = { score: { $meta: 'textScore' } };
     }
 
     const users = await User.find(searchQuery)
-      .select('-password -refreshTokens -resetPasswordToken -resetPasswordExpire -emailVerificationToken -emailVerificationExpire')
+      .select(
+        '-password -refreshTokens -resetPasswordToken -resetPasswordExpire -emailVerificationToken -emailVerificationExpire'
+      )
       .sort(sortObj)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -822,17 +868,16 @@ const searchUsers = async (req, res) => {
           page: parseInt(page),
           limit: parseInt(limit),
           total,
-          pages: Math.ceil(total / limit)
-        }
-      }
+          pages: Math.ceil(total / limit),
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error buscando usuarios:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -848,21 +893,20 @@ const getUserBadges = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
     res.json({
       success: true,
-      data: { badges: user.badges }
+      data: { badges: user.badges },
     });
-
   } catch (error) {
     console.error('Error obteniendo badges del usuario:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -877,7 +921,7 @@ const deleteAccount = async (req, res) => {
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: 'Contraseña es requerida para eliminar la cuenta'
+        message: 'Contraseña es requerida para eliminar la cuenta',
       });
     }
 
@@ -885,7 +929,7 @@ const deleteAccount = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -894,7 +938,7 @@ const deleteAccount = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({
         success: false,
-        message: 'Contraseña incorrecta'
+        message: 'Contraseña incorrecta',
       });
     }
 
@@ -905,15 +949,14 @@ const deleteAccount = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Cuenta eliminada exitosamente'
+      message: 'Cuenta eliminada exitosamente',
     });
-
   } catch (error) {
     console.error('Error eliminando cuenta:', error);
     res.status(500).json({
       success: false,
       message: 'Error interno del servidor',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }
 };
@@ -932,5 +975,5 @@ module.exports = {
   getUserPosts,
   searchUsers,
   getUserBadges,
-  deleteAccount
+  deleteAccount,
 };

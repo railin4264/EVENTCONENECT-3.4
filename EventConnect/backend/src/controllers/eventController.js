@@ -1,7 +1,10 @@
-const { Event, User, Review } = require('../models');
 const { cloudinary } = require('../config');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
-const { validateEventCreation, validateEventUpdate } = require('../middleware/validation');
+const {
+  validateEventCreation,
+  validateEventUpdate,
+} = require('../middleware/validation');
+const { Event, User, Review } = require('../models');
 
 class EventController {
   // Create new event
@@ -19,7 +22,7 @@ class EventController {
         eventData.location.type = 'Point';
         eventData.location.coordinates = [
           eventData.location.coordinates.longitude,
-          eventData.location.coordinates.latitude
+          eventData.location.coordinates.latitude,
         ];
       }
 
@@ -33,7 +36,7 @@ class EventController {
       res.status(201).json({
         success: true,
         message: 'Evento creado exitosamente',
-        data: { event }
+        data: { event },
       });
     } catch (error) {
       next(error);
@@ -60,7 +63,7 @@ class EventController {
         sortOrder = 'asc',
         radius = 50,
         latitude,
-        longitude
+        longitude,
       } = req.query;
 
       // Build query
@@ -84,10 +87,15 @@ class EventController {
       }
 
       // Price filter
-      if (priceMin !== undefined || priceMax !== undefined || isFree !== undefined) {
+      if (
+        priceMin !== undefined ||
+        priceMax !== undefined ||
+        isFree !== undefined
+      ) {
         query.price = {};
         if (isFree !== undefined) query.price.isFree = isFree === 'true';
-        if (priceMin !== undefined) query.price.amount = { $gte: parseFloat(priceMin) };
+        if (priceMin !== undefined)
+          query.price.amount = { $gte: parseFloat(priceMin) };
         if (priceMax !== undefined) {
           if (query.price.amount) {
             query.price.amount.$lte = parseFloat(priceMax);
@@ -108,7 +116,7 @@ class EventController {
         query.$or = [
           { title: { $regex: search, $options: 'i' } },
           { description: { $regex: search, $options: 'i' } },
-          { tags: { $in: [new RegExp(search, 'i')] } }
+          { tags: { $in: [new RegExp(search, 'i')] } },
         ];
       }
 
@@ -118,10 +126,10 @@ class EventController {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
             },
-            $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
-          }
+            $maxDistance: parseFloat(radius) * 1000, // Convert km to meters
+          },
         };
       }
 
@@ -131,7 +139,7 @@ class EventController {
 
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      
+
       const events = await Event.find(query)
         .populate('host', 'username firstName lastName avatar')
         .sort(sort)
@@ -157,9 +165,9 @@ class EventController {
             total,
             hasNextPage,
             hasPrevPage,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -188,9 +196,11 @@ class EventController {
       let userRole = null;
 
       if (userId) {
-        isAttending = event.attendees.some(attendee => attendee._id.toString() === userId);
+        isAttending = event.attendees.some(
+          attendee => attendee._id.toString() === userId
+        );
         isLiked = event.likes.some(like => like._id.toString() === userId);
-        
+
         if (event.host._id.toString() === userId) {
           userRole = 'host';
         } else if (isAttending) {
@@ -211,9 +221,9 @@ class EventController {
           userInteraction: {
             isAttending,
             isLiked,
-            userRole
-          }
-        }
+            userRole,
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -242,21 +252,20 @@ class EventController {
         updateData.location.type = 'Point';
         updateData.location.coordinates = [
           updateData.location.coordinates.longitude,
-          updateData.location.coordinates.latitude
+          updateData.location.coordinates.latitude,
         ];
       }
 
       // Update event
-      const updatedEvent = await Event.findByIdAndUpdate(
-        eventId,
-        updateData,
-        { new: true, runValidators: true }
-      ).populate('host', 'username firstName lastName avatar');
+      const updatedEvent = await Event.findByIdAndUpdate(eventId, updateData, {
+        new: true,
+        runValidators: true,
+      }).populate('host', 'username firstName lastName avatar');
 
       res.status(200).json({
         success: true,
         message: 'Evento actualizado exitosamente',
-        data: { event: updatedEvent }
+        data: { event: updatedEvent },
       });
     } catch (error) {
       next(error);
@@ -281,7 +290,10 @@ class EventController {
 
       // Check if event has started
       if (event.startDate < new Date()) {
-        throw new AppError('No puedes eliminar un evento que ya ha comenzado', 400);
+        throw new AppError(
+          'No puedes eliminar un evento que ya ha comenzado',
+          400
+        );
       }
 
       // Delete event
@@ -289,7 +301,7 @@ class EventController {
 
       res.status(200).json({
         success: true,
-        message: 'Evento eliminado exitosamente'
+        message: 'Evento eliminado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -314,7 +326,10 @@ class EventController {
 
       // Check if event has started
       if (event.startDate < new Date()) {
-        throw new AppError('No puedes unirte a un evento que ya ha comenzado', 400);
+        throw new AppError(
+          'No puedes unirte a un evento que ya ha comenzado',
+          400
+        );
       }
 
       // Check if user is already attending
@@ -339,7 +354,7 @@ class EventController {
       res.status(200).json({
         success: true,
         message: 'Te has unido al evento exitosamente',
-        data: { event }
+        data: { event },
       });
     } catch (error) {
       next(error);
@@ -364,11 +379,16 @@ class EventController {
 
       // Check if event has started
       if (event.startDate < new Date()) {
-        throw new AppError('No puedes dejar un evento que ya ha comenzado', 400);
+        throw new AppError(
+          'No puedes dejar un evento que ya ha comenzado',
+          400
+        );
       }
 
       // Remove user from attendees
-      event.attendees = event.attendees.filter(attendee => attendee.toString() !== userId);
+      event.attendees = event.attendees.filter(
+        attendee => attendee.toString() !== userId
+      );
       event.attendeeCount = event.attendees.length;
       await event.save();
 
@@ -379,7 +399,7 @@ class EventController {
       res.status(200).json({
         success: true,
         message: 'Has dejado el evento exitosamente',
-        data: { event }
+        data: { event },
       });
     } catch (error) {
       next(error);
@@ -416,8 +436,8 @@ class EventController {
         message: isLiked ? 'Evento deslikeado' : 'Evento likeado',
         data: {
           isLiked: !isLiked,
-          likeCount: event.likeCount
-        }
+          likeCount: event.likeCount,
+        },
       });
     } catch (error) {
       next(error);
@@ -430,7 +450,7 @@ class EventController {
       const { userId } = req.params;
       const { type = 'all', page = 1, limit = 20 } = req.query;
 
-      let query = {};
+      const query = {};
 
       switch (type) {
         case 'hosting':
@@ -446,7 +466,7 @@ class EventController {
           query.$or = [
             { host: userId },
             { attendees: userId },
-            { likes: userId }
+            { likes: userId },
           ];
           break;
         default:
@@ -475,9 +495,9 @@ class EventController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -496,8 +516,8 @@ class EventController {
         {
           $match: {
             status: 'active',
-            startDate: { $gte: dateFrom }
-          }
+            startDate: { $gte: dateFrom },
+          },
         },
         {
           $addFields: {
@@ -505,27 +525,27 @@ class EventController {
               $add: [
                 { $multiply: ['$views', 0.3] },
                 { $multiply: ['$likeCount', 0.5] },
-                { $multiply: ['$attendeeCount', 0.2] }
-              ]
-            }
-          }
+                { $multiply: ['$attendeeCount', 0.2] },
+              ],
+            },
+          },
         },
         {
-          $sort: { score: -1 }
+          $sort: { score: -1 },
         },
         {
-          $limit: parseInt(limit)
+          $limit: parseInt(limit),
         },
         {
           $lookup: {
             from: 'users',
             localField: 'host',
             foreignField: '_id',
-            as: 'host'
-          }
+            as: 'host',
+          },
         },
         {
-          $unwind: '$host'
+          $unwind: '$host',
         },
         {
           $project: {
@@ -546,14 +566,14 @@ class EventController {
             'host.username': 1,
             'host.firstName': 1,
             'host.lastName': 1,
-            'host.avatar': 1
-          }
-        }
+            'host.avatar': 1,
+          },
+        },
       ]);
 
       res.status(200).json({
         success: true,
-        data: { events }
+        data: { events },
       });
     } catch (error) {
       next(error);
@@ -576,11 +596,11 @@ class EventController {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)]
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
             },
-            $maxDistance: parseFloat(radius) * 1000 // Convert km to meters
-          }
-        }
+            $maxDistance: parseFloat(radius) * 1000, // Convert km to meters
+          },
+        },
       })
         .populate('host', 'username firstName lastName avatar')
         .sort({ startDate: 1 })
@@ -589,7 +609,7 @@ class EventController {
 
       res.status(200).json({
         success: true,
-        data: { events }
+        data: { events },
       });
     } catch (error) {
       next(error);
@@ -601,7 +621,7 @@ class EventController {
     try {
       const { eventId } = req.params;
       const userId = req.user.id;
-      const files = req.files;
+      const { files } = req;
 
       if (!files || files.length === 0) {
         throw new AppError('No se proporcionaron archivos', 400);
@@ -614,14 +634,20 @@ class EventController {
       }
 
       if (event.host.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para subir imágenes a este evento', 403);
+        throw new AppError(
+          'No tienes permisos para subir imágenes a este evento',
+          403
+        );
       }
 
       // Upload images to Cloudinary
       const uploadResults = await cloudinary.uploadEventImages(files, eventId);
 
       if (uploadResults.failureCount > 0) {
-        console.warn('Algunas imágenes no se pudieron subir:', uploadResults.failed);
+        console.warn(
+          'Algunas imágenes no se pudieron subir:',
+          uploadResults.failed
+        );
       }
 
       // Update event with new images
@@ -630,7 +656,7 @@ class EventController {
         publicId: result.public_id,
         width: result.width,
         height: result.height,
-        format: result.format
+        format: result.format,
       }));
 
       event.images = [...(event.images || []), ...newImages];
@@ -642,8 +668,8 @@ class EventController {
         data: {
           uploadedImages: newImages,
           totalImages: event.images.length,
-          uploadResults
-        }
+          uploadResults,
+        },
       });
     } catch (error) {
       next(error);
@@ -663,7 +689,10 @@ class EventController {
       }
 
       if (event.host.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para eliminar imágenes de este evento', 403);
+        throw new AppError(
+          'No tienes permisos para eliminar imágenes de este evento',
+          403
+        );
       }
 
       // Find image
@@ -683,7 +712,7 @@ class EventController {
 
       res.status(200).json({
         success: true,
-        message: 'Imagen eliminada exitosamente'
+        message: 'Imagen eliminada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -703,29 +732,36 @@ class EventController {
 
       // Check if user is host or admin
       if (event.host.toString() !== userId && req.user.role !== 'admin') {
-        throw new AppError('No tienes permisos para ver las estadísticas de este evento', 403);
+        throw new AppError(
+          'No tienes permisos para ver las estadísticas de este evento',
+          403
+        );
       }
 
       // Get reviews for this event
       const reviews = await Review.find({ event: eventId });
-      
+
       const stats = {
         totalAttendees: event.attendeeCount || 0,
         totalLikes: event.likeCount || 0,
         totalViews: event.views || 0,
         totalReviews: reviews.length,
-        averageRating: reviews.length > 0 
-          ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length 
-          : 0,
-        capacityUtilization: event.capacity 
+        averageRating:
+          reviews.length > 0
+            ? reviews.reduce((sum, review) => sum + review.rating, 0) /
+              reviews.length
+            : 0,
+        capacityUtilization: event.capacity
           ? Math.round((event.attendeeCount / event.capacity) * 100)
           : 0,
-        daysUntilEvent: Math.ceil((event.startDate - new Date()) / (1000 * 60 * 60 * 24))
+        daysUntilEvent: Math.ceil(
+          (event.startDate - new Date()) / (1000 * 60 * 60 * 24)
+        ),
       };
 
       res.status(200).json({
         success: true,
-        data: { stats }
+        data: { stats },
       });
     } catch (error) {
       next(error);
@@ -745,7 +781,7 @@ class EventController {
         tags,
         page = 1,
         limit = 20,
-        sortBy = 'relevance'
+        sortBy = 'relevance',
       } = req.body;
 
       // Build search query
@@ -810,9 +846,9 @@ class EventController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);

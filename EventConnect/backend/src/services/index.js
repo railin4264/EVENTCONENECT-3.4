@@ -5,5 +5,5 @@ const SearchService = require('./SearchService');
 module.exports = {
   EventService,
   NotificationService,
-  SearchService
+  SearchService,
 };

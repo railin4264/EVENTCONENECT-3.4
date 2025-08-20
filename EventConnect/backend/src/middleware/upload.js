@@ -1,6 +1,7 @@
-const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+
+const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
 // Configure storage
@@ -37,7 +38,7 @@ const storage = multer.diskStorage({
     // Generate unique filename
     const uniqueName = `${uuidv4()}-${Date.now()}${path.extname(file.originalname)}`;
     cb(null, uniqueName);
-  }
+  },
 });
 
 // File filter function
@@ -57,7 +58,7 @@ const fileFilter = (req, file, cb) => {
     'audio/ogg': true,
     'application/pdf': true,
     'application/msword': true,
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true,
   };
 
   if (allowedMimeTypes[file.mimetype]) {
@@ -69,16 +70,16 @@ const fileFilter = (req, file, cb) => {
 
 // Configure multer
 const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
+  storage,
+  fileFilter,
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max
-    files: 5 // Max 5 files per request
-  }
+    files: 5, // Max 5 files per request
+  },
 });
 
 // Single file upload middleware
-const uploadSingle = (fieldName) => {
+const uploadSingle = fieldName => {
   return upload.single(fieldName);
 };
 
@@ -88,7 +89,7 @@ const uploadMultiple = (fieldName, maxCount = 5) => {
 };
 
 // Multiple fields upload middleware
-const uploadFields = (fields) => {
+const uploadFields = fields => {
   return upload.fields(fields);
 };
 
@@ -102,19 +103,19 @@ const uploadPostMedia = uploadMultiple('media', 10);
 // Profile images upload
 const uploadProfileImages = uploadFields([
   { name: 'avatar', maxCount: 1 },
-  { name: 'banner', maxCount: 1 }
+  { name: 'banner', maxCount: 1 },
 ]);
 
 // Event upload
 const uploadEvent = uploadFields([
   { name: 'images', maxCount: 10 },
-  { name: 'banner', maxCount: 1 }
+  { name: 'banner', maxCount: 1 },
 ]);
 
 // Tribe upload
 const uploadTribe = uploadFields([
   { name: 'avatar', maxCount: 1 },
-  { name: 'banner', maxCount: 1 }
+  { name: 'banner', maxCount: 1 },
 ]);
 
 // Post upload
@@ -122,7 +123,7 @@ const uploadPost = uploadFields([
   { name: 'media', maxCount: 10 },
   { name: 'images', maxCount: 10 },
   { name: 'videos', maxCount: 5 },
-  { name: 'documents', maxCount: 5 }
+  { name: 'documents', maxCount: 5 },
 ]);
 
 // Error handling middleware for multer
@@ -131,19 +132,19 @@ const handleUploadError = (error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'El archivo es demasiado grande. Máximo 10MB permitido.'
+        message: 'El archivo es demasiado grande. Máximo 10MB permitido.',
       });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({
         success: false,
-        message: 'Demasiados archivos. Máximo 5 archivos permitidos.'
+        message: 'Demasiados archivos. Máximo 5 archivos permitidos.',
       });
     }
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
       return res.status(400).json({
         success: false,
-        message: 'Campo de archivo inesperado.'
+        message: 'Campo de archivo inesperado.',
       });
     }
   }
@@ -151,7 +152,7 @@ const handleUploadError = (error, req, res, next) => {
   if (error.message && error.message.includes('Tipo de archivo no permitido')) {
     return res.status(400).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 
@@ -163,7 +164,7 @@ const validateFile = (req, res, next) => {
   if (!req.file && !req.files) {
     return res.status(400).json({
       success: false,
-      message: 'No se proporcionó ningún archivo'
+      message: 'No se proporcionó ningún archivo',
     });
   }
 
@@ -174,7 +175,7 @@ const validateFile = (req, res, next) => {
       if (!req.files[field] || req.files[field].length === 0) {
         return res.status(400).json({
           success: false,
-          message: `No se proporcionó archivo para el campo '${field}'`
+          message: `No se proporcionó archivo para el campo '${field}'`,
         });
       }
     }
@@ -187,12 +188,12 @@ const validateFile = (req, res, next) => {
 const validateFileSize = (maxSize = 10 * 1024 * 1024) => {
   return (req, res, next) => {
     const files = req.files ? Object.values(req.files).flat() : [req.file];
-    
+
     for (const file of files) {
       if (file && file.size > maxSize) {
         return res.status(400).json({
           success: false,
-          message: `El archivo '${file.originalname}' es demasiado grande. Máximo ${Math.round(maxSize / (1024 * 1024))}MB permitido.`
+          message: `El archivo '${file.originalname}' es demasiado grande. Máximo ${Math.round(maxSize / (1024 * 1024))}MB permitido.`,
         });
       }
     }
@@ -202,15 +203,15 @@ const validateFileSize = (maxSize = 10 * 1024 * 1024) => {
 };
 
 // File type validation
-const validateFileType = (allowedTypes) => {
+const validateFileType = allowedTypes => {
   return (req, res, next) => {
     const files = req.files ? Object.values(req.files).flat() : [req.file];
-    
+
     for (const file of files) {
       if (file && !allowedTypes.includes(file.mimetype)) {
         return res.status(400).json({
           success: false,
-          message: `Tipo de archivo no permitido: ${file.mimetype}. Tipos permitidos: ${allowedTypes.join(', ')}`
+          message: `Tipo de archivo no permitido: ${file.mimetype}. Tipos permitidos: ${allowedTypes.join(', ')}`,
         });
       }
     }
@@ -224,7 +225,7 @@ const validateImage = validateFileType([
   'image/jpeg',
   'image/png',
   'image/gif',
-  'image/webp'
+  'image/webp',
 ]);
 
 // Video validation (only videos)
@@ -232,23 +233,23 @@ const validateVideo = validateFileType([
   'video/mp4',
   'video/avi',
   'video/mov',
-  'video/wmv'
+  'video/wmv',
 ]);
 
 // Document validation (only documents)
 const validateDocument = validateFileType([
   'application/pdf',
   'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
 // Clean up uploaded files on error
 const cleanupFiles = (req, res, next) => {
   // Store original send method
   const originalSend = res.send;
-  
+
   // Override send method to clean up files on error
-  res.send = function(data) {
+  res.send = function (data) {
     if (res.statusCode >= 400) {
       // Clean up uploaded files on error
       const files = req.files ? Object.values(req.files).flat() : [req.file];
@@ -262,24 +263,27 @@ const cleanupFiles = (req, res, next) => {
         }
       });
     }
-    
+
     // Call original send method
     originalSend.call(this, data);
   };
-  
+
   next();
 };
 
 // Generate file URL
 const generateFileUrl = (file, baseUrl = '') => {
   if (!file) return null;
-  
-  const relativePath = file.path.replace(path.join(__dirname, '../../uploads'), '');
+
+  const relativePath = file.path.replace(
+    path.join(__dirname, '../../uploads'),
+    ''
+  );
   return `${baseUrl}/uploads${relativePath}`;
 };
 
 // Delete file from filesystem
-const deleteFile = (filePath) => {
+const deleteFile = filePath => {
   try {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
@@ -293,23 +297,23 @@ const deleteFile = (filePath) => {
 };
 
 // Get file info
-const getFileInfo = (file) => {
+const getFileInfo = file => {
   if (!file) return null;
-  
+
   return {
     originalName: file.originalname,
     filename: file.filename,
     path: file.path,
     size: file.size,
     mimetype: file.mimetype,
-    fieldname: file.fieldname
+    fieldname: file.fieldname,
   };
 };
 
 // Get files info
-const getFilesInfo = (files) => {
+const getFilesInfo = files => {
   if (!files) return [];
-  
+
   const fileArray = Array.isArray(files) ? files : Object.values(files).flat();
   return fileArray.map(file => getFileInfo(file));
 };
@@ -339,5 +343,5 @@ module.exports = {
   generateFileUrl,
   deleteFile,
   getFileInfo,
-  getFilesInfo
+  getFilesInfo,
 };

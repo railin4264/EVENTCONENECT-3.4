@@ -1,23 +1,36 @@
 const express = require('express');
+
 const router = express.Router();
-const { protect, optionalAuth, ownerOrAdmin, adminOnly } = require('../middleware/auth');
-const { 
+const {
+  protect,
+  optionalAuth,
+  ownerOrAdmin,
+  adminOnly,
+} = require('../middleware/auth');
+const { cache } = require('../middleware/cache');
+const { uploadAvatar, uploadBanner } = require('../middleware/upload');
+const {
   validateUserUpdate,
   validateSearch,
-  validatePagination 
+  validatePagination,
 } = require('../middleware/validation');
-const { uploadAvatar, uploadBanner } = require('../middleware/upload');
-const { cache } = require('../middleware/cache');
 
 // Public routes (with optional auth)
 router.get('/', optionalAuth, validatePagination, cache(300), (req, res) => {
   // This would use a userController.getUsers method
   res.status(200).json({ message: 'Get users endpoint' });
 });
-router.get('/search', optionalAuth, validateSearch, validatePagination, cache(180), (req, res) => {
-  // This would use a userController.searchUsers method
-  res.status(200).json({ message: 'Search users endpoint' });
-});
+router.get(
+  '/search',
+  optionalAuth,
+  validateSearch,
+  validatePagination,
+  cache(180),
+  (req, res) => {
+    // This would use a userController.searchUsers method
+    res.status(200).json({ message: 'Search users endpoint' });
+  }
+);
 router.get('/:userId', optionalAuth, cache(300), (req, res) => {
   // This would use a userController.getUserById method
   res.status(200).json({ message: 'Get user by ID endpoint' });

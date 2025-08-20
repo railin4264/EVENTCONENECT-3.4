@@ -1,19 +1,20 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const redis = require('redis');
 const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const helmet = require('helmet');
+const path = require('path');
+
 const compression = require('compression');
-const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const express = require('express');
+const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
-const xss = require('xss-clean');
-const mongoSanitize = require('express-mongo-sanitize');
+const helmet = require('helmet');
 const hpp = require('hpp');
-const cookieParser = require('cookie-parser');
-const path = require('path');
+const mongoose = require('mongoose');
+const redis = require('redis');
+const socketIo = require('socket.io');
+const morgan = require('morgan');
+const xss = require('xss-clean');
 
 // Load environment variables
 require('dotenv').config();
@@ -22,12 +23,12 @@ require('dotenv').config();
 const { database, redis: redisConfig, socket } = require('./config');
 
 // Import middleware
-const { 
-  errorHandler, 
-  notFound, 
-  handleUnhandledRejection, 
+const {
+  errorHandler,
+  notFound,
+  handleUnhandledRejection,
   handleUncaughtException,
-  gracefulShutdown 
+  gracefulShutdown,
 } = require('./middleware/errorHandler');
 
 // Import routes
@@ -41,7 +42,7 @@ const {
   notificationRoutes,
   searchRoutes,
   userRoutes,
-  locationRoutes
+  locationRoutes,
 } = require('./routes');
 
 // Create Express app
@@ -51,9 +52,9 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+  },
 });
 
 // Initialize socket manager
@@ -67,16 +68,18 @@ redisConfig.connect();
 
 // Security middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    credentials: true,
+  })
+);
 
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX) || 100, // limit each IP to 100 requests per windowMs
-  message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.'
+  message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde.',
 });
 app.use('/api/', limiter);
 
@@ -84,7 +87,7 @@ app.use('/api/', limiter);
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
   delayAfter: 50, // allow 50 requests per 15 minutes, then...
-  delayMs: 500 // begin adding 500ms of delay per request above 50
+  delayMs: 500, // begin adding 500ms of delay per request above 50
 });
 app.use('/api/', speedLimiter);
 
@@ -118,8 +121,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     environment: process.env.NODE_ENV,
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    redis: redisConfig.isConnected() ? 'connected' : 'disconnected'
+    database:
+      mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    redis: redisConfig.isConnected() ? 'connected' : 'disconnected',
   });
 });
 
@@ -152,9 +156,9 @@ process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
 
 // Socket.IO connection handling
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   console.log('Usuario conectado:', socket.id);
-  
+
   socket.on('disconnect', () => {
     console.log('Usuario desconectado:', socket.id);
   });

@@ -1,6 +1,6 @@
-const { Review, User, Event } = require('../models');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { validateReviewCreation } = require('../middleware/validation');
+const { Review, User, Event } = require('../models');
 
 class ReviewController {
   // Create new review
@@ -17,11 +17,14 @@ class ReviewController {
       const existingReview = await Review.findOne({
         reviewer: userId,
         host: reviewData.host,
-        event: reviewData.event
+        event: reviewData.event,
       });
 
       if (existingReview) {
-        throw new AppError('Ya has revisado a este anfitrión para este evento', 400);
+        throw new AppError(
+          'Ya has revisado a este anfitrión para este evento',
+          400
+        );
       }
 
       // Verify that the event exists and the user attended it
@@ -32,12 +35,18 @@ class ReviewController {
 
       // Check if user attended the event
       if (!event.attendees.includes(userId)) {
-        throw new AppError('Solo puedes revisar eventos a los que hayas asistido', 400);
+        throw new AppError(
+          'Solo puedes revisar eventos a los que hayas asistido',
+          400
+        );
       }
 
       // Check if event has ended
       if (event.endDate > new Date()) {
-        throw new AppError('Solo puedes revisar eventos que hayan terminado', 400);
+        throw new AppError(
+          'Solo puedes revisar eventos que hayan terminado',
+          400
+        );
       }
 
       // Create review
@@ -52,7 +61,7 @@ class ReviewController {
       res.status(201).json({
         success: true,
         message: 'Review creada exitosamente. Está pendiente de moderación.',
-        data: { review }
+        data: { review },
       });
     } catch (error) {
       next(error);
@@ -71,7 +80,7 @@ class ReviewController {
         status,
         verified,
         sortBy = 'createdAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
       } = req.query;
 
       // Build query
@@ -111,7 +120,7 @@ class ReviewController {
 
       // Execute query with pagination
       const skip = (parseInt(page) - 1) * parseInt(limit);
-      
+
       const reviews = await Review.find(query)
         .populate('reviewer', 'username firstName lastName avatar')
         .populate('host', 'username firstName lastName avatar')
@@ -139,9 +148,9 @@ class ReviewController {
             total,
             hasNextPage,
             hasPrevPage,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -167,7 +176,7 @@ class ReviewController {
 
       res.status(200).json({
         success: true,
-        data: { review }
+        data: { review },
       });
     } catch (error) {
       next(error);
@@ -211,8 +220,9 @@ class ReviewController {
 
       res.status(200).json({
         success: true,
-        message: 'Review actualizada exitosamente. Está pendiente de moderación.',
-        data: { review: updatedReview }
+        message:
+          'Review actualizada exitosamente. Está pendiente de moderación.',
+        data: { review: updatedReview },
       });
     } catch (error) {
       next(error);
@@ -240,7 +250,7 @@ class ReviewController {
 
       res.status(200).json({
         success: true,
-        message: 'Review eliminada exitosamente'
+        message: 'Review eliminada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -300,7 +310,7 @@ class ReviewController {
       res.status(200).json({
         success: true,
         message: `Review ${action === 'approve' ? 'aprobada' : action === 'reject' ? 'rechazada' : 'marcada'} exitosamente`,
-        data: { review }
+        data: { review },
       });
     } catch (error) {
       next(error);
@@ -316,7 +326,10 @@ class ReviewController {
 
       // Check if user is admin
       if (req.user.role !== 'admin') {
-        throw new AppError('Solo los administradores pueden verificar reviews', 403);
+        throw new AppError(
+          'Solo los administradores pueden verificar reviews',
+          403
+        );
       }
 
       const review = await Review.findById(reviewId);
@@ -346,7 +359,7 @@ class ReviewController {
       res.status(200).json({
         success: true,
         message: 'Review verificada exitosamente',
-        data: { review }
+        data: { review },
       });
     } catch (error) {
       next(error);
@@ -375,35 +388,46 @@ class ReviewController {
         if (!review.helpful.includes(userId)) {
           review.helpful.push(userId);
           // Remove from not helpful if previously marked
-          review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId);
+          review.notHelpful = review.notHelpful.filter(
+            id => id.toString() !== userId
+          );
         }
       } else if (helpful === false) {
         // Mark as not helpful
         if (!review.notHelpful.includes(userId)) {
           review.notHelpful.push(userId);
           // Remove from helpful if previously marked
-          review.helpful = review.helpful.filter(id => id.toString() !== userId);
+          review.helpful = review.helpful.filter(
+            id => id.toString() !== userId
+          );
         }
       } else {
         // Remove both marks
         review.helpful = review.helpful.filter(id => id.toString() !== userId);
-        review.notHelpful = review.notHelpful.filter(id => id.toString() !== userId);
+        review.notHelpful = review.notHelpful.filter(
+          id => id.toString() !== userId
+        );
       }
 
       // Calculate helpful score
-      review.analytics.helpfulScore = review.helpful.length - review.notHelpful.length;
+      review.analytics.helpfulScore =
+        review.helpful.length - review.notHelpful.length;
 
       await review.save();
 
       res.status(200).json({
         success: true,
-        message: helpful === true ? 'Review marcada como útil' : 
-                helpful === false ? 'Review marcada como no útil' : 'Marcas removidas',
+        message:
+          helpful === true
+            ? 'Review marcada como útil'
+            : helpful === false
+              ? 'Review marcada como no útil'
+              : 'Marcas removidas',
         data: {
           helpfulCount: review.helpful.length,
           notHelpfulCount: review.notHelpful.length,
-          helpfulScore: review.analytics.helpfulScore
-        }
+          helpfulScore: review.analytics.helpfulScore,
+        },
       });
     } catch (error) {
       next(error);
@@ -423,10 +447,15 @@ class ReviewController {
       }
 
       // Check if user is the host or admin/moderator
-      if (review.host.toString() !== userId && 
-          req.user.role !== 'admin' && 
-          req.user.role !== 'moderator') {
-        throw new AppError('Solo el anfitrión, administradores y moderadores pueden responder', 403);
+      if (
+        review.host.toString() !== userId &&
+        req.user.role !== 'admin' &&
+        req.user.role !== 'moderator'
+      ) {
+        throw new AppError(
+          'Solo el anfitrión, administradores y moderadores pueden responder',
+          403
+        );
       }
 
       // Initialize replies array if it doesn't exist
@@ -437,14 +466,17 @@ class ReviewController {
       const reply = {
         author: userId,
         content,
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
       review.replies.push(reply);
       await review.save();
 
       // Populate reply author
-      await review.populate('replies.author', 'username firstName lastName avatar');
+      await review.populate(
+        'replies.author',
+        'username firstName lastName avatar'
+      );
 
       // Get the newly added reply
       const newReply = review.replies[review.replies.length - 1];
@@ -452,7 +484,7 @@ class ReviewController {
       res.status(201).json({
         success: true,
         message: 'Respuesta agregada exitosamente',
-        data: { reply: newReply }
+        data: { reply: newReply },
       });
     } catch (error) {
       next(error);
@@ -478,10 +510,15 @@ class ReviewController {
       }
 
       // Check ownership or admin/moderator
-      if (reply.author.toString() !== userId && 
-          req.user.role !== 'admin' && 
-          req.user.role !== 'moderator') {
-        throw new AppError('No tienes permisos para editar esta respuesta', 403);
+      if (
+        reply.author.toString() !== userId &&
+        req.user.role !== 'admin' &&
+        req.user.role !== 'moderator'
+      ) {
+        throw new AppError(
+          'No tienes permisos para editar esta respuesta',
+          403
+        );
       }
 
       // Update reply
@@ -492,12 +529,15 @@ class ReviewController {
       await review.save();
 
       // Populate reply author
-      await review.populate('replies.author', 'username firstName lastName avatar');
+      await review.populate(
+        'replies.author',
+        'username firstName lastName avatar'
+      );
 
       res.status(200).json({
         success: true,
         message: 'Respuesta actualizada exitosamente',
-        data: { reply }
+        data: { reply },
       });
     } catch (error) {
       next(error);
@@ -522,10 +562,15 @@ class ReviewController {
       }
 
       // Check ownership or admin/moderator
-      if (reply.author.toString() !== userId && 
-          req.user.role !== 'admin' && 
-          req.user.role !== 'moderator') {
-        throw new AppError('No tienes permisos para eliminar esta respuesta', 403);
+      if (
+        reply.author.toString() !== userId &&
+        req.user.role !== 'admin' &&
+        req.user.role !== 'moderator'
+      ) {
+        throw new AppError(
+          'No tienes permisos para eliminar esta respuesta',
+          403
+        );
       }
 
       // Remove reply
@@ -534,7 +579,7 @@ class ReviewController {
 
       res.status(200).json({
         success: true,
-        message: 'Respuesta eliminada exitosamente'
+        message: 'Respuesta eliminada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -575,16 +620,16 @@ class ReviewController {
             averageRating: { $avg: '$rating' },
             totalReviews: { $sum: 1 },
             ratingDistribution: {
-              $push: '$rating'
-            }
-          }
-        }
+              $push: '$rating',
+            },
+          },
+        },
       ]);
 
-      let stats = {
+      const stats = {
         averageRating: 0,
         totalReviews: 0,
-        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+        ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
       };
 
       if (hostStats.length > 0) {
@@ -611,9 +656,9 @@ class ReviewController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -655,9 +700,9 @@ class ReviewController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -699,9 +744,9 @@ class ReviewController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -715,7 +760,10 @@ class ReviewController {
 
       // Check if user is admin or moderator
       if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
-        throw new AppError('No tienes permisos para ver reviews pendientes', 403);
+        throw new AppError(
+          'No tienes permisos para ver reviews pendientes',
+          403
+        );
       }
 
       const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -742,9 +790,9 @@ class ReviewController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -774,7 +822,9 @@ class ReviewController {
       }
 
       // Check if user already flagged this review
-      const existingFlag = review.flags.find(flag => flag.user.toString() === userId);
+      const existingFlag = review.flags.find(
+        flag => flag.user.toString() === userId
+      );
       if (existingFlag) {
         throw new AppError('Ya has marcado esta review', 400);
       }
@@ -782,7 +832,7 @@ class ReviewController {
       review.flags.push({
         user: userId,
         reason: reason || 'Sin razón especificada',
-        flaggedAt: new Date()
+        flaggedAt: new Date(),
       });
 
       // If multiple flags, consider for moderation
@@ -790,7 +840,8 @@ class ReviewController {
         review.status = 'flagged';
         review.moderation.flaggedBy = 'system';
         review.moderation.flaggedAt = new Date();
-        review.moderation.notes = 'Review marcada automáticamente por múltiples reportes';
+        review.moderation.notes =
+          'Review marcada automáticamente por múltiples reportes';
       }
 
       await review.save();
@@ -800,8 +851,8 @@ class ReviewController {
         message: 'Review marcada exitosamente',
         data: {
           flagCount: review.flags.length,
-          status: review.status
-        }
+          status: review.status,
+        },
       });
     } catch (error) {
       next(error);
@@ -822,7 +873,7 @@ class ReviewController {
         dateTo,
         page = 1,
         limit = 20,
-        sortBy = 'relevance'
+        sortBy = 'relevance',
       } = req.body;
 
       // Build search query
@@ -890,9 +941,9 @@ class ReviewController {
             total,
             hasNextPage: page < totalPages,
             hasPrevPage: page > 1,
-            limit: parseInt(limit)
-          }
-        }
+            limit: parseInt(limit),
+          },
+        },
       });
     } catch (error) {
       next(error);

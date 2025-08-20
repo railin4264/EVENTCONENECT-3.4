@@ -1,11 +1,11 @@
-const database = require('./database');
-const redis = require('./redis');
-const jwt = require('./jwt');
 const cloudinary = require('./cloudinary');
+const database = require('./database');
+const googleMaps = require('./googleMaps');
+const jwt = require('./jwt');
+const pushNotifications = require('./pushNotifications');
+const redis = require('./redis');
 const socket = require('./socket');
 const validation = require('./validation');
-const googleMaps = require('./googleMaps');
-const pushNotifications = require('./pushNotifications');
 
 module.exports = {
   database,
@@ -15,5 +15,5 @@ module.exports = {
   socket,
   validation,
   googleMaps,
-  pushNotifications
+  pushNotifications,
 };
