@@ -576,6 +576,251 @@ class AuthController {
       next(error);
     }
   });
+
+  // ===== MFA (Multi-Factor Authentication) =====
+  
+  // Enable MFA for user
+  enableMFA = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { mfaType = 'totp' } = req.body;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      // Generate MFA secret
+      const mfaSecret = jwt.generateMFASecret();
+      
+      // Generate QR code for TOTP apps
+      const qrCode = jwt.generateMFAQRCode(user.email, mfaSecret, 'EventConnect');
+      
+      // Store MFA secret (encrypted)
+      user.mfaSecret = await bcrypt.hash(mfaSecret, 12);
+      user.mfaEnabled = true;
+      user.mfaType = mfaType;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'MFA habilitado exitosamente',
+        data: {
+          mfaSecret,
+          qrCode,
+          backupCodes: jwt.generateBackupCodes()
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Verify MFA token
+  verifyMFA = asyncHandler(async (req, res, next) => {
+    try {
+      const { userId, mfaToken, backupCode } = req.body;
+
+      const user = await User.findById(userId);
+      if (!user || !user.mfaEnabled) {
+        throw new AppError('MFA no habilitado', 400);
+      }
+
+      let isValid = false;
+
+      if (backupCode) {
+        // Verify backup code
+        isValid = await jwt.verifyBackupCode(userId, backupCode);
+      } else if (mfaToken) {
+        // Verify TOTP token
+        isValid = jwt.verifyTOTPToken(user.mfaSecret, mfaToken);
+      }
+
+      if (!isValid) {
+        throw new AppError('Código MFA inválido', 400);
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'MFA verificado exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Disable MFA
+  disableMFA = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { password } = req.body;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      // Verify password before disabling MFA
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if (!isPasswordValid) {
+        throw new AppError('Contraseña incorrecta', 400);
+      }
+
+      // Disable MFA
+      user.mfaEnabled = false;
+      user.mfaSecret = undefined;
+      user.mfaType = undefined;
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'MFA deshabilitado exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // ===== OAuth Integration =====
+  
+  // OAuth login
+  oauthLogin = asyncHandler(async (req, res, next) => {
+    try {
+      const { provider, accessToken, profile } = req.body;
+
+      let user = await User.findOne({ 
+        [`oauth.${provider}.id`]: profile.id 
+      });
+
+      if (!user) {
+        // Create new user from OAuth profile
+        user = new User({
+          email: profile.email,
+          username: profile.username || `user_${Date.now()}`,
+          firstName: profile.firstName || profile.name?.split(' ')[0],
+          lastName: profile.lastName || profile.name?.split(' ').slice(1).join(' '),
+          isVerified: true,
+          oauth: {
+            [provider]: {
+              id: profile.id,
+              accessToken,
+              refreshToken: profile.refreshToken,
+              expiresAt: profile.expiresAt
+            }
+          }
+        });
+        await user.save();
+      } else {
+        // Update existing user's OAuth info
+        user.oauth[provider] = {
+          id: profile.id,
+          accessToken,
+          refreshToken: profile.refreshToken,
+          expiresAt: profile.expiresAt
+        };
+        await user.save();
+      }
+
+      // Generate JWT tokens
+      const tokens = jwt.generateTokens({
+        userId: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Login OAuth exitoso',
+        data: {
+          user: {
+            id: user._id,
+            email: user.email,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName
+          },
+          tokens
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Link OAuth account
+  linkOAuthAccount = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { provider, accessToken, profile } = req.body;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      // Check if OAuth account is already linked to another user
+      const existingUser = await User.findOne({
+        [`oauth.${provider}.id`]: profile.id,
+        _id: { $ne: userId }
+      });
+
+      if (existingUser) {
+        throw new AppError('Esta cuenta OAuth ya está vinculada a otro usuario', 400);
+      }
+
+      // Link OAuth account
+      user.oauth = user.oauth || {};
+      user.oauth[provider] = {
+        id: profile.id,
+        accessToken,
+        refreshToken: profile.refreshToken,
+        expiresAt: profile.expiresAt
+      };
+
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Cuenta OAuth vinculada exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Unlink OAuth account
+  unlinkOAuthAccount = asyncHandler(async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { provider } = req.params;
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
+      }
+
+      if (!user.oauth?.[provider]) {
+        throw new AppError('Cuenta OAuth no vinculada', 400);
+      }
+
+      // Check if user has password (can't unlink if no other auth method)
+      if (!user.password && Object.keys(user.oauth || {}).length === 1) {
+        throw new AppError('No se puede desvincular la única cuenta de autenticación', 400);
+      }
+
+      // Unlink OAuth account
+      delete user.oauth[provider];
+      await user.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Cuenta OAuth desvinculada exitosamente'
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 }
 
 module.exports = new AuthController();

@@ -38,8 +38,8 @@ module.exports = {
     '^.+\\.js$': 'babel-jest'
   },
   
-  // Module name mapping
-  moduleNameMapping: {
+  // Module name mapping (corrected)
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1'
   },
   
@@ -78,24 +78,9 @@ module.exports = {
     'babel.config.js'
   ],
   
-  // Global setup and teardown
-  globalSetup: '<rootDir>/tests/global-setup.js',
-  globalTeardown: '<rootDir>/tests/global-teardown.js',
-  
   // Test reporters
   reporters: [
-    'default',
-    [
-      'jest-junit',
-      {
-        outputDirectory: 'coverage',
-        outputName: 'junit.xml',
-        classNameTemplate: '{classname}',
-        titleTemplate: '{title}',
-        ancestorSeparator: ' › ',
-        usePathForSuiteName: true
-      }
-    ]
+    'default'
   ],
   
   // Watch plugins
@@ -103,10 +88,6 @@ module.exports = {
     'jest-watch-typeahead/filename',
     'jest-watch-typeahead/testname'
   ],
-  
-  // Notify mode
-  notify: true,
-  notifyMode: 'change',
   
   // Cache directory
   cacheDirectory: '<rootDir>/.jest-cache',
@@ -118,10 +99,5 @@ module.exports = {
   forceExit: true,
   
   // Detect open handles
-  detectOpenHandles: true,
-  
-  // Handle unhandled promise rejections
-  setupFilesAfterEnv: [
-    '<rootDir>/tests/setup.js'
-  ]
+  detectOpenHandles: true
 };

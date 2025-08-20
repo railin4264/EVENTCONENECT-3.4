@@ -1,127 +1,104 @@
-const CACHE_NAME = 'eventconnect-v1.0.0';
-const STATIC_CACHE = 'static-v1.0.0';
-const DYNAMIC_CACHE = 'dynamic-v1.0.0';
-const API_CACHE = 'api-v1.0.0';
+// ===== SERVICE WORKER - EventConnect PWA =====
+// Version: 1.0.0
+// Cache Strategy: Network First with Cache Fallback
 
-// Archivos estáticos para cache
-const STATIC_FILES = [
+const CACHE_NAME = 'eventconnect-v1.0.0';
+const STATIC_CACHE = 'eventconnect-static-v1.0.0';
+const DYNAMIC_CACHE = 'eventconnect-dynamic-v1.0.0';
+
+// URLs to cache on install
+const STATIC_URLS = [
   '/',
   '/offline',
   '/manifest.json',
   '/favicon.ico',
-  '/_next/static/chunks/main.js',
-  '/_next/static/chunks/webpack.js',
-  '/_next/static/chunks/react-refresh.js',
-  '/_next/static/css/app.css',
-  '/images/logo.png',
-  '/images/icon-192.png',
-  '/images/icon-512.png',
-  '/images/hero-bg.jpg',
-  '/images/event-placeholder.jpg',
-  '/images/tribe-placeholder.jpg',
-  '/images/user-avatar.jpg'
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png'
 ];
 
-// Rutas de API para cache
-const API_ROUTES = [
-  '/api/v1/events',
-  '/api/v1/tribes',
-  '/api/v1/posts',
-  '/api/v1/users',
-  '/api/v1/search'
+// API endpoints to cache
+const API_CACHE_URLS = [
+  '/api/events',
+  '/api/events/popular',
+  '/api/events/trending',
+  '/api/tribes',
+  '/api/tribes/popular'
 ];
 
-// Estrategias de cache
-const CACHE_STRATEGIES = {
-  STATIC_FIRST: 'cache-first',
-  NETWORK_FIRST: 'network-first',
-  STALE_WHILE_REVALIDATE: 'stale-while-revalidate',
-  NETWORK_ONLY: 'network-only',
-  CACHE_ONLY: 'cache-only'
-};
-
-// Instalación del Service Worker
+// Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('🚀 Service Worker instalando...');
+  console.log('🔄 Service Worker installing...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('📦 Cacheando archivos estáticos...');
-        return cache.addAll(STATIC_FILES);
+        console.log('📦 Caching static assets');
+        return cache.addAll(STATIC_URLS);
       })
       .then(() => {
-        console.log('✅ Service Worker instalado correctamente');
+        console.log('✅ Static assets cached successfully');
         return self.skipWaiting();
       })
       .catch((error) => {
-        console.error('❌ Error instalando Service Worker:', error);
+        console.error('❌ Error caching static assets:', error);
       })
   );
 });
 
-// Activación del Service Worker
+// Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('🔄 Service Worker activando...');
+  console.log('🚀 Service Worker activating...');
   
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
-            if (cacheName !== STATIC_CACHE && 
-                cacheName !== DYNAMIC_CACHE && 
-                cacheName !== API_CACHE) {
-              console.log('🗑️ Eliminando cache obsoleto:', cacheName);
+            if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
+              console.log('🗑️ Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log('✅ Service Worker activado correctamente');
+        console.log('✅ Old caches cleaned up');
         return self.clients.claim();
-      })
-      .catch((error) => {
-        console.error('❌ Error activando Service Worker:', error);
       })
   );
 });
 
-// Interceptar requests
+// Fetch event - handle requests
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
-  
-  // Ignorar requests no-GET
+
+  // Skip non-GET requests
   if (request.method !== 'GET') {
     return;
   }
-  
-  // Estrategia para archivos estáticos
-  if (isStaticFile(url.pathname)) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE));
-    return;
+
+  // Handle different types of requests
+  if (url.pathname === '/') {
+    // Home page - cache first
+    event.respondWith(cacheFirst(request));
+  } else if (url.pathname.startsWith('/api/')) {
+    // API requests - network first with cache fallback
+    event.respondWith(networkFirst(request));
+  } else if (url.pathname.startsWith('/_next/')) {
+    // Next.js assets - cache first
+    event.respondWith(cacheFirst(request));
+  } else if (url.pathname.startsWith('/icons/') || url.pathname.startsWith('/images/')) {
+    // Static assets - cache first
+    event.respondWith(cacheFirst(request));
+  } else {
+    // Other pages - network first
+    event.respondWith(networkFirst(request));
   }
-  
-  // Estrategia para APIs
-  if (isApiRequest(url.pathname)) {
-    event.respondWith(networkFirst(request, API_CACHE));
-    return;
-  }
-  
-  // Estrategia para páginas HTML
-  if (request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(networkFirst(request, DYNAMIC_CACHE));
-    return;
-  }
-  
-  // Estrategia por defecto
-  event.respondWith(networkFirst(request, DYNAMIC_CACHE));
 });
 
-// Estrategia Cache First
-async function cacheFirst(request, cacheName) {
+// Cache First Strategy
+async function cacheFirst(request) {
   try {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
@@ -130,420 +107,156 @@ async function cacheFirst(request, cacheName) {
     
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
-      const cache = await caches.open(cacheName);
+      const cache = await caches.open(DYNAMIC_CACHE);
       cache.put(request, networkResponse.clone());
     }
     
     return networkResponse;
   } catch (error) {
-    console.error('Error en cache first:', error);
-    return getOfflineResponse(request);
+    console.error('Cache first error:', error);
+    return new Response('Network error', { status: 500 });
   }
 }
 
-// Estrategia Network First
-async function networkFirst(request, cacheName) {
+// Network First Strategy
+async function networkFirst(request) {
   try {
     const networkResponse = await fetch(request);
     
     if (networkResponse.ok) {
-      const cache = await caches.open(cacheName);
+      // Cache successful responses
+      const cache = await caches.open(DYNAMIC_CACHE);
       cache.put(request, networkResponse.clone());
-    }
-    
-    return networkResponse;
-  } catch (error) {
-    console.log('🌐 Red no disponible, usando cache...');
-    
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-    
-    return getOfflineResponse(request);
-  }
-}
-
-// Estrategia Stale While Revalidate
-async function staleWhileRevalidate(request, cacheName) {
-  try {
-    const cache = await caches.open(cacheName);
-    const cachedResponse = await cache.match(request);
-    
-    // Revalidar en background
-    const fetchPromise = fetch(request).then((networkResponse) => {
-      if (networkResponse.ok) {
-        cache.put(request, networkResponse.clone());
-      }
       return networkResponse;
-    });
-    
-    return cachedResponse || fetchPromise;
-  } catch (error) {
-    console.error('Error en stale while revalidate:', error);
-    return getOfflineResponse(request);
-  }
-}
-
-// Obtener respuesta offline
-async function getOfflineResponse(request) {
-  const url = new URL(request.url);
-  
-  // Si es una página HTML, mostrar página offline
-  if (request.headers.get('accept')?.includes('text/html')) {
-    const offlineResponse = await caches.match('/offline');
-    if (offlineResponse) {
-      return offlineResponse;
     }
     
-    // Crear respuesta offline básica
-    const offlineHtml = `
-      <!DOCTYPE html>
-      <html lang="es">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>EventConnect - Sin Conexión</title>
-          <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              display: flex; 
-              align-items: center; 
-              justify-content: center; 
-              min-height: 100vh; 
-              margin: 0; 
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-            }
-            .offline-container { 
-              text-align: center; 
-              padding: 2rem; 
-              background: rgba(255,255,255,0.1); 
-              border-radius: 1rem; 
-              backdrop-filter: blur(10px);
-            }
-            .offline-icon { 
-              font-size: 4rem; 
-              margin-bottom: 1rem; 
-            }
-            h1 { 
-              margin-bottom: 1rem; 
-              font-size: 2rem; 
-            }
-            p { 
-              margin-bottom: 1rem; 
-              opacity: 0.9; 
-            }
-            .retry-btn { 
-              background: rgba(255,255,255,0.2); 
-              border: 1px solid rgba(255,255,255,0.3); 
-              color: white; 
-              padding: 0.75rem 1.5rem; 
-              border-radius: 0.5rem; 
-              cursor: pointer; 
-              transition: all 0.3s; 
-            }
-            .retry-btn:hover { 
-              background: rgba(255,255,255,0.3); 
-            }
-          </style>
-        </head>
-        <body>
-          <div class="offline-container">
-            <div class="offline-icon">📡</div>
-            <h1>Sin Conexión</h1>
-            <p>No tienes conexión a internet en este momento.</p>
-            <p>Algunas funciones pueden no estar disponibles.</p>
-            <button class="retry-btn" onclick="window.location.reload()">
-              Reintentar
-            </button>
-          </div>
-        </body>
-      </html>
-    `;
-    
-    return new Response(offlineHtml, {
-      headers: { 'Content-Type': 'text/html' }
-    });
-  }
-  
-  // Para otros tipos de contenido, devolver respuesta vacía
-  return new Response('', { status: 503, statusText: 'Service Unavailable' });
-}
-
-// Función para verificar si es archivo estático
-function isStaticFile(pathname) {
-  const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf'];
-  return staticExtensions.some(ext => pathname.endsWith(ext)) || 
-         pathname.startsWith('/_next/static/') ||
-         pathname === '/manifest.json';
-}
-
-// Función para verificar si es request de API
-function isApiRequest(pathname) {
-  return pathname.startsWith('/api/') || 
-         pathname.includes('/events') ||
-         pathname.includes('/tribes') ||
-         pathname.includes('/posts') ||
-         pathname.includes('/users') ||
-         pathname.includes('/search');
-}
-
-// Función para limpiar cache antiguo
-async function cleanOldCaches() {
-  try {
-    const cacheNames = await caches.keys();
-    const oldCaches = cacheNames.filter(name => 
-      name !== STATIC_CACHE && 
-      name !== DYNAMIC_CACHE && 
-      name !== API_CACHE
-    );
-    
-    await Promise.all(
-      oldCaches.map(name => caches.delete(name))
-    );
-    
-    console.log('🧹 Cache antiguo limpiado');
-  } catch (error) {
-    console.error('Error limpiando cache:', error);
-  }
-}
-
-// Función para precargar recursos importantes
-async function preloadImportantResources() {
-  try {
-    const cache = await caches.open(STATIC_CACHE);
-    const resources = [
-      '/api/v1/events?limit=10',
-      '/api/v1/tribes?limit=10',
-      '/api/v1/posts?limit=10'
-    ];
-    
-    await Promise.all(
-      resources.map(url => 
-        fetch(url).then(response => {
-          if (response.ok) {
-            return cache.put(url, response);
-          }
-        }).catch(() => {})
-      )
-    );
-    
-    console.log('📥 Recursos importantes precargados');
-  } catch (error) {
-    console.error('Error precargando recursos:', error);
-  }
-}
-
-// Función para sincronizar datos offline
-async function syncOfflineData() {
-  try {
-    // Obtener datos offline del IndexedDB
-    const offlineData = await getOfflineData();
-    
-    if (offlineData.length > 0) {
-      console.log(`🔄 Sincronizando ${offlineData.length} elementos offline...`);
-      
-      for (const data of offlineData) {
-        try {
-          await fetch(data.url, {
-            method: data.method,
-            headers: data.headers,
-            body: data.body
-          });
-          
-          // Remover de la cola offline si fue exitoso
-          await removeOfflineData(data.id);
-        } catch (error) {
-          console.error('Error sincronizando dato offline:', error);
-        }
-      }
+    // Fallback to cache
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
     }
+    
+    return networkResponse;
   } catch (error) {
-    console.error('Error en sincronización offline:', error);
+    console.error('Network first error:', error);
+    
+    // Try cache as fallback
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Return offline page for navigation requests
+    if (request.mode === 'navigate') {
+      return caches.match('/offline');
+    }
+    
+    return new Response('Network error', { status: 500 });
   }
 }
 
-// Función para obtener datos offline
-async function getOfflineData() {
-  // Implementar lógica para obtener datos del IndexedDB
-  return [];
-}
-
-// Función para remover datos offline
-async function removeOfflineData(id) {
-  // Implementar lógica para remover datos del IndexedDB
-}
-
-// Evento de sincronización en background
+// Background Sync for offline actions
 self.addEventListener('sync', (event) => {
-  console.log('🔄 Sincronización en background:', event.tag);
+  console.log('🔄 Background sync:', event.tag);
   
   if (event.tag === 'background-sync') {
-    event.waitUntil(syncOfflineData());
+    event.waitUntil(doBackgroundSync());
   }
 });
 
-// Evento de push notifications
-self.addEventListener('push', (event) => {
-  console.log('📱 Push notification recibida:', event);
-  
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      const options = {
-        body: data.body || 'Nueva notificación de EventConnect',
-        icon: '/images/icon-192.png',
-        badge: '/images/icon-192.png',
-        image: data.image,
-        tag: data.tag || 'eventconnect-notification',
-        data: data.data || {},
-        actions: data.actions || [
-          {
-            action: 'view',
-            title: 'Ver',
-            icon: '/images/icon-192.png'
-          },
-          {
-            action: 'dismiss',
-            title: 'Descartar',
-            icon: '/images/icon-192.png'
-          }
-        ],
-        requireInteraction: data.requireInteraction || false,
-        silent: data.silent || false,
-        vibrate: data.vibrate || [200, 100, 200],
-        sound: data.sound || null
-      };
-      
-      event.waitUntil(
-        self.registration.showNotification(data.title || 'EventConnect', options)
-      );
-    } catch (error) {
-      console.error('Error procesando push notification:', error);
-      
-      // Notificación de fallback
-      const options = {
-        body: 'Nueva notificación de EventConnect',
-        icon: '/images/icon-192.png',
-        badge: '/images/icon-192.png'
-      };
-      
-      event.waitUntil(
-        self.registration.showNotification('EventConnect', options)
-      );
+// Handle background sync
+async function doBackgroundSync() {
+  try {
+    // Get pending actions from IndexedDB
+    const pendingActions = await getPendingActions();
+    
+    for (const action of pendingActions) {
+      try {
+        await processPendingAction(action);
+        await removePendingAction(action.id);
+      } catch (error) {
+        console.error('Error processing pending action:', error);
+      }
     }
+  } catch (error) {
+    console.error('Background sync error:', error);
   }
+}
+
+// Push notifications
+self.addEventListener('push', (event) => {
+  console.log('📱 Push notification received');
+  
+  const options = {
+    body: event.data ? event.data.text() : 'Nueva notificación de EventConnect',
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-72x72.png',
+    vibrate: [100, 50, 100],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1
+    },
+    actions: [
+      {
+        action: 'explore',
+        title: 'Ver evento',
+        icon: '/icons/icon-72x72.png'
+      },
+      {
+        action: 'close',
+        title: 'Cerrar',
+        icon: '/icons/icon-72x72.png'
+      }
+    ]
+  };
+  
+  event.waitUntil(
+    self.registration.showNotification('EventConnect', options)
+  );
 });
 
-// Evento de click en notificación
+// Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
-  console.log('👆 Notificación clickeada:', event);
+  console.log('👆 Notification clicked:', event.action);
   
   event.notification.close();
   
-  if (event.action === 'view' || !event.action) {
-    const urlToOpen = event.notification.data?.url || '/';
-    
+  if (event.action === 'explore') {
+    // Open the app
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true })
-        .then((clientList) => {
-          // Buscar ventana existente
-          for (const client of clientList) {
-            if (client.url === urlToOpen && 'focus' in client) {
-              return client.focus();
-            }
-          }
-          
-          // Abrir nueva ventana si no existe
-          if (clients.openWindow) {
-            return clients.openWindow(urlToOpen);
-          }
-        })
+      clients.openWindow('/')
     );
-  } else if (event.action === 'dismiss') {
-    // Solo cerrar la notificación
-    event.notification.close();
   }
 });
 
-// Evento de cierre de notificación
-self.addEventListener('notificationclose', (event) => {
-  console.log('❌ Notificación cerrada:', event);
-  
-  // Enviar analytics si está disponible
-  if (event.notification.data?.analytics) {
-    // Implementar tracking de analytics
-    console.log('📊 Analytics: Notificación cerrada');
-  }
-});
-
-// Función para actualizar cache
-async function updateCache() {
-  try {
-    console.log('🔄 Actualizando cache...');
-    
-    // Limpiar cache antiguo
-    await cleanOldCaches();
-    
-    // Precargar recursos importantes
-    await preloadImportantResources();
-    
-    console.log('✅ Cache actualizado correctamente');
-  } catch (error) {
-    console.error('❌ Error actualizando cache:', error);
-  }
+// Helper functions for background sync
+async function getPendingActions() {
+  // This would typically use IndexedDB
+  // For now, return empty array
+  return [];
 }
 
-// Función para obtener estadísticas de cache
-async function getCacheStats() {
-  try {
-    const cacheNames = await caches.keys();
-    const stats = {};
-    
-    for (const cacheName of cacheNames) {
-      const cache = await caches.open(cacheName);
-      const keys = await cache.keys();
-      stats[cacheName] = keys.length;
-    }
-    
-    return stats;
-  } catch (error) {
-    console.error('Error obteniendo estadísticas de cache:', error);
-    return {};
-  }
+async function processPendingAction(action) {
+  // Process pending action (like creating events, joining tribes, etc.)
+  console.log('Processing pending action:', action);
 }
 
-// Mensajes del Service Worker
+async function removePendingAction(actionId) {
+  // Remove processed action from IndexedDB
+  console.log('Removing pending action:', actionId);
+}
+
+// Message handling
 self.addEventListener('message', (event) => {
-  console.log('📨 Mensaje recibido en Service Worker:', event.data);
+  console.log('📨 Message received:', event.data);
   
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  } else if (event.data && event.data.type === 'GET_CACHE_STATS') {
-    event.waitUntil(
-      getCacheStats().then(stats => {
-        event.ports[0].postMessage({ type: 'CACHE_STATS', stats });
-      })
-    );
-  } else if (event.data && event.data.type === 'UPDATE_CACHE') {
-    event.waitUntil(updateCache());
-  } else if (event.data && event.data.type === 'CLEAR_CACHE') {
-    event.waitUntil(
-      caches.keys().then(names => 
-        Promise.all(names.map(name => caches.delete(name)))
-      )
-    );
+  }
+  
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: '1.0.0' });
   }
 });
 
-// Función para registrar el Service Worker
-if (typeof self !== 'undefined') {
-  console.log('🚀 Service Worker EventConnect cargado');
-  
-  // Limpiar cache antiguo al iniciar
-  cleanOldCaches();
-  
-  // Precargar recursos importantes
-  preloadImportantResources();
-}
+console.log('🚀 EventConnect Service Worker loaded successfully!');

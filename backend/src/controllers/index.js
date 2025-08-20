@@ -15,7 +15,7 @@ module.exports = {
   postController,
   reviewController,
   chatController,
-  notificationController: new notificationController(),
+  notificationController,
   searchController,
   userController,
 };

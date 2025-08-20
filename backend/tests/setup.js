@@ -3,30 +3,6 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 
 let mongoServer;
 
-beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  const mongoUri = mongoServer.getUri();
-  await mongoose.connect(mongoUri);
-});
-
-afterEach(async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    const collection = collections[key];
-    await collection.deleteMany();
-  }
-});
-
-afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
-});
-
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
-
-let mongoServer;
-
 // Setup test environment
 beforeAll(async () => {
   // Set test environment variables
@@ -118,71 +94,74 @@ global.testUtils = {
         country: 'USA',
         venue: 'Test Venue'
       },
-      capacity: 50,
-      pricing: { type: 'free', price: 0, currency: 'USD' },
-      isPrivate: false,
-      host: hostId,
       ...eventData
     };
+
+    if (hostId) {
+      defaultEvent.host = hostId;
+    }
 
     const event = new Event(defaultEvent);
     return await event.save();
   },
 
-  // Generate JWT token for testing
-  generateTestToken: (userId, isAdmin = false) => {
-    const jwt = require('jsonwebtoken');
-    const payload = {
-      userId,
-      isAdmin,
-      iat: Math.floor(Date.now() / 1000),
-      exp: Math.floor(Date.now() / 1000) + (15 * 60) // 15 minutes
-    };
+  // Create test tribe
+  createTestTribe: async (tribeData = {}, creatorId) => {
+    const { Tribe } = require('../src/models');
     
-    return jwt.sign(payload, process.env.JWT_SECRET);
-  },
-
-  // Generate expired JWT token for testing
-  generateExpiredToken: (userId) => {
-    const jwt = require('jsonwebtoken');
-    const payload = {
-      userId,
-      iat: Math.floor(Date.now() / 1000) - (20 * 60), // 20 minutes ago
-      exp: Math.floor(Date.now() / 1000) - (5 * 60) // 5 minutes ago
+    const defaultTribe = {
+      name: 'Test Tribe',
+      description: 'A test tribe for testing purposes',
+      category: 'technology',
+      tags: ['test', 'technology'],
+      isPublic: true,
+      ...tribeData
     };
-    
-    return jwt.sign(payload, process.env.JWT_SECRET);
-  },
 
-  // Wait for async operations
-  wait: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
-
-  // Generate random MongoDB ObjectId
-  generateObjectId: () => new mongoose.Types.ObjectId(),
-
-  // Generate random string
-  generateRandomString: (length = 10) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    if (creatorId) {
+      defaultTribe.creator = creatorId;
     }
-    return result;
+
+    const tribe = new Tribe(defaultTribe);
+    return await tribe.save();
   },
 
-  // Generate random email
-  generateRandomEmail: () => {
-    const username = global.testUtils.generateRandomString(8);
-    const domain = global.testUtils.generateRandomString(6);
-    return `${username}@${domain}.com`;
+  // Generate JWT token for testing
+  generateTestToken: (userId) => {
+    const jwt = require('jsonwebtoken');
+    return jwt.sign(
+      { userId, type: 'access' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
   },
 
-  // Generate random coordinates
-  generateRandomCoordinates: () => {
-    const lat = (Math.random() - 0.5) * 180; // -90 to 90
-    const lng = (Math.random() - 0.5) * 360; // -180 to 180
-    return [lng, lat];
-  }
+  // Mock request object
+  mockRequest: (data = {}) => ({
+    body: data.body || {},
+    query: data.query || {},
+    params: data.params || {},
+    headers: data.headers || {},
+    user: data.user || null,
+    ip: data.ip || '127.0.0.1',
+    method: data.method || 'GET',
+    url: data.url || '/',
+    ...data
+  }),
+
+  // Mock response object
+  mockResponse: () => {
+    const res = {};
+    res.status = jest.fn().mockReturnValue(res);
+    res.json = jest.fn().mockReturnValue(res);
+    res.send = jest.fn().mockReturnValue(res);
+    res.setHeader = jest.fn().mockReturnValue(res);
+    res.end = jest.fn().mockReturnValue(res);
+    return res;
+  },
+
+  // Mock next function
+  mockNext: jest.fn()
 };
 
 // Mock console methods during tests to reduce noise

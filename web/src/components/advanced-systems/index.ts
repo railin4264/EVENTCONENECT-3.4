@@ -21,13 +21,28 @@ export type { AccessibilitySettings, AccessibilityFeature } from '../accessibili
 export { default as PerformanceOptimizationSystem } from '../performance/PerformanceOptimizationSystem';
 export type { PerformanceMetrics, OptimizationFeature } from '../performance/PerformanceOptimizationSystem';
 
+// 🔐 Advanced Authentication System (MFA + OAuth)
+export { default as AdvancedAuthSystem } from '../auth/AdvancedAuthSystem';
+export type { MFASettings, OAuthProvider, AuthMethod } from '../auth/AdvancedAuthSystem';
+
+// 📱 PWA Management System
+export { default as PWAManager } from '../pwa/PWAManager';
+export type { PWAStatus, ServiceWorkerState, PWAFeatures } from '../pwa/PWAManager';
+
+// 🗺️ Intelligent Location System
+export { default as IntelligentLocationSystem } from '../location/IntelligentLocationSystem';
+export type { LocationData, Geofence, LocationEvent, LocationAnalytics } from '../location/IntelligentLocationSystem';
+
 // ===== COMPLETE SYSTEM EXPORTS =====
 export const AdvancedSystems = {
   AchievementSystem,
   AIRecommendationSystem,
   InternationalizationSystem,
   AccessibilitySystem,
-  PerformanceOptimizationSystem
+  PerformanceOptimizationSystem,
+  AdvancedAuthSystem,
+  PWAManager,
+  IntelligentLocationSystem
 };
 
 export default AdvancedSystems;

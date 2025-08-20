@@ -300,7 +300,7 @@ const securityLogger = (req, res, next) => {
 };
 
 // Error logging middleware
-const errorLogger = (error, req, res, next) => {
+const errorHandler = (error, req, res, next) => {
   const errorLogEntry = `${new Date().toISOString()} - ERROR: ${error.message} - ${req.method} ${req.url} - ${req.ip} - Stack: ${error.stack}\n`;
   fs.appendFileSync(path.join(logsDir, 'errors.log'), errorLogEntry);
   
@@ -367,7 +367,7 @@ module.exports = {
   responseLogger,
   performanceMonitor,
   securityLogger,
-  errorLogger: errorLogger,
+  errorHandler,
   
   // Utility functions
   rotateLogs,
