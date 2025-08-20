@@ -2,6 +2,31 @@
 
 **EventConnect** es una plataforma integral para descubrir eventos y conectar con tribus en tiempo real. Facilita la organización de eventos, la creación de comunidades y la interacción social basada en intereses y ubicación.
 
+## 🆕 **Versión 2.0.0 - Mejoras Implementadas**
+
+✅ **Backend**: Seguridad mejorada, Docker, PM2, testing avanzado, CI/CD  
+✅ **Frontend Web**: Next.js 14, PWA optimizada, Storybook, Playwright E2E  
+✅ **Mobile**: React Native 0.73, Expo 50, EAS Build, testing nativo  
+✅ **DevOps**: Docker Compose, GitHub Actions, Makefile, scripts automatizados  
+✅ **Calidad**: ESLint, Prettier, Husky, Commitizen, cobertura de tests  
+
+## 🚀 **Inicio Rápido**
+
+```bash
+# Clona el repositorio
+git clone https://github.com/tu-usuario/eventconnect.git
+cd EventConnect
+
+# Ejecuta el script de configuración automática
+./setup.sh
+
+# O configuración manual
+make setup
+
+# Inicia todos los servicios
+make dev
+```
+
 ## 🚀 Características Principales
 
 ### Core Features

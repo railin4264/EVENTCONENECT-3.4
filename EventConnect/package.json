@@ -1,96 +1,115 @@
 {
   "name": "eventconnect",
-  "version": "1.0.0",
-  "description": "La Revolución Universal de Conexiones - Plataforma universal de eventos que conecta personas con intereses similares",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "EventConnect - Plataforma integral para descubrir eventos y conectar con tribus",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "web",
+    "mobile"
+  ],
   "scripts": {
-    "dev": "concurrently \"npm run backend:dev\" \"npm run web:dev\" \"npm run mobile:dev\"",
-    "build": "npm run backend:build && npm run web:build && npm run mobile:build",
-    "test": "npm run backend:test && npm run web:test && npm run mobile:test",
-    "lint": "npm run backend:lint && npm run web:lint && npm run mobile:lint",
-    
-    "backend:dev": "cd backend && npm run dev",
-    "backend:build": "cd backend && npm run build",
-    "backend:test": "cd backend && npm run test",
-    "backend:lint": "cd backend && npm run lint",
-    
-    "web:dev": "cd web && npm run dev",
-    "web:build": "cd web && npm run build",
-    "web:test": "cd web && npm run test",
-    "web:lint": "cd web && npm run lint",
-    
-    "mobile:dev": "cd mobile && npm run start",
-    "mobile:ios": "cd mobile && npm run ios",
-    "mobile:android": "cd mobile && npm run android",
-    "mobile:build": "cd mobile && npm run build",
-    "mobile:test": "cd mobile && npm run test",
-    "mobile:lint": "cd mobile && npm run lint",
-    
-    "ai:dev": "cd ai && npm run dev",
-    "ai:build": "cd ai && npm run build",
-    "ai:test": "cd ai && npm run test",
-    
-    "blockchain:dev": "cd blockchain && npm run dev",
-    "blockchain:build": "cd blockchain && npm run build",
-    "blockchain:test": "cd blockchain && npm run test",
-    
-    "db:migrate": "cd backend && npm run db:migrate",
-    "db:seed": "cd backend && npm run db:seed",
-    "db:reset": "cd backend && npm run db:reset",
-    
-    "install:all": "npm install && cd backend && npm install && cd ../web && npm install && cd ../mobile && npm install && cd ../ai && npm install && cd ../blockchain && npm install",
-    
-    "setup": "npm run install:all && npm run db:migrate && npm run db:seed",
-    
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:mobile\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:web": "cd web && npm run dev",
+    "dev:mobile": "cd mobile && npm start",
+    "build": "npm run build:backend && npm run build:web",
+    "build:backend": "cd backend && npm run build",
+    "build:web": "cd web && npm run build",
+    "test": "npm run test:backend && npm run test:web && npm run test:mobile",
+    "test:backend": "cd backend && npm test",
+    "test:web": "cd web && npm test",
+    "test:mobile": "cd mobile && npm test",
+    "test:watch": "concurrently \"npm run test:watch:backend\" \"npm run test:watch:web\" \"npm run test:watch:mobile\"",
+    "test:watch:backend": "cd backend && npm run test:watch",
+    "test:watch:web": "cd web && npm run test:watch",
+    "test:watch:mobile": "cd mobile && npm run test:watch",
+    "test:coverage": "npm run test:coverage:backend && npm run test:coverage:web && npm run test:coverage:mobile",
+    "test:coverage:backend": "cd backend && npm run test:coverage",
+    "test:coverage:web": "cd web && npm run test:coverage",
+    "test:coverage:mobile": "cd mobile && npm run test:coverage",
+    "lint": "npm run lint:backend && npm run lint:web && npm run lint:mobile",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:web": "cd web && npm run lint",
+    "lint:mobile": "cd mobile && npm run lint",
+    "lint:fix": "npm run lint:fix:backend && npm run lint:fix:web && npm run lint:fix:mobile",
+    "lint:fix:backend": "cd backend && npm run lint:fix",
+    "lint:fix:web": "cd web && npm run lint:fix",
+    "lint:fix:mobile": "cd mobile && npm run lint:fix",
+    "format": "npm run format:backend && npm run format:web && npm run format:mobile",
+    "format:backend": "cd backend && npm run format",
+    "format:web": "cd web && npm run format",
+    "format:mobile": "cd mobile && npm run format",
+    "type-check": "npm run type-check:web && npm run type-check:mobile",
+    "type-check:web": "cd web && npm run type-check",
+    "type-check:mobile": "cd mobile && npm run type-check",
+    "security:audit": "npm run security:audit:backend && npm run security:audit:web && npm run security:audit:mobile",
+    "security:audit:backend": "cd backend && npm run security:audit",
+    "security:audit:web": "cd web && npm run security:audit",
+    "security:audit:mobile": "cd mobile && npm run security:audit",
+    "security:fix": "npm run security:fix:backend && npm run security:fix:web && npm run security:fix:mobile",
+    "security:fix:backend": "cd backend && npm run security:fix",
+    "security:fix:web": "cd web && npm run security:fix",
+    "security:fix:mobile": "cd mobile && npm run security:fix",
+    "install:all": "npm install && npm run install:backend && npm run install:web && npm run install:mobile",
+    "install:backend": "cd backend && npm install",
+    "install:web": "cd web && npm install",
+    "install:mobile": "cd mobile && npm install",
+    "clean": "npm run clean:backend && npm run clean:web && npm run clean:mobile && npm run clean:root",
+    "clean:backend": "cd backend && rm -rf node_modules dist coverage logs",
+    "clean:web": "cd web && rm -rf node_modules .next out coverage",
+    "clean:mobile": "cd mobile && rm -rf node_modules .expo coverage",
+    "clean:root": "rm -rf node_modules",
+    "docker:build": "npm run docker:build:backend && npm run docker:build:web",
+    "docker:build:backend": "cd backend && npm run docker:build",
+    "docker:build:web": "cd web && npm run docker:build",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:build": "docker-compose build",
-    
-    "deploy:staging": "npm run build && npm run docker:build && docker-compose -f docker-compose.staging.yml up -d",
-    "deploy:production": "npm run build && npm run docker:build && docker-compose -f docker-compose.production.yml up -d"
+    "docker:logs": "docker-compose logs -f",
+    "prepare": "husky install",
+    "commit": "cz",
+    "release": "semantic-release"
   },
-  "keywords": [
-    "events",
-    "social",
-    "ai",
-    "blockchain",
-    "react-native",
-    "react",
-    "nodejs",
-    "typescript",
-    "universal",
-    "tribes",
-    "dna",
-    "pulse",
-    "metaverse"
-  ],
-  "author": "EventConnect Team",
-  "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "cross-env": "^7.0.3",
     "husky": "^8.0.3",
-    "lint-staged": "^15.0.2",
-    "prettier": "^3.0.3",
-    "typescript": "^5.2.2"
+    "lint-staged": "^15.2.0",
+    "commitizen": "^4.3.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "semantic-release": "^22.0.7",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/npm": "^10.0.6"
   },
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
+  "keywords": [
+    "eventconnect",
+    "events",
+    "social",
+    "community",
+    "nextjs",
+    "react-native",
+    "expo",
+    "nodejs",
+    "mongodb",
+    "redis"
+  ],
+  "author": "EventConnect Team",
+  "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/eventconnect/eventconnect.git"
+    "url": "https://github.com/tu-usuario/eventconnect.git"
   },
   "bugs": {
-    "url": "https://github.com/eventconnect/eventconnect/issues"
+    "url": "https://github.com/tu-usuario/eventconnect/issues"
   },
-  "homepage": "https://eventconnect.com",
-  "workspaces": [
-    "backend",
-    "web",
-    "mobile",
-    "ai",
-    "blockchain"
-  ]
-} 
+  "homepage": "https://github.com/tu-usuario/eventconnect#readme",
+  "config": {
+    "commitizen": {
+      "path": "cz-conventional-changelog"
+    }
+  }
+}
