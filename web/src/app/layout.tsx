@@ -1,17 +1,20 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Toaster } from 'react-hot-toast';
-import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
-  title: 'EventConnect - Descubre Eventos y Tribus',
-  description: 'Plataforma para descubrir eventos y conectar con tribus cerca de ti. Únete a comunidades con intereses similares y vive experiencias únicas.',
-  keywords: 'eventos, tribus, comunidad, social, networking, experiencias, actividades',
+  title: 'EventConnect - Conecta con tu Tribu',
+  description: 'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida. La plataforma social más avanzada para conectar con eventos y tribus.',
+  keywords: 'eventos, comunidades, tribus, social, networking, eventos cerca de mí, grupos sociales',
   authors: [{ name: 'EventConnect Team' }],
   creator: 'EventConnect',
   publisher: 'EventConnect',
@@ -20,21 +23,21 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://eventconnect.com'),
+  metadataBase: new URL('https://eventconnect.app'),
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: 'EventConnect - Descubre Eventos y Tribus',
-    description: 'Plataforma para descubrir eventos y conectar con tribus cerca de ti',
-    url: 'https://eventconnect.com',
+    title: 'EventConnect - Conecta con tu Tribu',
+    description: 'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida.',
+    url: 'https://eventconnect.app',
     siteName: 'EventConnect',
     images: [
       {
         url: '/og-image.jpg',
         width: 1200,
         height: 630,
-        alt: 'EventConnect - Descubre Eventos y Tribus',
+        alt: 'EventConnect - Plataforma de eventos y comunidades',
       },
     ],
     locale: 'es_ES',
@@ -42,9 +45,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'EventConnect - Descubre Eventos y Tribus',
-    description: 'Plataforma para descubrir eventos y conectar con tribus cerca de ti',
+    title: 'EventConnect - Conecta con tu Tribu',
+    description: 'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida.',
     images: ['/og-image.jpg'],
+    creator: '@eventconnect',
+    site: '@eventconnect',
   },
   robots: {
     index: true,
@@ -59,6 +64,19 @@ export const metadata: Metadata = {
   },
   verification: {
     google: 'your-google-verification-code',
+    yandex: 'your-yandex-verification-code',
+    yahoo: 'your-yahoo-verification-code',
+  },
+  category: 'social networking',
+  classification: 'social networking platform',
+  other: {
+    'theme-color': '#06b6d4',
+    'msapplication-TileColor': '#06b6d4',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'default',
+    'apple-mobile-web-app-title': 'EventConnect',
+    'application-name': 'EventConnect',
+    'mobile-web-app-capable': 'yes',
   },
 };
 
@@ -68,75 +86,61 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es" className={inter.variable} suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#3B82F6" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="EventConnect" />
-        <meta name="msapplication-TileColor" content="#3B82F6" />
-        <meta name="msapplication-config" content="/browserconfig.xml" />
-        
-        {/* Preconnect to external domains */}
+        {/* Preconnect to external domains for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="preconnect" href="https://maps.googleapis.com" />
-        <link rel="preconnect" href="https://maps.gstatic.com" />
         
-        {/* DNS prefetch */}
-        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-        <link rel="dns-prefetch" href="//maps.googleapis.com" />
+        {/* Favicon and app icons */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
         
-        {/* Structured Data */}
+        {/* Meta tags for better SEO */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        <meta name="theme-color" content="#06b6d4" />
+        <meta name="color-scheme" content="dark light" />
+        
+        {/* Structured data for better search results */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "WebSite",
+              "@type": "WebApplication",
               "name": "EventConnect",
-              "description": "Plataforma para descubrir eventos y conectar con tribus cerca de ti",
-              "url": "https://eventconnect.com",
-              "potentialAction": {
-                "@type": "SearchAction",
-                "target": "https://eventconnect.com/search?q={search_term_string}",
-                "query-input": "required name=search_term_string"
+              "description": "Plataforma social para descubrir eventos y conectar con comunidades",
+              "url": "https://eventconnect.app",
+              "applicationCategory": "SocialNetworkingApplication",
+              "operatingSystem": "Web, iOS, Android",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
               },
-              "publisher": {
+              "author": {
                 "@type": "Organization",
-                "name": "EventConnect",
-                "logo": {
-                  "@type": "ImageObject",
-                  "url": "https://eventconnect.com/logo.png"
-                }
+                "name": "EventConnect Team"
               }
             })
           }}
         />
       </head>
-      <body className={inter.className}>
-        <QueryProvider>
-          <ThemeProvider>
+      <body className={`${inter.className} antialiased`}>
+        <ThemeProvider
+          attribute="data-theme"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <QueryProvider>
             <AuthProvider>
               {children}
-              <Toaster
-                position="bottom-right"
-                toastOptions={{
-                  duration: 4000,
-                  style: {
-                    background: 'var(--background)',
-                    color: 'var(--foreground)',
-                    border: '1px solid var(--border)',
-                  },
-                }}
-              />
             </AuthProvider>
-          </ThemeProvider>
-        </QueryProvider>
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
