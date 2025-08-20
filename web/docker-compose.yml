@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+      - NEXT_PUBLIC_GA_ID=your-google-analytics-id
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - eventconnect-web-network
+    restart: unless-stopped
+
+  # Optional: Add Storybook for component development
+  storybook:
+    build:
+      context: .
+      dockerfile: Dockerfile.storybook
+    ports:
+      - "6006:6006"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - eventconnect-web-network
+    restart: unless-stopped
+
+networks:
+  eventconnect-web-network:
+    driver: bridge

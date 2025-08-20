@@ -1,0 +1,102 @@
+{
+  "expo": {
+    "name": "EventConnect",
+    "slug": "eventconnect",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3B82F6"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.eventconnect.app",
+      "buildNumber": "2.0.0",
+      "infoPlist": {
+        "NSCameraUsageDescription": "EventConnect necesita acceso a la cámara para tomar fotos de eventos y perfil",
+        "NSPhotoLibraryUsageDescription": "EventConnect necesita acceso a tu galería para seleccionar fotos",
+        "NSLocationWhenInUseUsageDescription": "EventConnect necesita acceso a tu ubicación para mostrarte eventos cercanos",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "EventConnect necesita acceso a tu ubicación para notificarte sobre eventos cercanos",
+        "NSMicrophoneUsageDescription": "EventConnect necesita acceso al micrófono para grabaciones de audio",
+        "NSFaceIDUsageDescription": "EventConnect usa Face ID para autenticación segura"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#3B82F6"
+      },
+      "package": "com.eventconnect.app",
+      "versionCode": 2,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "com.google.android.c2dm.permission.RECEIVE"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "your-google-maps-api-key-here"
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "EventConnect necesita acceso a tu ubicación para mostrarte eventos cercanos y mejorar tu experiencia."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#3B82F6",
+          "sounds": ["./assets/notification-sound.wav"]
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "EventConnect necesita acceso a la cámara para tomar fotos de eventos y perfil."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "EventConnect necesita acceso a tu galería para seleccionar fotos."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "your-expo-project-id-here"
+      }
+    },
+    "owner": "eventconnect",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/your-expo-project-id-here"
+    }
+  }
+}
