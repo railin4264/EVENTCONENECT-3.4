@@ -1,31 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Search, 
   MapPin, 
   Calendar, 
   Users, 
   Star, 
-  Filter,
   Heart,
   Share,
   Clock,
-  Tag,
   ArrowRight,
   TrendingUp,
-  Fire,
-  Map,
   Grid,
-  List,
-  Sliders
+  List
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle, CardBadge } from '@/components/ui/Card';
+import { Card, CardContent, CardTitle, CardBadge } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Dropdown } from '@/components/ui/Dropdown';
-import { Tabs } from '@/components/ui/Tabs';
 
 // ===== EVENT INTERFACE =====
 interface Event {
@@ -253,7 +247,7 @@ const EventCard: React.FC<{
                 {event.isTrending && (
                   <div className="absolute top-3 right-3">
                     <CardBadge variant="accent" className="flex items-center space-x-1">
-                      <Fire className="w-3 h-3" />
+                      <TrendingUp className="w-3 h-3" />
                       <span>Trending</span>
                     </CardBadge>
                   </div>
@@ -379,7 +373,7 @@ const EventCard: React.FC<{
             {event.isTrending && (
               <div className="absolute top-3 right-3">
                 <CardBadge variant="accent" className="flex items-center space-x-1">
-                  <Fire className="w-3 h-3" />
+                  <TrendingUp className="w-3 h-3" />
                   <span>Trending</span>
                 </CardBadge>
               </div>
@@ -464,7 +458,7 @@ const EventCard: React.FC<{
 
 // ===== MAIN EVENTS PAGE =====
 export default function EventsPage() {
-  const [events, setEvents] = useState<Event[]>(sampleEvents);
+  const [events, _setEvents] = useState<Event[]>(sampleEvents);
   const [filteredEvents, setFilteredEvents] = useState<Event[]>(sampleEvents);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');

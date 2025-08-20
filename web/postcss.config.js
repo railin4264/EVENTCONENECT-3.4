@@ -6,49 +6,8 @@ module.exports = {
     'postcss-nesting': {},
     'postcss-custom-properties': {
       preserve: false,
-      importFrom: [
-        {
-          customProperties: {
-            '--primary-color': '#0ea5e9',
-            '--secondary-color': '#d946ef',
-            '--accent-color': '#f97316',
-            '--success-color': '#22c55e',
-            '--warning-color': '#f59e0b',
-            '--error-color': '#ef4444',
-            '--neutral-color': '#737373',
-            '--border-radius': '0.5rem',
-            '--transition-duration': '0.2s',
-            '--shadow-sm': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-            '--shadow-md': '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            '--shadow-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            '--shadow-xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            '--shadow-2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-          },
-        },
-      ],
     },
-    'postcss-custom-media': {
-      importFrom: [
-        {
-          customMedia: {
-            '--mobile': '(max-width: 767px)',
-            '--tablet': '(min-width: 768px) and (max-width: 1023px)',
-            '--desktop': '(min-width: 1024px)',
-            '--large-desktop': '(min-width: 1440px)',
-            '--ultra-wide': '(min-width: 1920px)',
-            '--portrait': '(orientation: portrait)',
-            '--landscape': '(orientation: landscape)',
-            '--high-dpi': '(-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi)',
-            '--retina': '(-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi)',
-            '--touch': '(pointer: coarse)',
-            '--mouse': '(pointer: fine)',
-            '--reduced-motion': '(prefers-reduced-motion: reduce)',
-            '--dark-mode': '(prefers-color-scheme: dark)',
-            '--light-mode': '(prefers-color-scheme: light)',
-          },
-        },
-      ],
-    },
+    'postcss-custom-media': {},
     'postcss-flexbugs-fixes': {},
     'postcss-preset-env': {
       stage: 3,

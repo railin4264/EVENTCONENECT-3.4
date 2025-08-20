@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Users, Calendar, Navigation, Zap, Pulse } from 'lucide-react'
+import { MapPin, Users, Calendar, Navigation, Activity } from 'lucide-react'
 import dynamic from 'next/dynamic'
 import { Event, Tribe, Location } from '@/types'
 
@@ -19,20 +19,19 @@ interface EventRadarProps {
 
 export function EventRadar({ events = [], tribes = [], userLocation, isLoading }: EventRadarProps) {
   const [viewState, setViewState] = useState({
-    longitude: userLocation?.longitude || -99.1332,
-    latitude: userLocation?.latitude || 19.4326,
+    longitude: userLocation?.coordinates?.longitude || -99.1332,
+    latitude: userLocation?.coordinates?.latitude || 19.4326,
     zoom: 12
   })
   const [selectedItem, setSelectedItem] = useState<Event | Tribe | null>(null)
   const [radarActive, setRadarActive] = useState(true)
-  const radarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (userLocation) {
       setViewState(prev => ({
         ...prev,
-        longitude: userLocation.longitude,
-        latitude: userLocation.latitude
+        longitude: userLocation.coordinates.longitude,
+        latitude: userLocation.coordinates.latitude
       }))
     }
   }, [userLocation])
@@ -76,7 +75,7 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="relative">
-            <Pulse className={`w-6 h-6 text-pulse-500 ${radarActive ? 'animate-pulse' : ''}`} />
+            <Activity className={`w-6 h-6 text-pulse-500 ${radarActive ? 'animate-pulse' : ''}`} />
             {radarActive && (
               <div className="absolute inset-0 w-6 h-6 bg-pulse-500 rounded-full animate-ping opacity-75" />
             )}
@@ -107,14 +106,14 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
           {...viewState}
           onMove={evt => setViewState(evt.viewState)}
           mapStyle="mapbox://styles/mapbox/streets-v12"
-          mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN}
+          mapboxAccessToken={process.env['NEXT_PUBLIC_MAPBOX_TOKEN'] || ''}
           style={{ width: '100%', height: '100%' }}
         >
           {/* User Location Marker */}
           {userLocation && (
             <Marker
-              longitude={userLocation.longitude}
-              latitude={userLocation.latitude}
+              longitude={userLocation.coordinates.longitude}
+              latitude={userLocation.coordinates.latitude}
               anchor="center"
             >
               <div className="relative">
@@ -128,8 +127,8 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
           {events.map((event) => (
             <Marker
               key={`event-${event.id}`}
-              longitude={event.location.longitude}
-              latitude={event.location.latitude}
+              longitude={event.location.coordinates.longitude}
+              latitude={event.location.coordinates.latitude}
               anchor="bottom"
             >
               <motion.div
@@ -153,12 +152,12 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
             </Marker>
           ))}
 
-          {/* Tribe Markers */}
+          {/* Tribe Markers - Commented out since Tribe doesn't have location
           {tribes.map((tribe) => (
             <Marker
               key={`tribe-${tribe.id}`}
-              longitude={tribe.location.longitude}
-              latitude={tribe.location.latitude}
+              longitude={tribe.location.coordinates.longitude}
+              latitude={tribe.location.coordinates.latitude}
               anchor="bottom"
             >
               <motion.div
@@ -181,6 +180,7 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
               </motion.div>
             </Marker>
           ))}
+          */}
 
           {/* Radar Scan Effect */}
           {radarActive && (
@@ -197,8 +197,8 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
             onClick={() => {
               if (userLocation) {
                 setViewState({
-                  longitude: userLocation.longitude,
-                  latitude: userLocation.latitude,
+                  longitude: userLocation.coordinates.longitude,
+                  latitude: userLocation.coordinates.latitude,
                   zoom: 14
                 })
               }
@@ -247,7 +247,7 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
                   </span>
                 </div>
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                  {selectedItem.title}
+                  {'title' in selectedItem ? selectedItem.title : selectedItem.name}
                 </h4>
                 <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">
                   {selectedItem.description}
@@ -255,18 +255,23 @@ export function EventRadar({ events = [], tribes = [], userLocation, isLoading }
                 <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
                   <div className="flex items-center space-x-1">
                     <MapPin className="w-4 h-4" />
-                    <span>{selectedItem.location.address}</span>
+                    <span>{'location' in selectedItem ? selectedItem.location.address : 'Location not available'}</span>
                   </div>
-                  {'date' in selectedItem && (
+                  {'startDate' in selectedItem && (
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-4 h-4" />
-                      <span>{new Date(selectedItem.date).toLocaleDateString()}</span>
+                      <span>{selectedItem.startDate}</span>
                     </div>
                   )}
-                  {'memberCount' in selectedItem && (
+                  {'memberCount' in selectedItem ? (
                     <div className="flex items-center space-x-1">
                       <Users className="w-4 h-4" />
-                      <span>{selectedItem.memberCount} miembros</span>
+                      <span>{selectedItem.memberCount} members</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-1">
+                      <Users className="w-4 h-4" />
+                      <span>{selectedItem.currentAttendees} attendees</span>
                     </div>
                   )}
                 </div>

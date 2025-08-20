@@ -5,13 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   XMarkIcon,
   PhotoIcon,
-  VideoCameraIcon,
-  MapPinIcon,
-  TagIcon,
-  UserIcon,
-  GlobeAltIcon,
-  LockClosedIcon,
-  EyeIcon
+  MapPinIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import { useGeolocation } from '@/hooks/useGeolocation';
@@ -24,7 +18,7 @@ interface CreatePostModalProps {
 }
 
 const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) => {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const { location: userLocation } = useGeolocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -184,23 +178,23 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
     const newErrors: Record<string, string> = {};
 
     if (!formData.content.trim()) {
-      newErrors.content = 'El contenido es obligatorio';
+      newErrors['content'] = 'El contenido es obligatorio';
     }
 
     if (formData.content.length > 1000) {
-      newErrors.content = 'El contenido no puede exceder 1000 caracteres';
+      newErrors['content'] = 'El contenido no puede exceder 1000 caracteres';
     }
 
     if (formData.title && formData.title.length > 100) {
-      newErrors.title = 'El título no puede exceder 100 caracteres';
+      newErrors['title'] = 'El título no puede exceder 100 caracteres';
     }
 
     if (formData.tags.length > 10) {
-      newErrors.tags = 'No puedes agregar más de 10 etiquetas';
+      newErrors['tags'] = 'No puedes agregar más de 10 etiquetas';
     }
 
     if (formData.mentions.length > 20) {
-      newErrors.mentions = 'No puedes mencionar más de 20 usuarios';
+      newErrors['mentions'] = 'No puedes mencionar más de 20 usuarios';
     }
 
     setErrors(newErrors);
@@ -313,8 +307,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     maxLength={100}
                   />
-                  {errors.title && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title}</p>
+                  {errors['title'] && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors['title']}</p>
                   )}
                 </div>
               )}
@@ -333,8 +327,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
                   maxLength={1000}
                 />
                 <div className="flex justify-between items-center mt-1">
-                  {errors.content && (
-                    <p className="text-sm text-red-600 dark:text-red-400">{errors.content}</p>
+                  {errors['content'] && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{errors['content']}</p>
                   )}
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     {formData.content.length}/1000
@@ -495,8 +489,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
                     ))}
                   </div>
                 )}
-                {errors.tags && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.tags}</p>
+                {errors['tags'] && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors['tags']}</p>
                 )}
               </div>
 
@@ -530,8 +524,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
                     ))}
                   </div>
                 )}
-                {errors.mentions && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.mentions}</p>
+                {errors['mentions'] && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors['mentions']}</p>
                 )}
               </div>
 
@@ -542,8 +536,8 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
                 </label>
                 <div className="flex space-x-3">
                   {[
-                    { value: true, label: 'Pública', icon: GlobeAltIcon, color: 'text-green-600' },
-                    { value: false, label: 'Privada', icon: LockClosedIcon, color: 'text-yellow-600' },
+                    { value: true, label: 'Pública', icon: '📍', color: 'text-green-600' },
+                    { value: false, label: 'Privada', icon: '🔒', color: 'text-yellow-600' },
                   ].map((option) => (
                     <button
                       key={option.value.toString()}
@@ -556,7 +550,7 @@ const CreatePostModal = ({ isOpen, onClose, onSubmit }: CreatePostModalProps) =>
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
                       )}
                     >
-                      <option.icon className={cn('w-4 h-4', option.color)} />
+                      <span className={cn('w-4 h-4', option.color)}>{option.icon}</span>
                       <span className="text-sm font-medium">{option.label}</span>
                     </button>
                   ))}
