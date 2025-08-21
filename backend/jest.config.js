@@ -84,10 +84,11 @@ module.exports = {
   ],
   
   // Watch plugins
-  watchPlugins: [
-    'jest-watch-typeahead/filename',
-    'jest-watch-typeahead/testname'
-  ],
+  // watchPlugins disabled in CI to avoid missing dependencies in some envs
+  // watchPlugins: [
+  //   'jest-watch-typeahead/filename',
+  //   'jest-watch-typeahead/testname'
+  // ],
   
   // Cache directory
   cacheDirectory: '<rootDir>/.jest-cache',

@@ -1,13 +1,11 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const bcrypt = require('bcryptjs');
 
 const app = require('../../src/server');
 const { User, Event, Post, Review } = require('../../src/models');
 
 describe('Event Flow Integration Tests', () => {
-  let mongoServer;
   let hostUser;
   let attendeeUser;
   let testEvent;
@@ -15,15 +13,15 @@ describe('Event Flow Integration Tests', () => {
   let attendeeToken;
 
   beforeAll(async () => {
-    // Start in-memory MongoDB
-    mongoServer = await MongoMemoryServer.create();
-    const mongoUri = mongoServer.getUri();
-    await mongoose.connect(mongoUri);
+    // La conexión a Mongo en tests la maneja tests/setup.js (MongoMemoryServer)
+    // Aquí solo aseguramos que existe conexión
+    if (mongoose.connection.readyState === 0) {
+      throw new Error('MongoDB no conectado en entorno de prueba');
+    }
   });
 
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+    // Limpieza manejada por tests/setup.js
   });
 
   beforeEach(async () => {
