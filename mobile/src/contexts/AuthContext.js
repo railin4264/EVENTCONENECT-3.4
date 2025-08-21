@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -22,7 +24,7 @@ export const AuthProvider = ({ children }) => {
   // Configurar axios con interceptors
   useEffect(() => {
     const api = axios.create({
-      baseURL: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1',
+      baseURL: API_BASE_URL,
       timeout: 10000,
     });
 
@@ -97,10 +99,11 @@ export const AuthProvider = ({ children }) => {
 
   const validateToken = async (tokenToValidate) => {
     try {
-      const response = await api?.get('/auth/me');
+      const response = await api?.get('/api/auth/profile');
       if (response?.data?.success) {
-        setUser(response.data.data);
-        await AsyncStorage.setItem('user', JSON.stringify(response.data.data));
+        const currentUser = response.data.data.user || response.data.data;
+        setUser(currentUser);
+        await AsyncStorage.setItem('user', JSON.stringify(currentUser));
       }
     } catch (error) {
       console.error('Token inválido, haciendo logout');
@@ -111,10 +114,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       setIsLoading(true);
-      const response = await api?.post('/auth/login', { email, password });
+      const response = await api?.post('/api/auth/login', { email, password });
       
       if (response?.data?.success) {
-        const { accessToken, refreshToken: newRefreshToken, user: userData } = response.data.data;
+        const { tokens, user: userData } = response.data.data;
+        const { accessToken, refreshToken: newRefreshToken } = tokens || {};
         
         // Guardar tokens
         await AsyncStorage.setItem('accessToken', accessToken);
@@ -142,10 +146,11 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       setIsLoading(true);
-      const response = await api?.post('/auth/register', userData);
+      const response = await api?.post('/api/auth/register', userData);
       
       if (response?.data?.success) {
-        const { accessToken, refreshToken: newRefreshToken, user: newUser } = response.data.data;
+        const { tokens, user: newUser } = response.data.data;
+        const { accessToken, refreshToken: newRefreshToken } = tokens || {};
         
         // Guardar tokens
         await AsyncStorage.setItem('accessToken', accessToken);
@@ -175,12 +180,13 @@ export const AuthProvider = ({ children }) => {
       if (!refreshToken) throw new Error('No hay refresh token');
 
       const response = await axios.post(
-        `${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/auth/refresh`,
+        `${API_BASE_URL}/api/auth/refresh-token`,
         { refreshToken }
       );
 
       if (response?.data?.success) {
-        const { accessToken, refreshToken: newRefreshToken } = response.data.data;
+        const { tokens } = response.data.data || {};
+        const { accessToken, refreshToken: newRefreshToken } = tokens || {};
         
         // Actualizar tokens
         await AsyncStorage.setItem('accessToken', accessToken);
@@ -202,7 +208,7 @@ export const AuthProvider = ({ children }) => {
       // Llamar al endpoint de logout si hay token
       if (token) {
         try {
-          await api?.post('/auth/logout');
+          await api?.post('/api/auth/logout', {});
         } catch (error) {
           console.error('Error en logout del servidor:', error);
         }
@@ -223,10 +229,10 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await api?.put('/auth/profile', profileData);
+      const response = await api?.put('/api/auth/profile', profileData);
       
       if (response?.data?.success) {
-        const updatedUser = response.data.data;
+        const updatedUser = response.data.data.user || response.data.data;
         setUser(updatedUser);
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
         return { success: true, user: updatedUser };
@@ -241,7 +247,7 @@ export const AuthProvider = ({ children }) => {
 
   const changePassword = async (currentPassword, newPassword) => {
     try {
-      const response = await api?.put('/auth/change-password', {
+      const response = await api?.put('/api/auth/change-password', {
         currentPassword,
         newPassword
       });
@@ -259,7 +265,7 @@ export const AuthProvider = ({ children }) => {
 
   const forgotPassword = async (email) => {
     try {
-      const response = await api?.post('/auth/forgot-password', { email });
+      const response = await api?.post('/api/auth/request-password-reset', { email });
       
       if (response?.data?.success) {
         return { success: true };
@@ -274,7 +280,7 @@ export const AuthProvider = ({ children }) => {
 
   const resetPassword = async (token, newPassword) => {
     try {
-      const response = await api?.post('/auth/reset-password', {
+      const response = await api?.post('/api/auth/reset-password', {
         token,
         newPassword
       });

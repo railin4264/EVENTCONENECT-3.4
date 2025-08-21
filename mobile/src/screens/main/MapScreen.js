@@ -174,15 +174,6 @@ const MapScreen = ({ navigation }) => {
         showsIndoors={true}
         showsIndoorLevelPicker={true}
         showsPointsOfInterest={true}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        showsCompass={true}
-        showsScale={true}
-        showsTraffic={false}
-        showsBuildings={true}
-        showsIndoors={true}
-        showsIndoorLevelPicker={true}
-        showsPointsOfInterest={true}
       >
         {events.map((event) => (
           <Marker

@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Dimensions,
   StatusBar,
 } from 'react-native';
 import Animated, {
@@ -13,17 +12,15 @@ import Animated, {
   withSpring,
   withRepeat,
   withTiming,
-  interpolate,
 } from 'react-native-reanimated';
-import LinearGradient from 'react-native-linear-gradient';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Card, CardContent, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { 
   Search, 
   MapPin, 
   Calendar, 
   Users, 
-  Star, 
   TrendingUp,
   Sparkles,
   Zap,
@@ -31,7 +28,7 @@ import {
   Heart
 } from 'lucide-react-native';
 
-const { width, height } = Dimensions.get('window');
+// const { width, height } = Dimensions.get('window');
 
 // ===== PARTICLE COMPONENT =====
 const Particle: React.FC<{ 
@@ -43,8 +40,6 @@ const Particle: React.FC<{
   const scale = useSharedValue(1);
 
   React.useEffect(() => {
-    const delay = (index / total) * 2000;
-    
     translateY.value = withRepeat(
       withTiming(-100, { duration: 3000 + Math.random() * 2000 }),
       -1,
@@ -112,13 +107,13 @@ const FeatureCard: React.FC<{
 
   return (
     <Animated.View style={[styles.featureCard, animatedStyle]}>
-      <Card variant="glass" className="h-full">
-        <CardContent className="p-4 text-center">
-          <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+      <Card variant="glass">
+        <CardContent>
+          <View style={{ width: 48, height: 48, alignSelf: 'center', marginBottom: 12, borderRadius: 16, backgroundColor: 'rgba(6,182,212,0.3)', alignItems: 'center', justifyContent: 'center' }}>
             {icon}
-          </div>
-          <CardTitle className="text-base mb-2 text-center">{title}</CardTitle>
-          <Text className="text-sm text-gray-300 text-center leading-relaxed">
+          </View>
+          <CardTitle style={{ textAlign: 'center', marginBottom: 8 }}>{title}</CardTitle>
+          <Text style={{ textAlign: 'center', color: '#D1D5DB', lineHeight: 20 }}>
             {description}
           </Text>
         </CardContent>
@@ -152,10 +147,10 @@ const StatCard: React.FC<{
 
   return (
     <Animated.View style={[styles.statCard, animatedStyle]}>
-      <Text className="text-2xl font-bold text-center mb-1 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+      <Text style={{ fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 4, color: '#67e8f9' }}>
         {value}
       </Text>
-      <Text className="text-sm text-gray-400 text-center">{label}</Text>
+      <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center' }}>{label}</Text>
     </Animated.View>
   );
 };
@@ -223,20 +218,16 @@ export const HomeScreen: React.FC = () => {
           </Text>
           
           {/* Search Card */}
-          <Card variant="glass" className="mt-6">
-            <CardContent className="p-4">
+          <Card variant="glass">
+            <CardContent>
               <View style={styles.searchContainer}>
                 <Search size={20} color="#9ca3af" style={styles.searchIcon} />
                 <Text style={styles.searchPlaceholder}>
                   ¿Qué tipo de evento buscas?
                 </Text>
               </View>
-              <Button 
-                variant="primary" 
-                size="lg" 
-                className="mt-3"
-                glow
-              >
+              <View style={{ height: 12 }} />
+              <Button variant="primary" size="lg" glow>
                 <Search size={18} style={{ marginRight: 8 }} />
                 Buscar
               </Button>
@@ -246,22 +237,12 @@ export const HomeScreen: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          <Button 
-            variant="primary" 
-            size="lg" 
-            className="flex-1 mr-2"
-            glow
-            pulse
-          >
+          <Button variant="primary" size="lg" glow>
             <Sparkles size={20} style={{ marginRight: 8 }} />
             Explorar Eventos
           </Button>
           
-          <Button 
-            variant="outline" 
-            size="lg" 
-            className="flex-1 ml-2"
-          >
+          <Button variant="outline" size="lg">
             <Zap size={20} style={{ marginRight: 8 }} />
             Crear Evento
           </Button>
@@ -350,18 +331,10 @@ export const HomeScreen: React.FC = () => {
           </Text>
           
           <View style={styles.ctaButtons}>
-            <Button 
-              variant="primary" 
-              size="xl" 
-              className="mb-3"
-              glow
-            >
+            <Button variant="primary" size="xl" glow>
               Comenzar Gratis
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg"
-            >
+            <Button variant="outline" size="lg">
               Ver Demo
             </Button>
           </View>
@@ -397,8 +370,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(10, 10, 10, 0.8)',
-    backdropFilter: 'blur(20px)',
+    backgroundColor: 'rgba(10, 10, 10, 0.8)'
   },
   headerContent: {
     alignItems: 'center',
@@ -433,11 +405,7 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     marginBottom: 16,
   },
-  heroTitleAccent: {
-    backgroundGradient: {
-      colors: ['#06b6d4', '#3b82f6'],
-    },
-  },
+  heroTitleAccent: {},
   heroSubtitle: {
     fontSize: 16,
     color: '#9ca3af',
@@ -539,11 +507,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 34,
   },
-  ctaTitleAccent: {
-    backgroundGradient: {
-      colors: ['#06b6d4', '#3b82f6'],
-    },
-  },
+  ctaTitleAccent: {},
   ctaSubtitle: {
     fontSize: 16,
     color: '#9ca3af',
