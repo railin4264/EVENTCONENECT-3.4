@@ -38,7 +38,7 @@ const initialState: UserState = {
 export const fetchUserProfile = createAsyncThunk(
   'user/fetchUserProfile',
   async () => {
-    const response = await api.get('/users/profile');
+    const response = await api.get('/api/auth/profile');
     return response.data;
   }
 );
@@ -46,7 +46,7 @@ export const fetchUserProfile = createAsyncThunk(
 export const updateUserProfile = createAsyncThunk(
   'user/updateUserProfile',
   async (profileData: Partial<UserProfile>) => {
-    const response = await api.put('/users/profile', profileData);
+    const response = await api.put('/api/auth/profile', profileData);
     return response.data;
   }
 );
@@ -54,7 +54,7 @@ export const updateUserProfile = createAsyncThunk(
 export const updateUserPreferences = createAsyncThunk(
   'user/updateUserPreferences',
   async (preferences: UserProfile['preferences']) => {
-    const response = await api.put('/users/preferences', preferences);
+    const response = await api.patch('/api/notifications/preferences', preferences);
     return response.data;
   }
 );
@@ -62,7 +62,7 @@ export const updateUserPreferences = createAsyncThunk(
 export const analyzeUserDNA = createAsyncThunk(
   'user/analyzeUserDNA',
   async () => {
-    const response = await api.get('/dna/profile');
+    const response = await api.get('/api/search/analytics');
     return response.data;
   }
 );

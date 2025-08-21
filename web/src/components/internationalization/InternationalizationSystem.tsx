@@ -3,26 +3,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Globe, 
   Languages, 
-  Flag, 
+  // Flag, 
   Settings, 
-  Translate,
-  Clock,
-  MapPin,
-  Users,
-  Calendar,
-  Star,
-  Heart,
-  Share,
-  Eye,
-  TrendingUp,
-  Zap,
-  Sparkles,
-  Target,
-  Award
+  Languages as Translate,
+  // Clock,
+  // MapPin,
+  // Users,
+  // Calendar,
+  // Star,
+  // Heart,
+  // Share,
+  // Eye,
+  // TrendingUp,
+  // Zap,
+  Sparkles
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+// import { Button } from '@/components/ui/Button';
+// import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 // ===== INTERNATIONALIZATION TYPES =====
@@ -486,9 +484,11 @@ const LocalizationPreview: React.FC<{
   };
 
   const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
+    const [hoursStr, minutesStr] = (time || '').split(':');
+    const hours = parseInt(hoursStr || '0');
+    const minutes = parseInt(minutesStr || '0');
     const date = new Date();
-    date.setHours(parseInt(hours), parseInt(minutes));
+    date.setHours(hours, minutes);
     
     const options: Intl.DateTimeFormatOptions = {
       hour: 'numeric',
@@ -711,9 +711,7 @@ export const InternationalizationSystem: React.FC = () => {
     }
   }, [selectedLang]);
 
-  const getLocalizedText = (key: string) => {
-    return localizedContent[key]?.[selectedLanguage] || key;
-  };
+  // helper not used here
 
   return (
     <div 
