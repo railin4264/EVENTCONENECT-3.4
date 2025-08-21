@@ -14,17 +14,100 @@ const api: AxiosInstance = axios.create({
   },
 });
 
+// Demo mode (no-backend) using Axios adapter mock
+if (process.env.NEXT_PUBLIC_DEMO === 'true') {
+  // Minimal inline adapter to intercept requests and return mock data
+  const demoEvents = Array.from({ length: 16 }).map((_, i) => ({
+    id: `demo-${i + 1}`,
+    title: `Evento Demo ${i + 1}`,
+    description: 'Experiencia inmersiva con música, networking y diversión.',
+    category: ['music','sports','tech','art'][i % 4],
+    tags: ['demo','ciudad','social'].slice(0, (i % 3) + 1),
+    host: {
+      id: `host-${i % 4}`,
+      username: `anfitrion${i % 4}`,
+      firstName: 'Host',
+      lastName: String(i % 4),
+      rating: 4 + ((i % 10) / 10),
+      reviewCount: 10 + i,
+    },
+    location: {
+      // GeoJSON [lng, lat]
+      coordinates: [-58.3816 + (i * 0.01), -34.6037 + (i * 0.01)],
+      address: `Calle ${i + 1} #${100 + i}`,
+      city: 'Ciudad Demo',
+      country: 'AR',
+    },
+    dateTime: {
+      start: new Date(Date.now() + i * 36e5).toISOString(),
+      end: new Date(Date.now() + (i * 36e5) + 2 * 36e5).toISOString(),
+      timezone: 'UTC',
+    },
+    capacity: { max: 50 + i, current: Math.min(50, i * 3), waitlist: Math.max(0, i - 10) },
+    pricing: { isFree: i % 3 === 0, amount: i % 3 === 0 ? 0 : 20 + i, currency: 'USD' },
+    media: { images: [], videos: [] },
+    attendees: [],
+    reviews: [],
+    stats: { viewCount: 100 + i * 5, shareCount: i * 2, saveCount: i * 3, averageRating: 4.2, reviewCount: 10 + i },
+    settings: { isPublic: true, allowComments: true, requireApproval: false, maxWaitlist: 50 },
+    status: 'published',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (api as any).defaults.adapter = async (config: any) => {
+    const ok = (data: any, status = 200) => ({
+      data,
+      status,
+      statusText: 'OK',
+      headers: {},
+      config,
+    });
+
+    // Events listing
+    if (config.url?.startsWith('/api/events') && config.method === 'get') {
+      if (/^\/api\/events\/search/.test(config.url)) {
+        const url = new URL(config.url, 'http://demo.local');
+        const q = url.searchParams.get('q')?.toLowerCase() || '';
+        const filtered = demoEvents.filter(e => e.title.toLowerCase().includes(q) || e.description.toLowerCase().includes(q));
+        return ok({ events: filtered, pagination: { total: filtered.length } });
+      }
+      if (/^\/api\/events\/[A-Za-z0-9-]+$/.test(config.url)) {
+        const id = config.url.split('/').pop();
+        const event = demoEvents.find(e => e.id === id);
+        return ok({ event }, event ? 200 : 404);
+      }
+      return ok({ events: demoEvents, pagination: { total: demoEvents.length } });
+    }
+
+    // Join/leave/save/like can be no-ops in demo
+    if (config.url?.match(/^\/api\/events\/.+\/(join|leave|like|share)$/)) {
+      return ok({ success: true });
+    }
+
+    // Auth/profile stub
+    if (config.url === '/api/auth/profile') {
+      return ok({ user: { id: 'demo-user', email: 'demo@demo.com', name: 'Demo User' } });
+    }
+
+    // Default
+    return ok({ ok: true });
+  };
+}
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
     // Add auth token if available
     const token = localStorage.getItem('accessToken');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      (config.headers as any).Authorization = `Bearer ${token}`;
     }
 
     // Add request timestamp
-    config.metadata = { startTime: new Date() };
+    (config as any).metadata = { startTime: new Date() };
 
     return config;
   },
@@ -38,7 +121,7 @@ api.interceptors.response.use(
   (response: AxiosResponse) => {
     // Calculate response time
     const endTime = new Date();
-    const startTime = response.config.metadata?.startTime;
+    const startTime = (response.config as any).metadata?.startTime;
     if (startTime) {
       const responseTime = endTime.getTime() - startTime.getTime();
       console.log(`API Response Time: ${responseTime}ms`);
@@ -73,7 +156,7 @@ api.interceptors.response.use(
           }
 
           // Retry original request
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          (originalRequest.headers as any).Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
@@ -424,4 +507,3 @@ export const analyticsAPI = {
 
 // Export everything
 export default api;
-export { api, apiService, authAPI, eventsAPI, tribesAPI, postsAPI, chatAPI, notificationsAPI, searchAPI, locationAPI, analyticsAPI };

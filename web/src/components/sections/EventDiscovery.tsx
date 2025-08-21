@@ -52,6 +52,30 @@ const EventDiscovery = ({
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Restore filters from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('eventDiscoveryFilters');
+      const savedQuery = localStorage.getItem('eventDiscoveryQuery');
+      if (saved) setActiveFilters(prev => ({ ...prev, ...JSON.parse(saved) }));
+      if (savedQuery) setSearchQuery(savedQuery);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist filters
+  useEffect(() => {
+    try {
+      localStorage.setItem('eventDiscoveryFilters', JSON.stringify(activeFilters));
+    } catch {}
+  }, [activeFilters]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('eventDiscoveryQuery', searchQuery);
+    } catch {}
+  }, [searchQuery]);
+
   // Use location from props or user location
   const searchLocation = activeFilters.location || (userLocation ? {
     coordinates: [userLocation.latitude, userLocation.longitude],
@@ -285,6 +309,7 @@ const EventDiscovery = ({
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Buscar eventos, lugares, organizadores..."
+                      aria-label="Buscar eventos"
                       className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     />
                   </div>
@@ -307,6 +332,7 @@ const EventDiscovery = ({
                   <select
                     value={activeFilters.category}
                     onChange={(e) => handleFilterChange('category', e.target.value)}
+                    aria-label="Filtrar por categoría"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     {categories.map((cat) => (
@@ -325,6 +351,7 @@ const EventDiscovery = ({
                   <select
                     value={activeFilters.dateRange}
                     onChange={(e) => handleFilterChange('dateRange', e.target.value)}
+                    aria-label="Filtrar por fecha"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     {dateRanges.map((range) => (
@@ -343,6 +370,7 @@ const EventDiscovery = ({
                   <select
                     value={activeFilters.priceRange}
                     onChange={(e) => handleFilterChange('priceRange', e.target.value)}
+                    aria-label="Filtrar por precio"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     {priceRanges.map((range) => (
@@ -361,6 +389,7 @@ const EventDiscovery = ({
                   <select
                     value={activeFilters.sortBy}
                     onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                    aria-label="Ordenar resultados"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     {sortOptions.map((option) => (

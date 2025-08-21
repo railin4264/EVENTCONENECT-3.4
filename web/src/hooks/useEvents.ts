@@ -1,7 +1,8 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { api } from './useAuth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiDefault from '@/services/api';
+const api = apiDefault;
 
 interface Event {
   id: string;

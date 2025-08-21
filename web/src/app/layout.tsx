@@ -4,6 +4,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
+import { WatchlistProvider } from '@/components/providers/WatchlistProvider';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -129,10 +130,17 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} antialiased`}>
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-white focus:text-black focus:px-3 focus:py-2 focus:rounded">
+          Saltar al contenido
+        </a>
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
-              {children}
+              <WatchlistProvider>
+                <main id="main">
+                  {children}
+                </main>
+              </WatchlistProvider>
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>

@@ -216,6 +216,13 @@ const CTASection: React.FC = () => {
 export default function HomePage() {
   return (
     <main className="min-h-screen">
+      {process.env.NEXT_PUBLIC_DEMO === 'true' && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-800 text-sm">
+          <div className="max-w-7xl mx-auto px-4 py-2 text-center">
+            Estás en modo demo. Los datos se cargan localmente sin backend.
+          </div>
+        </div>
+      )}
       {/* Hero Section */}
       <HeroSection />
       
