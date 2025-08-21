@@ -17,6 +17,12 @@ body {
   box-sizing: border-box;
 }
 
+/* Accessible focus outline */
+a:focus, button:focus, [role="button"]:focus, input:focus, select:focus, textarea:focus {
+  outline: 3px solid #06b6d4;
+  outline-offset: 2px;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

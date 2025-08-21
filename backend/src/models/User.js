@@ -276,6 +276,20 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // Client-synced watchlist with last-write-wins
+    watchlist: {
+      type: [
+        new mongoose.Schema(
+          {
+            id: { type: String, required: true },
+            updatedAt: { type: Date, default: Date.now },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+    watchlistUpdatedAt: { type: Date, default: Date.now },
   },
   {
     timestamps: true,

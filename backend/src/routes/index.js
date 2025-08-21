@@ -8,6 +8,7 @@ const reviewRoutes = require('./reviews');
 const searchRoutes = require('./search');
 const tribeRoutes = require('./tribes');
 const userRoutes = require('./users');
+const watchlistRoutes = require('./watchlist');
 
 module.exports = {
   authRoutes,
@@ -20,4 +21,5 @@ module.exports = {
   searchRoutes,
   userRoutes,
   locationRoutes,
+  watchlistRoutes,
 };

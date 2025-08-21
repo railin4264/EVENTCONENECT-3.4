@@ -456,7 +456,7 @@ const EventDiscovery = ({
         )}
 
         {/* Results Summary */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8" aria-live="polite" aria-atomic="true">
           <div className="text-gray-600 dark:text-gray-400">
             {isLoading ? (
               'Cargando eventos...'
