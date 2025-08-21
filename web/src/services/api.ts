@@ -18,7 +18,7 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Add auth token if available
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -61,11 +61,19 @@ api.interceptors.response.use(
             refreshToken,
           });
 
-          const { token } = response.data;
-          localStorage.setItem('token', token);
+          const tokens = response.data?.data?.tokens || response.data?.tokens;
+          const newAccessToken = tokens?.accessToken || response.data?.accessToken;
+          const newRefreshToken = tokens?.refreshToken || response.data?.refreshToken;
+
+          if (newAccessToken) {
+            localStorage.setItem('accessToken', newAccessToken);
+          }
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
 
           // Retry original request
-          originalRequest.headers.Authorization = `Bearer ${token}`;
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return api(originalRequest);
         }
       } catch (refreshError) {
@@ -144,10 +152,10 @@ export const authAPI = {
     apiService.post('/api/auth/logout'),
 
   refresh: (refreshToken: string) =>
-    apiService.post('/api/auth/refresh', { refreshToken }),
+    apiService.post('/api/auth/refresh-token', { refreshToken }),
 
   me: () =>
-    apiService.get('/api/auth/me'),
+    apiService.get('/api/auth/profile'),
 
   forgotPassword: (email: string) =>
     apiService.post('/api/auth/forgot-password', { email }),
