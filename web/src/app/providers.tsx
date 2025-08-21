@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { AuthProvider } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/hooks/useTheme';
+import { WatchlistProvider } from '@/components/providers/WatchlistProvider';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -29,9 +30,10 @@ const Providers = ({ children }: ProvidersProps) => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          {children}
-          {/* React Query DevTools - only in development */}
-          {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
+          <WatchlistProvider>
+            {children}
+            {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
+          </WatchlistProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

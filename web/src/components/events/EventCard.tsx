@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '@/hooks/useEvents';
 import { cn } from '@/lib/utils';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { useWatchlist } from '@/components/providers/WatchlistProvider';
 
 interface EventCardProps {
   event: any;
@@ -38,9 +39,9 @@ const EventCard = ({
   const { user, isAuthenticated } = useAuth();
   const { joinEvent, leaveEvent } = useEvents();
   const [isLiked, setIsLiked] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const { location: userLocation } = useGeolocation();
+  const { has, toggle } = useWatchlist();
 
   const isAttending = event.attendees?.some(
     (attendee: any) => attendee.user.id === user?.id
@@ -72,7 +73,7 @@ const EventCard = ({
 
   const handleSave = () => {
     if (!isAuthenticated) return;
-    setIsSaved(!isSaved);
+    toggle(event.id);
   };
 
   const handleShare = async () => {
@@ -400,6 +401,7 @@ const EventCard = ({
                     ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                     : 'text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
                 )}
+                aria-label={isLiked ? 'Quitar me gusta' : 'Dar me gusta'}
               >
                 {isLiked ? (
                   <HeartSolidIcon className="w-5 h-5" />
@@ -412,10 +414,11 @@ const EventCard = ({
                 onClick={handleSave}
                 className={cn(
                   'p-2 rounded-lg transition-colors',
-                  isSaved
+                  has(event.id)
                     ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                     : 'text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                 )}
+                aria-label={has(event.id) ? 'Quitar de guardados' : 'Guardar evento'}
               >
                 <BookmarkIcon className="w-5 h-5" />
               </button>
@@ -423,6 +426,7 @@ const EventCard = ({
               <button
                 onClick={handleShare}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Compartir evento"
               >
                 <ShareIcon className="w-5 h-5" />
               </button>
