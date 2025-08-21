@@ -59,11 +59,14 @@ const io = socketIo(server, {
 // Initialize socket manager
 socket.initialize(server, { io });
 
-// Connect to MongoDB
-database.connectDB();
+// Connect external services (skip in tests)
+if (process.env.NODE_ENV !== 'test') {
+  // Connect to MongoDB
+  database.connectDB();
 
-// Connect to Redis
-redisConfig.connect();
+  // Connect to Redis
+  redisConfig.connect();
+}
 
 // Security middleware
 app.use(helmet());
