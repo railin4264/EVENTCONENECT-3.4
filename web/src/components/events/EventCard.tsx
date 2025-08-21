@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { 
@@ -20,6 +20,7 @@ import { es } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { useEvents } from '@/hooks/useEvents';
 import { cn } from '@/lib/utils';
+import { useGeolocation } from '@/hooks/useGeolocation';
 
 interface EventCardProps {
   event: any;
@@ -39,6 +40,7 @@ const EventCard = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
+  const { location: userLocation } = useGeolocation();
 
   const isAttending = event.attendees?.some(
     (attendee: any) => attendee.user.id === user?.id
@@ -130,6 +132,45 @@ const EventCard = ({
     }
   };
 
+  const calculateDistanceKm = (
+    coord1: [number, number],
+    coord2: [number, number]
+  ): number => {
+    const R = 6371; // km
+    const dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+    const dLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(coord1[0] * Math.PI / 180) * Math.cos(coord2[0] * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const distanceKm = useMemo(() => {
+    try {
+      if (
+        userLocation &&
+        typeof userLocation.latitude === 'number' &&
+        typeof userLocation.longitude === 'number' &&
+        Array.isArray(event.location?.coordinates) &&
+        event.location.coordinates.length === 2
+      ) {
+        const userCoord: [number, number] = [
+          userLocation.latitude,
+          userLocation.longitude,
+        ];
+        const eventCoord: [number, number] = [
+          event.location.coordinates[0],
+          event.location.coordinates[1],
+        ];
+        const d = calculateDistanceKm(userCoord, eventCoord);
+        return Math.round(d * 10) / 10;
+      }
+    } catch {}
+    return null;
+  }, [userLocation, event.location?.coordinates]);
+
   if (variant === 'compact') {
     return (
       <Link href={`/events/${event.id}`}>
@@ -210,14 +251,22 @@ const EventCard = ({
           </div>
         )}
 
-        {/* Host Rating */}
-        <div className="absolute bottom-3 left-3">
-          <div className="flex items-center space-x-1 bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-sm">
+        {/* Host Rating + Distance */}
+        <div className="absolute bottom-3 left-3 flex gap-2">
+          <div className="flex items-center space-x-1 bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-sm" aria-label="Calificación del anfitrión">
             <StarIcon className="w-4 h-4 text-yellow-500" />
             <span className="text-sm font-medium text-gray-900 dark:text-white">
               {event.host.rating.toFixed(1)}
             </span>
           </div>
+          {distanceKm !== null && (
+            <div className="flex items-center space-x-1 bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-full shadow-sm" aria-label="Distancia al evento">
+              <MapPinIcon className="w-4 h-4 text-primary-600" />
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {distanceKm} km
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

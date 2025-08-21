@@ -7,6 +7,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Image,
+  TextInput,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -14,7 +15,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+// import { LinearGradient } from 'expo-linear-gradient';
 import { Card, CardContent, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { 
@@ -28,6 +29,7 @@ import {
   ArrowRight,
   Flame
 } from 'lucide-react-native';
+import * as Location from 'expo-location';
 
 // const { width, height } = Dimensions.get('window');
 
@@ -49,6 +51,7 @@ const EventCard: React.FC<{
     isTrending: boolean;
   };
   index: number;
+  userLocation?: { latitude: number; longitude: number } | null;
 }> = ({ event, index }) => {
   const translateY = useSharedValue(50);
   const opacity = useSharedValue(0);
@@ -71,6 +74,8 @@ const EventCard: React.FC<{
     ],
     opacity: opacity.value,
   }));
+
+  const distanceLabel = null; // Demo data lacks coordinates; integrate when coords are available
 
   return (
     <Animated.View style={[styles.eventCard, animatedStyle]}>
@@ -128,7 +133,7 @@ const EventCard: React.FC<{
               <View style={styles.detailRow}>
                 <MapPin size={16} color="#06b6d4" />
                 <Text style={styles.detailText} numberOfLines={1}>
-                  {event.location}
+                  {event.location}{distanceLabel ? ` · ${distanceLabel}` : ''}
                 </Text>
               </View>
               
@@ -213,312 +218,228 @@ const FilterChip: React.FC<{
 // ===== MAIN EVENTS SCREEN =====
 export const EventsScreen: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({});
+        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      } catch {}
+    })();
+  }, []);
 
   // ===== SAMPLE EVENTS DATA =====
   const events = [
     {
       id: '1',
-      title: 'Tech Meetup Barcelona',
-      description: 'Únete a desarrolladores y entusiastas de la tecnología para una noche de networking y charlas inspiradoras sobre el futuro del desarrollo web.',
-      date: '15 Dic',
-      time: '19:00',
-      location: 'Barcelona, España',
-      category: 'Tecnología',
-      attendees: 45,
-      maxAttendees: 80,
-      price: 'Gratis',
-      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=400',
-      isLiked: true,
+      title: 'Fiesta de Verano',
+      description: 'Disfruta de la mejor fiesta de verano con música en vivo y baile.',
+      date: '2023-07-20',
+      time: '18:00',
+      location: 'Parque Central, Ciudad de México',
+      category: 'Fiesta',
+      attendees: 150,
+      maxAttendees: 200,
+      price: '$50',
+      image: 'https://via.placeholder.com/150',
+      isLiked: false,
       isTrending: true,
     },
     {
       id: '2',
-      title: 'Festival de Música Urbana',
-      description: 'Celebra la cultura urbana con los mejores artistas del momento. Una noche llena de ritmo, baile y energía positiva.',
-      date: '20 Dic',
-      time: '22:00',
-      location: 'Madrid, España',
-      category: 'Música',
-      attendees: 120,
-      maxAttendees: 200,
-      price: '€25',
-      image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
-      isLiked: false,
+      title: 'Concurso de Cocina',
+      description: 'Participa en el concurso de cocina más emocionante de la ciudad.',
+      date: '2023-07-25',
+      time: '10:00',
+      location: 'Restaurante Gourmet, Zona Rosa',
+      category: 'Cocina',
+      attendees: 80,
+      maxAttendees: 100,
+      price: '$20',
+      image: 'https://via.placeholder.com/150',
+      isLiked: true,
       isTrending: false,
     },
     {
       id: '3',
-      title: 'Workshop de Arte Digital',
-      description: 'Aprende técnicas avanzadas de arte digital con herramientas modernas. Perfecto para artistas que quieren expandir sus habilidades.',
-      date: '22 Dic',
-      time: '16:00',
-      location: 'Valencia, España',
-      category: 'Arte',
-      attendees: 18,
-      maxAttendees: 25,
-      price: '€45',
-      image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400',
+      title: 'Festival de Cine',
+      description: 'Descubre las últimas películas de cine independiente.',
+      date: '2023-07-30',
+      time: '14:00',
+      location: 'Cinepolis, Zona Sur',
+      category: 'Cine',
+      attendees: 120,
+      maxAttendees: 150,
+      price: '$15',
+      image: 'https://via.placeholder.com/150',
       isLiked: false,
       isTrending: true,
     },
     {
       id: '4',
-      title: 'Networking Empresarial',
-      description: 'Conecta con emprendedores y profesionales del sector empresarial. Oportunidades únicas de colaboración y crecimiento.',
-      date: '25 Dic',
-      time: '18:30',
-      location: 'Sevilla, España',
-      category: 'Negocios',
-      attendees: 35,
-      maxAttendees: 60,
-      price: '€30',
-      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400',
+      title: 'Feria de Artesanías',
+      description: 'Compra artesanías únicas y originales de diferentes artistas.',
+      date: '2023-08-05',
+      time: '11:00',
+      location: 'Mercado de Artesanías, Centro Histórico',
+      category: 'Artesanías',
+      attendees: 200,
+      maxAttendees: 250,
+      price: '$10',
+      image: 'https://via.placeholder.com/150',
       isLiked: true,
       isTrending: false,
     },
   ];
 
-  const categories = [
-    { id: 'all', label: 'Todos' },
-    { id: 'technology', label: 'Tecnología' },
-    { id: 'music', label: 'Música' },
-    { id: 'art', label: 'Arte' },
-    { id: 'business', label: 'Negocios' },
-    { id: 'sports', label: 'Deportes' },
-    { id: 'food', label: 'Gastronomía' },
-  ];
-
-  const filteredEvents = events.filter(event => {
-    const matchesCategory = selectedCategory === 'all' || 
-      event.category.toLowerCase() === selectedCategory;
-    const matchesSearch = searchQuery === '' || 
-      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesCategory && matchesSearch;
-  });
-
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
-      
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={['#0f0f23', '#1a1a2e', '#16213e']}
-        style={StyleSheet.absoluteFillObject}
-      />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Eventos</Text>
-          <Text style={styles.headerSubtitle}>Descubre eventos increíbles</Text>
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Search Section */}
-        <View style={styles.searchSection}>
-          <Card variant="glass">
-            <CardContent>
-              <View style={styles.searchContainer}>
-                <Search size={20} color="#9ca3af" style={styles.searchIcon} />
-                <Text style={styles.searchPlaceholder}>
-                  Buscar eventos...
-                </Text>
-              </View>
-            </CardContent>
-          </Card>
-        </View>
-
-        {/* Categories Filter */}
-        <View style={styles.categoriesSection}>
-          <Text style={styles.sectionTitle}>Categorías</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          >
-            {categories.map((category) => (
-              <FilterChip
-                key={category.id}
-                label={category.label}
-                isActive={selectedCategory === category.id}
-                onPress={() => setSelectedCategory(category.id)}
-              />
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Events Grid */}
-        <View style={styles.eventsSection}>
-          <View style={styles.eventsHeader}>
-            <Text style={styles.sectionTitle}>
-              Eventos {selectedCategory !== 'all' && `- ${categories.find(c => c.id === selectedCategory)?.label}`}
-            </Text>
-            <Text style={styles.eventsCount}>
-              {filteredEvents.length} eventos encontrados
-            </Text>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Eventos</Text>
+          <View style={styles.searchBar}>
+            <Search size={20} color="#6b7280" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar eventos..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
           </View>
-
-          <View style={styles.eventsGrid}>
-            {filteredEvents.map((event, index) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                index={index}
-              />
-            ))}
-          </View>
-
-          {filteredEvents.length === 0 && (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateTitle}>No se encontraron eventos</Text>
-              <Text style={styles.emptyStateSubtitle}>
-                Intenta cambiar los filtros o la búsqueda
-              </Text>
-            </View>
-          )}
         </View>
 
-        {/* CTA Section */}
-        <View style={styles.ctaSection}>
-          <Card variant="neon">
-            <CardContent>
-              <Text style={styles.ctaTitle}>
-                ¿No encuentras lo que buscas?
-              </Text>
-              <Text style={styles.ctaSubtitle}>
-                Crea tu propio evento y reúne a tu tribu
-              </Text>
-              <Button variant="primary" size="lg" glow>
-                Crear Evento
-              </Button>
-            </CardContent>
-          </Card>
+        <View style={styles.filterChips}>
+          <FilterChip
+            label="Todos"
+            isActive={selectedCategory === 'all'}
+            onPress={() => setSelectedCategory('all')}
+          />
+          <FilterChip
+            label="Fiesta"
+            isActive={selectedCategory === 'Fiesta'}
+            onPress={() => setSelectedCategory('Fiesta')}
+          />
+          <FilterChip
+            label="Cocina"
+            isActive={selectedCategory === 'Cocina'}
+            onPress={() => setSelectedCategory('Cocina')}
+          />
+          <FilterChip
+            label="Cine"
+            isActive={selectedCategory === 'Cine'}
+            onPress={() => setSelectedCategory('Cine')}
+          />
+          <FilterChip
+            label="Artesanías"
+            isActive={selectedCategory === 'Artesanías'}
+            onPress={() => setSelectedCategory('Artesanías')}
+          />
+        </View>
+
+        <View style={styles.eventsList}>
+          {events.map((event, index) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              index={index}
+              userLocation={userLocation}
+            />
+          ))}
         </View>
       </ScrollView>
     </View>
   );
 };
 
-// ===== STYLES =====
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#f9fafb',
+    paddingTop: StatusBar.currentHeight,
+  },
+  scrollViewContent: {
+    paddingBottom: 20,
   },
   header: {
-    paddingTop: 50,
-    paddingBottom: 20,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(10, 10, 10, 0.8)'
+    paddingTop: 10,
+    paddingBottom: 15,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  headerContent: {
-    alignItems: 'center',
-  },
-  headerTitle: {
+  title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 4,
+    color: '#1f2937',
+    marginBottom: 10,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 40,
-  },
-  searchSection: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  searchContainer: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchPlaceholder: {
+  searchInput: {
     flex: 1,
-    color: '#9ca3af',
     fontSize: 16,
+    color: '#374151',
+    marginLeft: 10,
   },
-  categoriesSection: {
+  filterChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-  },
-  categoriesContainer: {
-    paddingRight: 20,
+    paddingBottom: 15,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   filterChip: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginRight: 12,
+    backgroundColor: '#f3f4f6',
+    marginHorizontal: 5,
+    marginVertical: 5,
   },
   filterChipActive: {
-    backgroundColor: 'rgba(6, 182, 212, 0.2)',
-    borderColor: '#06b6d4',
+    backgroundColor: '#06b6d4',
   },
   filterChipText: {
-    color: '#9ca3af',
     fontSize: 14,
-    fontWeight: '500',
+    color: '#4b5563',
   },
   filterChipTextActive: {
-    color: '#06b6d4',
+    color: '#ffffff',
   },
-  eventsSection: {
+  eventsList: {
     paddingHorizontal: 20,
-    marginTop: 32,
-  },
-  eventsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  eventsCount: {
-    fontSize: 14,
-    color: '#9ca3af',
-  },
-  eventsGrid: {
-    gap: 16,
+    paddingBottom: 20,
   },
   eventCard: {
-    marginBottom: 16,
+    marginBottom: 15,
+    borderRadius: 15,
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
   },
   eventImageContainer: {
     position: 'relative',
-    height: 200,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    overflow: 'hidden',
+    height: 180,
   },
   eventImage: {
     width: '100%',
@@ -526,139 +447,97 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: 'rgba(6, 182, 212, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   categoryText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   trendingBadge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(236, 72, 153, 0.9)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    top: 10,
+    right: 10,
+    backgroundColor: '#ec4899',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     flexDirection: 'row',
     alignItems: 'center',
   },
   trendingText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
   likeButton: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    bottom: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 15,
+    padding: 5,
   },
   eventContent: {
-    padding: 16,
+    padding: 15,
   },
   eventHeader: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   eventDescription: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#4b5563',
     lineHeight: 20,
   },
   eventDetails: {
-    marginBottom: 16,
+    marginBottom: 10,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 5,
   },
   detailText: {
     fontSize: 14,
-    color: '#9ca3af',
-    marginLeft: 8,
-    flex: 1,
+    color: '#4b5563',
+    marginLeft: 5,
   },
   eventFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 10,
   },
   priceContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
   },
   priceLabel: {
     fontSize: 14,
-    color: '#9ca3af',
-    marginRight: 8,
+    color: '#4b5563',
+    marginRight: 5,
   },
   priceValue: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#06b6d4',
+    color: '#1f2937',
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   shareButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(6, 182, 212, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: 10,
   },
   joinButtonText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-  ctaSection: {
-    paddingHorizontal: 20,
-    marginTop: 32,
-  },
-  ctaTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  ctaSubtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    textAlign: 'center',
-    marginBottom: 16,
   },
 });
-
-export default EventsScreen;
