@@ -475,9 +475,17 @@ const EventDiscovery = ({
 
         {/* Events Grid */}
         {isLoading ? (
-          <div className="text-center py-12">
-            <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">Cargando eventos...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, idx) => (
+              <div key={idx} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-pulse">
+                <div className="h-48 bg-gray-200 dark:bg-gray-700" />
+                <div className="p-4 space-y-3">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : error ? (
           <div className="text-center py-12">

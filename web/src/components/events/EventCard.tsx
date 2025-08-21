@@ -156,14 +156,9 @@ const EventCard = ({
         Array.isArray(event.location?.coordinates) &&
         event.location.coordinates.length === 2
       ) {
-        const userCoord: [number, number] = [
-          userLocation.latitude,
-          userLocation.longitude,
-        ];
-        const eventCoord: [number, number] = [
-          event.location.coordinates[0],
-          event.location.coordinates[1],
-        ];
+        // GeoJSON is [lng, lat], normalize to [lat, lng]
+        const userCoord: [number, number] = [userLocation.latitude, userLocation.longitude];
+        const eventCoord: [number, number] = [event.location.coordinates[1], event.location.coordinates[0]];
         const d = calculateDistanceKm(userCoord, eventCoord);
         return Math.round(d * 10) / 10;
       }

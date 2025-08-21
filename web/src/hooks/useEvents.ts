@@ -162,7 +162,10 @@ const fetchEvents = async (filters: EventFilters = {}): Promise<{ events: Event[
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       if (key === 'location' && typeof value === 'object') {
-        params.append('location[coordinates]', value.coordinates.join(','));
+        // Backend expects latitude/longitude explicitly
+        const [latitude, longitude] = value.coordinates;
+        params.append('latitude', latitude.toString());
+        params.append('longitude', longitude.toString());
         if (value.radius) params.append('radius', value.radius.toString());
       } else if (key === 'dateRange' && typeof value === 'object') {
         params.append('dateRange[start]', value.start);
