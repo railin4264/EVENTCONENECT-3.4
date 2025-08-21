@@ -54,7 +54,7 @@ const initialState: EventsState = {
 export const fetchEvents = createAsyncThunk(
   'events/fetchEvents',
   async (params?: { category?: string; location?: string; date?: string }) => {
-    const response = await api.get('/events', { params });
+    const response = await api.get('/api/events', { params });
     return response.data;
   }
 );
@@ -62,7 +62,7 @@ export const fetchEvents = createAsyncThunk(
 export const fetchEventById = createAsyncThunk(
   'events/fetchEventById',
   async (id: string) => {
-    const response = await api.get(`/events/${id}`);
+    const response = await api.get(`/api/events/${id}`);
     return response.data;
   }
 );
@@ -70,7 +70,7 @@ export const fetchEventById = createAsyncThunk(
 export const createEvent = createAsyncThunk(
   'events/createEvent',
   async (eventData: Partial<Event>) => {
-    const response = await api.post('/events', eventData);
+    const response = await api.post('/api/events', eventData);
     return response.data;
   }
 );
@@ -78,7 +78,7 @@ export const createEvent = createAsyncThunk(
 export const updateEvent = createAsyncThunk(
   'events/updateEvent',
   async ({ id, data }: { id: string; data: Partial<Event> }) => {
-    const response = await api.put(`/events/${id}`, data);
+    const response = await api.put(`/api/events/${id}`, data);
     return response.data;
   }
 );
@@ -86,7 +86,7 @@ export const updateEvent = createAsyncThunk(
 export const joinEvent = createAsyncThunk(
   'events/joinEvent',
   async (eventId: string) => {
-    const response = await api.post(`/events/${eventId}/join`);
+    const response = await api.post(`/api/events/${eventId}/join`);
     return response.data;
   }
 );

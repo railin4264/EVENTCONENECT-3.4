@@ -44,7 +44,7 @@ const initialState: TribesState = {
 export const fetchTribes = createAsyncThunk(
   'tribes/fetchTribes',
   async (params?: { category?: string; search?: string }) => {
-    const response = await api.get('/tribes', { params });
+    const response = await api.get('/api/tribes', { params });
     return response.data;
   }
 );
@@ -52,7 +52,7 @@ export const fetchTribes = createAsyncThunk(
 export const fetchTribeById = createAsyncThunk(
   'tribes/fetchTribeById',
   async (id: string) => {
-    const response = await api.get(`/tribes/${id}`);
+    const response = await api.get(`/api/tribes/${id}`);
     return response.data;
   }
 );
@@ -60,7 +60,7 @@ export const fetchTribeById = createAsyncThunk(
 export const createTribe = createAsyncThunk(
   'tribes/createTribe',
   async (tribeData: Partial<Tribe>) => {
-    const response = await api.post('/tribes', tribeData);
+    const response = await api.post('/api/tribes', tribeData);
     return response.data;
   }
 );
@@ -68,7 +68,7 @@ export const createTribe = createAsyncThunk(
 export const joinTribe = createAsyncThunk(
   'tribes/joinTribe',
   async (tribeId: string) => {
-    const response = await api.post(`/tribes/${tribeId}/join`);
+    const response = await api.post(`/api/tribes/${tribeId}/join`);
     return response.data;
   }
 );

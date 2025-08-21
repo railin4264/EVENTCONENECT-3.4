@@ -39,16 +39,19 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
           const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/refresh`,
+            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/refresh-token`,
             { refreshToken }
           );
 
-          const { accessToken } = response.data;
-          localStorage.setItem('accessToken', accessToken);
+          const data = response.data.data || response.data;
+          const accessToken = data.tokens?.accessToken || data.accessToken;
+          if (accessToken) {
+            localStorage.setItem('accessToken', accessToken);
 
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-          return api(originalRequest);
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return api(originalRequest);
+          }
         }
       } catch (refreshError) {
         // Refresh failed, redirect to login
@@ -152,8 +155,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const token = localStorage.getItem('accessToken');
       if (token) {
-        const response = await api.get('/api/auth/me');
-        setUser(response.data.user);
+        const response = await api.get('/api/auth/profile');
+        const u = (response.data?.data && response.data.data.user) || response.data.user;
+        if (u) setUser(u);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -168,13 +172,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       const response = await api.post('/api/auth/login', { email, password });
-      
-      const { accessToken, refreshToken, user: userData } = response.data;
-      
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      
-      setUser(userData);
+      const payload = response.data?.data || response.data;
+
+      if (payload?.tokens) {
+        localStorage.setItem('accessToken', payload.tokens.accessToken);
+        localStorage.setItem('refreshToken', payload.tokens.refreshToken);
+      }
+
+      if (payload?.user) setUser(payload.user);
       router.push('/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al iniciar sesión';
@@ -188,13 +193,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       const response = await api.post('/api/auth/register', userData);
-      
-      const { accessToken, refreshToken, user: newUser } = response.data;
-      
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-      
-      setUser(newUser);
+      const payload = response.data?.data || response.data;
+
+      if (payload?.tokens) {
+        localStorage.setItem('accessToken', payload.tokens.accessToken);
+        localStorage.setItem('refreshToken', payload.tokens.refreshToken);
+      }
+
+      if (payload?.user) setUser(payload.user);
       router.push('/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al registrarse';
@@ -221,9 +227,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateProfile = async (data: Partial<User>) => {
     try {
-      const response = await api.put('/api/users/profile', data);
-      const updatedUser = response.data.user;
-      setUser(updatedUser);
+      const response = await api.put('/api/auth/profile', data);
+      const updatedUser = (response.data?.data && response.data.data.user) || response.data.user;
+      if (updatedUser) setUser(updatedUser);
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al actualizar perfil';
       throw new Error(message);
@@ -232,8 +238,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshUser = async () => {
     try {
-      const response = await api.get('/api/auth/me');
-      setUser(response.data.user);
+      const response = await api.get('/api/auth/profile');
+      const u = (response.data?.data && response.data.data.user) || response.data.user;
+      if (u) setUser(u);
     } catch (error) {
       console.error('Failed to refresh user:', error);
       // If refresh fails, logout user
@@ -259,4 +266,4 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default useAuth; 
+export default useAuth;

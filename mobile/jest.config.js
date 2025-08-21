@@ -33,7 +33,6 @@ module.exports = {
     }
   },
   setupFilesAfterEnv: [
-    '<rootDir>/src/tests/setup.ts',
     '@testing-library/jest-native/extend-expect'
   ],
   testTimeout: 10000,
@@ -41,7 +40,7 @@ module.exports = {
   clearMocks: true,
   restoreMocks: true,
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json'],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@/components/(.*)$': '<rootDir>/src/components/$1',
     '^@/hooks/(.*)$': '<rootDir>/src/hooks/$1',

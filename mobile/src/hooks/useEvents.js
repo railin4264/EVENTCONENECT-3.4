@@ -65,7 +65,7 @@ export const useEvents = () => {
         ...filters
       });
 
-      const response = await api.get(`/events?${params}`);
+      const response = await api.get(`/api/events?${params}`);
       
       if (response?.data?.success) {
         const newEvents = response.data.data.events;
@@ -111,7 +111,7 @@ export const useEvents = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.post('/events', eventData);
+      const response = await api.post('/api/events', eventData);
       
       if (response?.data?.success) {
         const newEvent = response.data.data;
@@ -137,7 +137,7 @@ export const useEvents = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.put(`/events/${eventId}`, updateData);
+      const response = await api.put(`/api/events/${eventId}`, updateData);
       
       if (response?.data?.success) {
         const updatedEvent = response.data.data;
@@ -167,7 +167,7 @@ export const useEvents = () => {
       setLoading(true);
       setError(null);
 
-      const response = await api.delete(`/events/${eventId}`);
+      const response = await api.delete(`/api/events/${eventId}`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.filter(event => event._id !== eventId));
@@ -191,7 +191,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/join`);
+      const response = await api.post(`/api/events/${eventId}/join`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -216,7 +216,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/leave`);
+      const response = await api.delete(`/api/events/${eventId}/leave`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -241,7 +241,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/like`);
+      const response = await api.post(`/api/events/${eventId}/like`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -266,7 +266,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/unlike`);
+      const response = await api.post(`/api/events/${eventId}/unlike`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -291,7 +291,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/share`, { platform });
+      const response = await api.post(`/api/events/${eventId}/share`, { platform });
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -316,7 +316,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/save`);
+      const response = await api.post(`/api/events/${eventId}/save`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -341,7 +341,7 @@ export const useEvents = () => {
     try {
       setError(null);
 
-      const response = await api.post(`/events/${eventId}/unsave`);
+      const response = await api.post(`/api/events/${eventId}/unsave`);
       
       if (response?.data?.success) {
         setEvents(prev => prev.map(event => 
@@ -462,7 +462,7 @@ export const useEvents = () => {
     if (!api) return [];
 
     try {
-      const response = await api.get(`/events/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`);
+      const response = await api.get(`/api/events/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`);
       
       if (response?.data?.success) {
         return response.data.data.events;
@@ -483,7 +483,7 @@ export const useEvents = () => {
         ...options
       });
 
-      const response = await api.get(`/search/events?${params}`);
+      const response = await api.get(`/api/events/search?${params}`);
       
       if (response?.data?.success) {
         return response.data.data.events;
