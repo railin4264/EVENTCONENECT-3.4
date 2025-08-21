@@ -317,86 +317,132 @@ const validateEventUpdate = [
   handleValidationErrors,
 ];
 
-// Tribe validation rules
+// Tribe creation validation rules
 const validateTribeCreation = [
   body('name')
     .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('El nombre de la tribu debe tener entre 1 y 100 caracteres'),
+    .isLength({ min: 3, max: 100 })
+    .withMessage('El nombre de la tribu debe tener entre 3 y 100 caracteres'),
 
   body('description')
     .trim()
-    .isLength({ min: 10, max: 2000 })
-    .withMessage(
-      'La descripción de la tribu debe tener entre 10 y 2000 caracteres'
-    ),
+    .isLength({ min: 10, max: 1000 })
+    .withMessage('La descripción debe tener entre 10 y 1000 caracteres'),
 
   body('category')
-    .isIn([
-      'music',
-      'sports',
-      'technology',
-      'art',
-      'food',
-      'travel',
-      'education',
-      'business',
-      'health',
-      'fitness',
-      'gaming',
-      'reading',
-      'photography',
-      'cooking',
-      'dancing',
-      'writing',
-      'volunteering',
-      'outdoors',
-      'fashion',
-      'networking',
-      'professional',
-      'hobby',
-      'support',
-      'local',
-      'online',
-      'other',
-    ])
-    .withMessage('Categoría de tribu inválida'),
-
-  body('subcategory')
-    .optional()
     .trim()
-    .isLength({ max: 100 })
-    .withMessage('La subcategoría no puede exceder 100 caracteres'),
+    .isLength({ min: 1, max: 50 })
+    .withMessage('La categoría debe tener entre 1 y 50 caracteres'),
 
-  body('location.coordinates')
+  body('tags')
     .optional()
-    .isArray({ min: 2, max: 2 })
-    .withMessage(
-      'Las coordenadas deben ser un array de 2 elementos [longitud, latitud]'
-    ),
-
-  body('location.coordinates.*')
-    .optional()
-    .isFloat({ min: -180, max: 180 })
-    .withMessage('Coordenadas inválidas'),
-
-  body('tags').optional().isArray().withMessage('Los tags deben ser un array'),
+    .isArray({ max: 10 })
+    .withMessage('Máximo 10 tags permitidos'),
 
   body('tags.*')
     .optional()
     .trim()
-    .isLength({ max: 30 })
-    .withMessage('Cada tag no puede exceder 30 caracteres'),
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Cada tag debe tener entre 1 y 20 caracteres'),
 
-  body('settings.privacy')
+  body('visibility')
     .optional()
-    .isIn(['public', 'private', 'secret'])
-    .withMessage('Configuración de privacidad inválida'),
+    .isIn(['public', 'private', 'invite_only'])
+    .withMessage('Visibilidad inválida'),
 
-  body('settings.membership')
+  body('location')
     .optional()
-    .isIn(['open', 'approval_required', 'invite_only'])
-    .withMessage('Configuración de membresía inválida'),
+    .isObject()
+    .withMessage('La ubicación debe ser un objeto'),
+
+  body('location.coordinates')
+    .optional()
+    .isArray({ min: 2, max: 2 })
+    .withMessage('Las coordenadas deben ser un array de 2 elementos'),
+
+  body('location.coordinates.0')
+    .optional()
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('La longitud debe estar entre -180 y 180'),
+
+  body('location.coordinates.1')
+    .optional()
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('La latitud debe estar entre -90 y 90'),
+
+  body('location.address')
+    .optional()
+    .isObject()
+    .withMessage('La dirección debe ser un objeto'),
+
+  handleValidationErrors,
+];
+
+// Tribe update validation rules
+const validateTribeUpdate = [
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 100 })
+    .withMessage('El nombre de la tribu debe tener entre 3 y 100 caracteres'),
+
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 1000 })
+    .withMessage('La descripción debe tener entre 10 y 1000 caracteres'),
+
+  body('category')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('La categoría debe tener entre 1 y 50 caracteres'),
+
+  body('tags')
+    .optional()
+    .isArray({ max: 10 })
+    .withMessage('Máximo 10 tags permitidos'),
+
+  body('tags.*')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Cada tag debe tener entre 1 y 20 caracteres'),
+
+  body('visibility')
+    .optional()
+    .isIn(['public', 'private', 'invite_only'])
+    .withMessage('Visibilidad inválida'),
+
+  body('status')
+    .optional()
+    .isIn(['active', 'inactive', 'suspended', 'deleted'])
+    .withMessage('Estado de tribu inválido'),
+
+  body('location')
+    .optional()
+    .isObject()
+    .withMessage('La ubicación debe ser un objeto'),
+
+  body('location.coordinates')
+    .optional()
+    .isArray({ min: 2, max: 2 })
+    .withMessage('Las coordenadas deben ser un array de 2 elementos'),
+
+  body('location.coordinates.0')
+    .optional()
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('La longitud debe estar entre -180 y 180'),
+
+  body('location.coordinates.1')
+    .optional()
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('La latitud debe estar entre -90 y 90'),
+
+  body('location.address')
+    .optional()
+    .isObject()
+    .withMessage('La dirección debe ser un objeto'),
 
   handleValidationErrors,
 ];
@@ -405,62 +451,128 @@ const validateTribeCreation = [
 const validatePostCreation = [
   body('content')
     .trim()
-    .isLength({ min: 1, max: 10000 })
-    .withMessage('El contenido del post debe tener entre 1 y 10000 caracteres'),
+    .isLength({ min: 1, max: 5000 })
+    .withMessage('El contenido del post debe tener entre 1 y 5000 caracteres'),
 
   body('type')
     .optional()
-    .isIn([
-      'text',
-      'image',
-      'video',
-      'link',
-      'event',
-      'tribe',
-      'poll',
-      'article',
-    ])
+    .isIn(['text', 'image', 'video', 'link', 'poll', 'event'])
     .withMessage('Tipo de post inválido'),
 
-  body('title')
+  body('category')
     .optional()
     .trim()
-    .isLength({ max: 200 })
-    .withMessage('El título no puede exceder 200 caracteres'),
+    .isLength({ max: 50 })
+    .withMessage('La categoría no puede exceder 50 caracteres'),
 
-  body('visibility')
+  body('tags')
     .optional()
-    .isIn(['public', 'friends', 'tribe_only', 'private'])
-    .withMessage('Visibilidad inválida'),
-
-  body('tags').optional().isArray().withMessage('Los tags deben ser un array'),
+    .isArray({ max: 10 })
+    .withMessage('Máximo 10 tags permitidos'),
 
   body('tags.*')
     .optional()
     .trim()
-    .isLength({ max: 30 })
-    .withMessage('Cada tag no puede exceder 30 caracteres'),
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Cada tag debe tener entre 1 y 20 caracteres'),
 
-  body('poll.question')
+  body('event')
+    .optional()
+    .isMongoId()
+    .withMessage('ID de evento inválido'),
+
+  body('tribe')
+    .optional()
+    .isMongoId()
+    .withMessage('ID de tribu inválido'),
+
+  body('location')
+    .optional()
+    .isObject()
+    .withMessage('La ubicación debe ser un objeto'),
+
+  body('location.coordinates')
+    .optional()
+    .isArray({ min: 2, max: 2 })
+    .withMessage('Las coordenadas deben ser un array de 2 elementos'),
+
+  body('location.coordinates.0')
+    .optional()
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('La longitud debe estar entre -180 y 180'),
+
+  body('location.coordinates.1')
+    .optional()
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('La latitud debe estar entre -90 y 90'),
+
+  body('location.address')
+    .optional()
+    .isObject()
+    .withMessage('La dirección debe ser un objeto'),
+
+  handleValidationErrors,
+];
+
+// Post update validation rules
+const validatePostUpdate = [
+  body('content')
     .optional()
     .trim()
-    .isLength({ min: 1, max: 200 })
-    .withMessage(
-      'La pregunta de la encuesta debe tener entre 1 y 200 caracteres'
-    ),
+    .isLength({ min: 1, max: 5000 })
+    .withMessage('El contenido del post debe tener entre 1 y 5000 caracteres'),
 
-  body('poll.options')
+  body('type')
     .optional()
-    .isArray({ min: 2, max: 10 })
-    .withMessage('La encuesta debe tener entre 2 y 10 opciones'),
+    .isIn(['text', 'image', 'video', 'link', 'poll', 'event'])
+    .withMessage('Tipo de post inválido'),
 
-  body('poll.options.*.text')
+  body('category')
     .optional()
     .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage(
-      'Cada opción de la encuesta debe tener entre 1 y 100 caracteres'
-    ),
+    .isLength({ max: 50 })
+    .withMessage('La categoría no puede exceder 50 caracteres'),
+
+  body('tags')
+    .optional()
+    .isArray({ max: 10 })
+    .withMessage('Máximo 10 tags permitidos'),
+
+  body('tags.*')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 20 })
+    .withMessage('Cada tag debe tener entre 1 y 20 caracteres'),
+
+  body('status')
+    .optional()
+    .isIn(['active', 'draft', 'archived', 'deleted'])
+    .withMessage('Estado de post inválido'),
+
+  handleValidationErrors,
+];
+
+// Comment creation validation rules
+const validateCommentCreation = [
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('El contenido del comentario debe tener entre 1 y 1000 caracteres'),
+
+  body('parentComment')
+    .optional()
+    .isMongoId()
+    .withMessage('ID de comentario padre inválido'),
+
+  handleValidationErrors,
+];
+
+// Comment update validation rules
+const validateCommentUpdate = [
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('El contenido del comentario debe tener entre 1 y 1000 caracteres'),
 
   handleValidationErrors,
 ];
@@ -494,18 +606,123 @@ const validateChatMessage = [
   handleValidationErrors,
 ];
 
-// Review validation rules
+// Review creation validation rules
 const validateReviewCreation = [
+  body('eventId')
+    .isMongoId()
+    .withMessage('ID de evento inválido'),
+
   body('rating')
     .isInt({ min: 1, max: 5 })
-    .withMessage('La calificación debe ser un número entero entre 1 y 5'),
+    .withMessage('La calificación debe estar entre 1 y 5'),
 
-  body('comment')
+  body('title')
+    .optional()
     .trim()
-    .isLength({ min: 10, max: 1000 })
-    .withMessage('El comentario debe tener entre 10 y 1000 caracteres'),
+    .isLength({ min: 1, max: 200 })
+    .withMessage('El título debe tener entre 1 y 200 caracteres'),
 
-  body('eventId').isMongoId().withMessage('ID de evento inválido'),
+  body('content')
+    .trim()
+    .isLength({ min: 10, max: 2000 })
+    .withMessage('El contenido debe tener entre 10 y 2000 caracteres'),
+
+  body('categories')
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage('Máximo 5 categorías permitidas'),
+
+  body('categories.*')
+    .optional()
+    .isIn([
+      'overall',
+      'organization',
+      'communication',
+      'value',
+      'atmosphere',
+      'location',
+      'food',
+      'entertainment',
+      'accessibility',
+    ])
+    .withMessage('Categoría de calificación inválida'),
+
+  body('anonymous')
+    .optional()
+    .isBoolean()
+    .withMessage('El campo anónimo debe ser un booleano'),
+
+  handleValidationErrors,
+];
+
+// Review update validation rules
+const validateReviewUpdate = [
+  body('rating')
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage('La calificación debe estar entre 1 y 5'),
+
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('El título debe tener entre 1 y 200 caracteres'),
+
+  body('content')
+    .optional()
+    .trim()
+    .isLength({ min: 10, max: 2000 })
+    .withMessage('El contenido debe tener entre 10 y 2000 caracteres'),
+
+  body('categories')
+    .optional()
+    .isArray({ max: 5 })
+    .withMessage('Máximo 5 categorías permitidas'),
+
+  body('categories.*')
+    .optional()
+    .isIn([
+      'overall',
+      'organization',
+      'communication',
+      'value',
+      'atmosphere',
+      'location',
+      'food',
+      'entertainment',
+      'accessibility',
+    ])
+    .withMessage('Categoría de calificación inválida'),
+
+  body('status')
+    .optional()
+    .isIn(['active', 'pending', 'moderated', 'deleted'])
+    .withMessage('Estado de review inválido'),
+
+  handleValidationErrors,
+];
+
+// Reply creation validation rules
+const validateReplyCreation = [
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 500 })
+    .withMessage('El contenido de la respuesta debe tener entre 1 y 500 caracteres'),
+
+  body('parentReply')
+    .optional()
+    .isMongoId()
+    .withMessage('ID de respuesta padre inválido'),
+
+  handleValidationErrors,
+];
+
+// Reply update validation rules
+const validateReplyUpdate = [
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 500 })
+    .withMessage('El contenido de la respuesta debe tener entre 1 y 500 caracteres'),
 
   handleValidationErrors,
 ];
@@ -644,18 +861,90 @@ const validateLocation = [
   handleValidationErrors,
 ];
 
+// Password change validation
+const validatePasswordChange = [
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('La contraseña actual es requerida'),
+
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('La nueva contraseña debe tener al menos 8 caracteres')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage(
+      'La nueva contraseña debe contener al menos una letra minúscula, una mayúscula y un número'
+    ),
+
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+      return true;
+    })
+    .withMessage('Las contraseñas no coinciden'),
+
+  handleValidationErrors,
+];
+
+// Password reset validation
+const validatePasswordReset = [
+  body('email')
+    .isEmail()
+    .withMessage('Por favor ingrese un email válido')
+    .normalizeEmail(),
+
+  handleValidationErrors,
+];
+
+// Password reset with token validation
+const validatePasswordResetWithToken = [
+  body('token')
+    .notEmpty()
+    .withMessage('El token de restablecimiento es requerido'),
+
+  body('newPassword')
+    .isLength({ min: 8 })
+    .withMessage('La nueva contraseña debe tener al menos 8 caracteres')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage(
+      'La nueva contraseña debe contener al menos una letra minúscula, una mayúscula y un número'
+    ),
+
+  body('confirmPassword')
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+      return true;
+    })
+    .withMessage('Las contraseñas no coinciden'),
+
+  handleValidationErrors,
+];
+
 module.exports = {
   handleValidationErrors,
   sanitizeHtmlContent,
   validateUserRegistration,
   validateUserLogin,
   validateUserUpdate,
+  validatePasswordChange,
+  validatePasswordReset,
+  validatePasswordResetWithToken,
   validateEventCreation,
   validateEventUpdate,
   validateTribeCreation,
+  validateTribeUpdate,
   validatePostCreation,
+  validatePostUpdate,
+  validateCommentCreation,
+  validateCommentUpdate,
   validateChatMessage,
   validateReviewCreation,
+  validateReviewUpdate,
+  validateReplyCreation,
+  validateReplyUpdate,
   validateSearch,
   validatePagination,
   validateMongoId,

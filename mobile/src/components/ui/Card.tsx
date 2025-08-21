@@ -11,10 +11,8 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
-  withTiming,
-  interpolate,
 } from 'react-native-reanimated';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ===== CARD INTERFACES =====
 export interface CardProps {
@@ -56,13 +54,13 @@ export interface CardFooterProps {
 export const Card: React.FC<CardProps> = ({
   variant = 'default',
   size = 'md',
-  hover = false,
+  hover: _hover = false,
   glow = false,
   border = true,
   shadow = true,
   rounded = 'lg',
-  animation = 'none',
-  delay = 0,
+  animation: _animation = 'none',
+  delay: _delay = 0,
   onPress,
   children,
   style,

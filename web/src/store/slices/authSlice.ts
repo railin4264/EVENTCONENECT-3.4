@@ -28,7 +28,7 @@ const initialState: AuthState = {
 export const login = createAsyncThunk(
   'auth/login',
   async (credentials: { email: string; password: string }) => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/api/auth/login', credentials);
     return response.data;
   }
 );
@@ -36,13 +36,13 @@ export const login = createAsyncThunk(
 export const register = createAsyncThunk(
   'auth/register',
   async (userData: { email: string; password: string; name: string }) => {
-    const response = await api.post('/auth/register', userData);
+    const response = await api.post('/api/auth/register', userData);
     return response.data;
   }
 );
 
 export const getProfile = createAsyncThunk('auth/getProfile', async () => {
-  const response = await api.get('/auth/profile');
+  const response = await api.get('/api/auth/profile');
   return response.data;
 });
 

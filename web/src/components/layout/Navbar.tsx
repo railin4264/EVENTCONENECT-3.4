@@ -23,7 +23,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useUnreadNotificationsCount } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import SearchModal from '@/components/modals/SearchModal';
 import NotificationDropdown from '@/components/notifications/NotificationDropdown';
@@ -34,7 +34,7 @@ const Navbar = () => {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useUnreadNotificationsCount();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);

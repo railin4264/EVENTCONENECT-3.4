@@ -13,9 +13,8 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolateColor,
 } from 'react-native-reanimated';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // ===== BUTTON VARIANTS =====
 export interface ButtonProps {
@@ -24,7 +23,7 @@ export interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
-  rounded?: 'sm' | 'md' | 'lg' | 'full';
+  rounded?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   glow?: boolean;
   pulse?: boolean;
   onPress?: () => void;
@@ -42,7 +41,7 @@ export const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   rounded = 'lg',
   glow = false,
-  pulse = false,
+  // pulse prop is supported but not animated yet
   onPress,
   children,
   style,

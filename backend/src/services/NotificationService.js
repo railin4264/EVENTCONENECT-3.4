@@ -4,13 +4,15 @@ const Chat = require('../models/Chat');
 const Event = require('../models/Event');
 const Tribe = require('../models/Tribe');
 const User = require('../models/User');
+const InAppNotification = require('../models/InAppNotification');
+const ScheduledNotification = require('../models/ScheduledNotification');
 
 /**
- *
+ * Servicio de notificaciones para EventConnect
  */
 class NotificationService {
   /**
-   *
+   * Constructor del servicio de notificaciones
    */
   constructor() {
     this.notificationTypes = {

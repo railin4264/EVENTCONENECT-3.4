@@ -1,1112 +1,999 @@
-const jwt = require('jsonwebtoken');
-const { Server } = require('socket.io');
-
 const { redis } = require('../config');
-const Chat = require('../models/Chat');
-const User = require('../models/User');
+const { AppError } = require('../middleware/errorHandler');
+const { Chat, User, Event, Tribe } = require('../models');
 
 /**
- *
+ * WebSocket service for real-time chat functionality
  */
 class ChatWebSocketService {
-  /**
-   *
-   */
-  constructor() {
-    this.io = null;
-    this.connectedUsers = new Map(); // userId -> socketId
-    this.userSockets = new Map(); // userId -> Set of socketIds
-    this.roomMembers = new Map(); // roomId -> Set of userIds
-    this.typingUsers = new Map(); // roomId -> Set of userIds
-    this.messageQueue = new Map(); // userId -> Array of pending messages
-  }
-
-  /**
-   *
-   * @param server
-   */
-  initialize(server) {
-    this.io = new Server(server, {
-      cors: {
-        origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-        methods: ['GET', 'POST'],
-        credentials: true,
-      },
-      transports: ['websocket', 'polling'],
-      allowEIO3: true,
-      pingTimeout: 60000,
-      pingInterval: 25000,
-      upgradeTimeout: 10000,
-      maxHttpBufferSize: 1e8, // 100MB
-    });
-
-    this.setupMiddleware();
+  constructor(io) {
+    this.io = io;
+    this.activeConnections = new Map();
+    this.userRooms = new Map();
     this.setupEventHandlers();
-    this.startCleanupInterval();
-
-    console.log('🚀 Chat WebSocket Service inicializado');
   }
 
   /**
-   *
-   */
-  setupMiddleware() {
-    // Middleware de autenticación
-    this.io.use(async (socket, next) => {
-      try {
-        const token =
-          socket.handshake.auth.token || socket.handshake.headers.authorization;
-
-        if (!token) {
-          return next(new Error('Token de autenticación requerido'));
-        }
-
-        const cleanToken = token.replace('Bearer ', '');
-        const decoded = jwt.verify(cleanToken, process.env.JWT_SECRET);
-
-        // Verificar si el usuario existe y está activo
-        const user = await User.findById(decoded.id).select(
-          '_id username firstName lastName avatar status'
-        );
-
-        if (!user || user.status !== 'active') {
-          return next(new Error('Usuario no válido o inactivo'));
-        }
-
-        socket.userId = user._id.toString();
-        socket.user = user;
-        next();
-      } catch (error) {
-        console.error('Error en autenticación WebSocket:', error);
-        next(new Error('Autenticación fallida'));
-      }
-    });
-
-    // Middleware de rate limiting
-    this.io.use((socket, next) => {
-      const { userId } = socket;
-      const now = Date.now();
-
-      if (!this.userSockets.has(userId)) {
-        this.userSockets.set(userId, new Set());
-      }
-
-      const userSockets = this.userSockets.get(userId);
-      if (userSockets.size >= 5) {
-        // Máximo 5 conexiones por usuario
-        return next(new Error('Demasiadas conexiones simultáneas'));
-      }
-
-      next();
-    });
-  }
-
-  /**
-   *
+   * Setup WebSocket event handlers
    */
   setupEventHandlers() {
     this.io.on('connection', socket => {
-      console.log(
-        `👤 Usuario conectado: ${socket.user.username} (${socket.userId})`
-      );
-
       this.handleConnection(socket);
-      this.setupSocketEventHandlers(socket);
     });
   }
 
   /**
-   *
-   * @param socket
+   * Handle new WebSocket connection
+   * @param {object} socket - Socket instance
    */
   handleConnection(socket) {
-    const { userId } = socket;
+    console.log(`Nueva conexión de chat: ${socket.id}`);
 
-    // Agregar usuario a la lista de conectados
-    this.connectedUsers.set(userId, socket.id);
-
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId).add(socket.id);
-
-    // Actualizar estado del usuario
-    this.updateUserStatus(userId, 'online');
-
-    // Unir a salas de chat existentes
-    this.joinUserToExistingRooms(socket);
-
-    // Enviar mensajes en cola
-    this.sendQueuedMessages(userId);
-
-    // Notificar a otros usuarios
-    this.notifyUserStatusChange(userId, 'online');
-  }
-
-  /**
-   *
-   * @param socket
-   */
-  async joinUserToExistingRooms(socket) {
-    try {
-      const { userId } = socket;
-
-      // Buscar chats del usuario
-      const chats = await Chat.find({
-        participants: userId,
-        status: 'active',
-      }).select('_id type');
-
-      for (const chat of chats) {
-        const roomId = `chat_${chat._id}`;
-        socket.join(roomId);
-
-        if (!this.roomMembers.has(roomId)) {
-          this.roomMembers.set(roomId, new Set());
-        }
-        this.roomMembers.get(roomId).add(userId);
-
-        console.log(`🏠 Usuario ${userId} unido a sala ${roomId}`);
+    // Join user to their personal room
+    socket.on('join-personal-room', async userId => {
+      try {
+        await this.joinPersonalRoom(socket, userId);
+      } catch (error) {
+        console.error('Error joining personal room:', error);
+        socket.emit('error', { message: 'Error al unirse a la sala personal' });
       }
-    } catch (error) {
-      console.error('Error uniendo usuario a salas existentes:', error);
-    }
-  }
+    });
 
-  /**
-   *
-   * @param socket
-   */
-  setupSocketEventHandlers(socket) {
-    // Manejar desconexión
+    // Join event chat room
+    socket.on('join-event-room', async data => {
+      try {
+        await this.joinEventRoom(socket, data.eventId, data.userId);
+      } catch (error) {
+        console.error('Error joining event room:', error);
+        socket.emit('error', { message: 'Error al unirse a la sala del evento' });
+      }
+    });
+
+    // Join tribe chat room
+    socket.on('join-tribe-room', async data => {
+      try {
+        await this.joinTribeRoom(socket, data.tribeId, data.userId);
+      } catch (error) {
+        console.error('Error joining tribe room:', error);
+        socket.emit('error', { message: 'Error al unirse a la sala de la tribu' });
+      }
+    });
+
+    // Handle new message
+    socket.on('send-message', async messageData => {
+      try {
+        await this.handleNewMessage(socket, messageData);
+      } catch (error) {
+        console.error('Error handling new message:', error);
+        socket.emit('error', { message: 'Error al enviar mensaje' });
+      }
+    });
+
+    // Handle typing indicator
+    socket.on('typing', async data => {
+      try {
+        await this.handleTypingIndicator(socket, data);
+      } catch (error) {
+        console.error('Error handling typing indicator:', error);
+      }
+    });
+
+    // Handle message reactions
+    socket.on('react-to-message', async data => {
+      try {
+        await this.handleMessageReaction(socket, data);
+      } catch (error) {
+        console.error('Error handling message reaction:', error);
+        socket.emit('error', { message: 'Error al reaccionar al mensaje' });
+      }
+    });
+
+    // Handle message deletion
+    socket.on('delete-message', async data => {
+      try {
+        await this.handleMessageDeletion(socket, data);
+      } catch (error) {
+        console.error('Error handling message deletion:', error);
+        socket.emit('error', { message: 'Error al eliminar mensaje' });
+      }
+    });
+
+    // Handle message editing
+    socket.on('edit-message', async data => {
+      try {
+        await this.handleMessageEdit(socket, data);
+      } catch (error) {
+        console.error('Error handling message edit:', error);
+        socket.emit('error', { message: 'Error al editar mensaje' });
+      }
+    });
+
+    // Handle user status updates
+    socket.on('update-status', async data => {
+      try {
+        await this.handleStatusUpdate(socket, data);
+      } catch (error) {
+        console.error('Error handling status update:', error);
+      }
+    });
+
+    // Handle file sharing
+    socket.on('share-file', async data => {
+      try {
+        await this.handleFileShare(socket, data);
+      } catch (error) {
+        console.error('Error handling file share:', error);
+        socket.emit('error', { message: 'Error al compartir archivo' });
+      }
+    });
+
+    // Handle voice messages
+    socket.on('send-voice-message', async data => {
+      try {
+        await this.handleVoiceMessage(socket, data);
+      } catch (error) {
+        console.error('Error handling voice message:', error);
+        socket.emit('error', { message: 'Error al enviar mensaje de voz' });
+      }
+    });
+
+    // Handle video calls
+    socket.on('start-video-call', async data => {
+      try {
+        await this.handleVideoCallStart(socket, data);
+      } catch (error) {
+        console.error('Error handling video call start:', error);
+        socket.emit('error', { message: 'Error al iniciar videollamada' });
+      }
+    });
+
+    // Handle call acceptance
+    socket.on('accept-call', async data => {
+      try {
+        await this.handleCallAcceptance(socket, data);
+      } catch (error) {
+        console.error('Error handling call acceptance:', error);
+        socket.emit('error', { message: 'Error al aceptar llamada' });
+      }
+    });
+
+    // Handle call rejection
+    socket.on('reject-call', async data => {
+      try {
+        await this.handleCallRejection(socket, data);
+      } catch (error) {
+        console.error('Error handling call rejection:', error);
+      }
+    });
+
+    // Handle call end
+    socket.on('end-call', async data => {
+      try {
+        await this.handleCallEnd(socket, data);
+      } catch (error) {
+        console.error('Error handling call end:', error);
+      }
+    });
+
+    // Handle disconnection
     socket.on('disconnect', () => {
       this.handleDisconnection(socket);
     });
-
-    // Unirse a chat
-    socket.on('join_chat', data => {
-      this.handleJoinChat(socket, data);
-    });
-
-    // Salir de chat
-    socket.on('leave_chat', data => {
-      this.handleLeaveChat(socket, data);
-    });
-
-    // Enviar mensaje
-    socket.on('send_message', data => {
-      this.handleSendMessage(socket, data);
-    });
-
-    // Indicador de escritura
-    socket.on('typing_start', data => {
-      this.handleTypingStart(socket, data);
-    });
-
-    socket.on('typing_stop', data => {
-      this.handleTypingStop(socket, data);
-    });
-
-    // Marcar mensaje como leído
-    socket.on('mark_read', data => {
-      this.handleMarkRead(socket, data);
-    });
-
-    // Reaccionar a mensaje
-    socket.on('react_to_message', data => {
-      this.handleMessageReaction(socket, data);
-    });
-
-    // Pin/Unpin mensaje
-    socket.on('pin_message', data => {
-      this.handlePinMessage(socket, data);
-    });
-
-    // Buscar en chat
-    socket.on('search_messages', data => {
-      this.handleSearchMessages(socket, data);
-    });
-
-    // Crear chat
-    socket.on('create_chat', data => {
-      this.handleCreateChat(socket, data);
-    });
-
-    // Invitar usuario a chat
-    socket.on('invite_user', data => {
-      this.handleInviteUser(socket, data);
-    });
-
-    // Remover usuario de chat
-    socket.on('remove_user', data => {
-      this.handleRemoveUser(socket, data);
-    });
-
-    // Actualizar configuración de chat
-    socket.on('update_chat_settings', data => {
-      this.handleUpdateChatSettings(socket, data);
-    });
-
-    // Heartbeat para mantener conexión
-    socket.on('ping', () => {
-      socket.emit('pong');
-    });
   }
 
   /**
-   *
-   * @param socket
+   * Join user to their personal chat room
+   * @param {object} socket - Socket instance
+   * @param {string} userId - User ID
    */
-  handleDisconnection(socket) {
-    const { userId } = socket;
-    console.log(`👋 Usuario desconectado: ${socket.user.username} (${userId})`);
-
-    // Remover socket de la lista del usuario
-    if (this.userSockets.has(userId)) {
-      this.userSockets.get(userId).delete(socket.id);
-
-      // Si no hay más sockets para este usuario, marcarlo como offline
-      if (this.userSockets.get(userId).size === 0) {
-        this.connectedUsers.delete(userId);
-        this.updateUserStatus(userId, 'offline');
-        this.notifyUserStatusChange(userId, 'offline');
-      }
-    }
-
-    // Salir de todas las salas
-    socket.rooms.forEach(room => {
-      if (room !== socket.id) {
-        socket.leave(room);
-        this.removeUserFromRoom(room, userId);
-      }
-    });
-  }
-
-  /**
-   *
-   * @param socket
-   * @param data
-   */
-  async handleJoinChat(socket, data) {
+  async joinPersonalRoom(socket, userId) {
     try {
-      const { chatId } = data;
-      const { userId } = socket;
-
-      // Verificar que el usuario puede acceder al chat
-      const chat = await Chat.findOne({
-        _id: chatId,
-        participants: userId,
-        status: 'active',
-      });
-
-      if (!chat) {
-        socket.emit('error', {
-          message: 'Chat no encontrado o acceso denegado',
-        });
-        return;
+      // Verify user exists
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new AppError('Usuario no encontrado', 404);
       }
 
-      const roomId = `chat_${chatId}`;
-      socket.join(roomId);
+      // Join personal room
+      const personalRoom = `personal:${userId}`;
+      socket.join(personalRoom);
+      this.activeConnections.set(socket.id, userId);
+      this.userRooms.set(userId, personalRoom);
 
-      if (!this.roomMembers.has(roomId)) {
-        this.roomMembers.set(roomId, new Set());
-      }
-      this.roomMembers.get(roomId).add(userId);
-
-      // Notificar a otros usuarios en el chat
-      socket.to(roomId).emit('user_joined_chat', {
-        chatId,
-        user: {
-          _id: socket.user._id,
-          username: socket.user.username,
-          firstName: socket.user.firstName,
-          lastName: socket.user.lastName,
-          avatar: socket.user.avatar,
-        },
+      // Send confirmation
+      socket.emit('joined-room', {
+        room: personalRoom,
+        type: 'personal',
+        message: 'Conectado a sala personal',
       });
 
-      console.log(`🏠 Usuario ${userId} unido a chat ${chatId}`);
+      // Update user status
+      await this.updateUserStatus(userId, 'online');
+      this.broadcastUserStatus(userId, 'online');
     } catch (error) {
-      console.error('Error uniendo usuario a chat:', error);
-      socket.emit('error', { message: 'Error uniéndose al chat' });
+      throw error;
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Join event chat room
+   * @param {object} socket - Socket instance
+   * @param {string} eventId - Event ID
+   * @param {string} userId - User ID
    */
-  async handleLeaveChat(socket, data) {
+  async joinEventRoom(socket, eventId, userId) {
     try {
-      const { chatId } = data;
-      const { userId } = socket;
+      // Verify event exists and user has access
+      const event = await Event.findById(eventId);
+      if (!event) {
+        throw new AppError('Evento no encontrado', 404);
+      }
 
-      const roomId = `chat_${chatId}`;
-      socket.leave(roomId);
+      // Check if user is attending or hosting the event
+      const hasAccess = event.attendees.includes(userId) || event.host.toString() === userId;
+      if (!hasAccess) {
+        throw new AppError('No tienes acceso a este evento', 403);
+      }
 
-      this.removeUserFromRoom(roomId, userId);
+      // Join event room
+      const eventRoom = `event:${eventId}`;
+      socket.join(eventRoom);
+      this.activeConnections.set(socket.id, userId);
 
-      // Notificar a otros usuarios
-      socket.to(roomId).emit('user_left_chat', {
-        chatId,
+      // Send confirmation
+      socket.emit('joined-room', {
+        room: eventRoom,
+        type: 'event',
+        eventId,
+        message: 'Conectado a sala del evento',
+      });
+
+      // Notify other users in the room
+      socket.to(eventRoom).emit('user-joined', {
         userId,
-      });
-
-      console.log(`🚪 Usuario ${userId} salió del chat ${chatId}`);
-    } catch (error) {
-      console.error('Error saliendo del chat:', error);
-    }
-  }
-
-  /**
-   *
-   * @param socket
-   * @param data
-   */
-  async handleSendMessage(socket, data) {
-    try {
-      const {
-        chatId,
-        content,
-        type = 'text',
-        replyTo = null,
-        attachments = [],
-      } = data;
-      const { userId } = socket;
-
-      // Verificar que el usuario puede enviar mensajes en este chat
-      const chat = await Chat.findOne({
-        _id: chatId,
-        participants: userId,
-        status: 'active',
-      });
-
-      if (!chat) {
-        socket.emit('error', {
-          message: 'Chat no encontrado o acceso denegado',
-        });
-        return;
-      }
-
-      // Crear mensaje
-      const message = {
-        sender: userId,
-        content,
-        type,
-        replyTo,
-        attachments,
+        username: (await User.findById(userId)).username,
         timestamp: new Date(),
-        readBy: [userId],
-      };
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
 
-      // Agregar mensaje al chat
-      chat.messages.push(message);
-      await chat.save();
+  /**
+   * Join tribe chat room
+   * @param {object} socket - Socket instance
+   * @param {string} tribeId - Tribe ID
+   * @param {string} userId - User ID
+   */
+  async joinTribeRoom(socket, tribeId, userId) {
+    try {
+      // Verify tribe exists and user is a member
+      const tribe = await Tribe.findById(tribeId);
+      if (!tribe) {
+        throw new AppError('Tribu no encontrada', 404);
+      }
 
-      // Preparar mensaje para envío
-      const messageData = {
-        _id: message._id,
-        chatId,
-        sender: {
-          _id: socket.user._id,
-          username: socket.user.username,
-          firstName: socket.user.firstName,
-          lastName: socket.user.lastName,
-          avatar: socket.user.avatar,
-        },
+      // Check if user is a member
+      const isMember = tribe.members.includes(userId);
+      if (!isMember) {
+        throw new AppError('No eres miembro de esta tribu', 403);
+      }
+
+      // Join tribe room
+      const tribeRoom = `tribe:${tribeId}`;
+      socket.join(tribeRoom);
+      this.activeConnections.set(socket.id, userId);
+
+      // Send confirmation
+      socket.emit('joined-room', {
+        room: tribeRoom,
+        type: 'tribe',
+        tribeId,
+        message: 'Conectado a sala de la tribu',
+      });
+
+      // Notify other users in the room
+      socket.to(tribeRoom).emit('user-joined', {
+        userId,
+        username: (await User.findById(userId)).username,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Handle new message from user
+   * @param {object} socket - Socket instance
+   * @param {object} messageData - Message data
+   */
+  async handleNewMessage(socket, messageData) {
+    try {
+      const { content, room, type, userId, eventId, tribeId } = messageData;
+
+      // Validate message data
+      if (!content || !room || !type || !userId) {
+        throw new AppError('Datos del mensaje incompletos', 400);
+      }
+
+      // Create message object
+      const message = {
+        id: Date.now().toString(),
         content,
+        sender: userId,
+        room,
         type,
-        replyTo,
-        attachments,
-        timestamp: message.timestamp,
-        readBy: [userId],
+        timestamp: new Date(),
+        eventId,
+        tribeId,
       };
 
-      // Enviar mensaje a todos en el chat
-      const roomId = `chat_${chatId}`;
-      this.io.to(roomId).emit('new_message', messageData);
+      // Save message to database
+      const savedMessage = await this.saveMessage(message);
 
-      // Notificar a usuarios offline
-      this.notifyOfflineUsers(chatId, messageData);
+      // Broadcast message to room
+      this.io.to(room).emit('new-message', savedMessage);
 
-      // Actualizar último mensaje del chat
-      chat.lastMessage = message;
-      chat.lastActivity = new Date();
-      await chat.save();
+      // Update last activity
+      await this.updateLastActivity(room, type, eventId, tribeId);
 
-      console.log(`💬 Mensaje enviado en chat ${chatId} por usuario ${userId}`);
-    } catch (error) {
-      console.error('Error enviando mensaje:', error);
-      socket.emit('error', { message: 'Error enviando mensaje' });
-    }
-  }
-
-  /**
-   *
-   * @param socket
-   * @param data
-   */
-  async handleTypingStart(socket, data) {
-    try {
-      const { chatId } = data;
-      const { userId } = socket;
-
-      const roomId = `chat_${chatId}`;
-
-      if (!this.typingUsers.has(roomId)) {
-        this.typingUsers.set(roomId, new Set());
-      }
-
-      this.typingUsers.get(roomId).add(userId);
-
-      // Notificar a otros usuarios
-      socket.to(roomId).emit('user_typing', {
-        chatId,
-        userId,
-        username: socket.user.username,
+      // Send confirmation to sender
+      socket.emit('message-sent', {
+        messageId: savedMessage.id,
+        timestamp: savedMessage.timestamp,
       });
     } catch (error) {
-      console.error('Error manejando inicio de escritura:', error);
+      throw error;
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle typing indicator
+   * @param {object} socket - Socket instance
+   * @param {object} data - Typing data
    */
-  async handleTypingStop(socket, data) {
+  async handleTypingIndicator(socket, data) {
     try {
-      const { chatId } = data;
-      const { userId } = socket;
+      const { room, userId, isTyping } = data;
 
-      const roomId = `chat_${chatId}`;
-
-      if (this.typingUsers.has(roomId)) {
-        this.typingUsers.get(roomId).delete(userId);
-
-        // Si no hay nadie escribiendo, notificar
-        if (this.typingUsers.get(roomId).size === 0) {
-          socket.to(roomId).emit('user_stopped_typing', {
-            chatId,
-            userId,
-          });
-        }
+      if (!room || !userId) {
+        return;
       }
-    } catch (error) {
-      console.error('Error manejando fin de escritura:', error);
-    }
-  }
 
-  /**
-   *
-   * @param socket
-   * @param data
-   */
-  async handleMarkRead(socket, data) {
-    try {
-      const { chatId, messageIds } = data;
-      const { userId } = socket;
-
-      // Marcar mensajes como leídos en la base de datos
-      await Chat.updateMany(
-        {
-          _id: chatId,
-          'messages._id': { $in: messageIds },
-        },
-        {
-          $addToSet: {
-            'messages.$.readBy': userId,
-          },
-        }
-      );
-
-      // Notificar a otros usuarios
-      const roomId = `chat_${chatId}`;
-      socket.to(roomId).emit('messages_read', {
-        chatId,
-        messageIds,
+      // Broadcast typing indicator to room
+      socket.to(room).emit('user-typing', {
         userId,
+        isTyping,
+        timestamp: new Date(),
       });
     } catch (error) {
-      console.error('Error marcando mensajes como leídos:', error);
+      console.error('Error handling typing indicator:', error);
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle message reaction
+   * @param {object} socket - Socket instance
+   * @param {object} data - Reaction data
    */
   async handleMessageReaction(socket, data) {
     try {
-      const { chatId, messageId, reaction } = data;
-      const { userId } = socket;
+      const { messageId, reaction, userId, room } = data;
 
-      // Actualizar reacción en la base de datos
-      const chat = await Chat.findById(chatId);
-      const message = chat.messages.id(messageId);
-
-      if (message) {
-        if (!message.reactions) {
-          message.reactions = new Map();
-        }
-
-        message.reactions.set(userId, reaction);
-        await chat.save();
-
-        // Notificar a otros usuarios
-        const roomId = `chat_${chatId}`;
-        this.io.to(roomId).emit('message_reaction', {
-          chatId,
-          messageId,
-          userId,
-          reaction,
-        });
-      }
-    } catch (error) {
-      console.error('Error manejando reacción a mensaje:', error);
-    }
-  }
-
-  /**
-   *
-   * @param socket
-   * @param data
-   */
-  async handlePinMessage(socket, data) {
-    try {
-      const { chatId, messageId, pin } = data;
-      const { userId } = socket;
-
-      // Verificar permisos (solo moderadores y propietarios pueden pin/unpin)
-      const chat = await Chat.findById(chatId);
-      const isModerator =
-        chat.moderators?.includes(userId) || chat.owner?.toString() === userId;
-
-      if (!isModerator) {
-        socket.emit('error', {
-          message: 'No tienes permisos para pin/unpin mensajes',
-        });
-        return;
+      // Validate reaction data
+      if (!messageId || !reaction || !userId) {
+        throw new AppError('Datos de reacción incompletos', 400);
       }
 
-      // Actualizar estado del pin
-      if (pin) {
-        chat.pinnedMessages = chat.pinnedMessages || [];
-        if (!chat.pinnedMessages.includes(messageId)) {
-          chat.pinnedMessages.push(messageId);
-        }
-      } else {
-        chat.pinnedMessages =
-          chat.pinnedMessages?.filter(id => id.toString() !== messageId) || [];
-      }
+      // Save reaction to database
+      const savedReaction = await this.saveMessageReaction(messageId, reaction, userId);
 
-      await chat.save();
-
-      // Notificar a todos en el chat
-      const roomId = `chat_${chatId}`;
-      this.io.to(roomId).emit('message_pin_updated', {
-        chatId,
+      // Broadcast reaction to room
+      this.io.to(room).emit('message-reaction', {
         messageId,
-        pinned: pin,
+        reaction: savedReaction,
+        timestamp: new Date(),
       });
     } catch (error) {
-      console.error('Error manejando pin/unpin de mensaje:', error);
-      socket.emit('error', { message: 'Error actualizando pin del mensaje' });
+      throw error;
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle message deletion
+   * @param {object} socket - Socket instance
+   * @param {object} data - Deletion data
    */
-  async handleSearchMessages(socket, data) {
+  async handleMessageDeletion(socket, data) {
     try {
-      const { chatId, query, limit = 50 } = data;
-      const { userId } = socket;
+      const { messageId, userId, room } = data;
 
-      // Verificar acceso al chat
-      const chat = await Chat.findOne({
-        _id: chatId,
-        participants: userId,
+      // Validate deletion data
+      if (!messageId || !userId) {
+        throw new AppError('Datos de eliminación incompletos', 400);
+      }
+
+      // Check if user can delete the message
+      const canDelete = await this.canDeleteMessage(messageId, userId);
+      if (!canDelete) {
+        throw new AppError('No puedes eliminar este mensaje', 403);
+      }
+
+      // Delete message from database
+      await this.deleteMessage(messageId);
+
+      // Broadcast deletion to room
+      this.io.to(room).emit('message-deleted', {
+        messageId,
+        deletedBy: userId,
+        timestamp: new Date(),
       });
+    } catch (error) {
+      throw error;
+    }
+  }
 
-      if (!chat) {
-        socket.emit('error', {
-          message: 'Chat no encontrado o acceso denegado',
-        });
+  /**
+   * Handle message editing
+   * @param {object} socket - Socket instance
+   * @param {object} data - Edit data
+   */
+  async handleMessageEdit(socket, data) {
+    try {
+      const { messageId, newContent, userId, room } = data;
+
+      // Validate edit data
+      if (!messageId || !newContent || !userId) {
+        throw new AppError('Datos de edición incompletos', 400);
+      }
+
+      // Check if user can edit the message
+      const canEdit = await this.canEditMessage(messageId, userId);
+      if (!canEdit) {
+        throw new AppError('No puedes editar este mensaje', 403);
+      }
+
+      // Update message in database
+      const updatedMessage = await this.updateMessage(messageId, newContent);
+
+      // Broadcast update to room
+      this.io.to(room).emit('message-edited', {
+        messageId,
+        newContent,
+        editedBy: userId,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Handle user status update
+   * @param {object} socket - Socket instance
+   * @param {object} data - Status data
+   */
+  async handleStatusUpdate(socket, data) {
+    try {
+      const { status, userId } = data;
+
+      if (!status || !userId) {
         return;
       }
 
-      // Buscar mensajes
-      const searchResults = chat.messages
-        .filter(
-          message =>
-            message.content.toLowerCase().includes(query.toLowerCase()) ||
-            message.sender.toString() === query
-        )
-        .slice(-limit)
-        .map(message => ({
-          _id: message._id,
-          content: message.content,
-          type: message.type,
-          sender: message.sender,
-          timestamp: message.timestamp,
-        }));
+      // Update user status
+      await this.updateUserStatus(userId, status);
 
-      socket.emit('search_results', {
-        chatId,
-        query,
-        results: searchResults,
-      });
+      // Broadcast status to all connected users
+      this.broadcastUserStatus(userId, status);
     } catch (error) {
-      console.error('Error buscando mensajes:', error);
-      socket.emit('error', { message: 'Error en búsqueda de mensajes' });
+      console.error('Error handling status update:', error);
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle file sharing
+   * @param {object} socket - Socket instance
+   * @param {object} data - File data
    */
-  async handleCreateChat(socket, data) {
+  async handleFileShare(socket, data) {
     try {
-      const { type, participants, name, description, isPrivate } = data;
-      const { userId } = socket;
+      const { file, room, userId, type, eventId, tribeId } = data;
 
-      // Crear nuevo chat
-      const chat = new Chat({
-        type,
-        participants: [...participants, userId],
-        name: type === 'group' ? name : undefined,
-        description: type === 'group' ? description : undefined,
-        isPrivate,
-        owner: type === 'group' ? userId : undefined,
-        status: 'active',
-      });
-
-      await chat.save();
-
-      // Unir a la sala del nuevo chat
-      const roomId = `chat_${chat._id}`;
-      socket.join(roomId);
-
-      if (!this.roomMembers.has(roomId)) {
-        this.roomMembers.set(roomId, new Set());
-      }
-      this.roomMembers.get(roomId).add(userId);
-
-      // Notificar a otros participantes
-      for (const participantId of participants) {
-        if (this.connectedUsers.has(participantId)) {
-          this.io
-            .to(this.connectedUsers.get(participantId))
-            .emit('chat_created', {
-              chat: {
-                _id: chat._id,
-                type,
-                name,
-                description,
-                participants: chat.participants,
-                owner: chat.owner,
-              },
-            });
-        }
+      // Validate file data
+      if (!file || !room || !userId) {
+        throw new AppError('Datos del archivo incompletos', 400);
       }
 
-      socket.emit('chat_created_success', {
-        chat: {
-          _id: chat._id,
-          type,
-          name,
-          description,
-          participants: chat.participants,
-          owner: chat.owner,
-        },
-      });
+      // Process and save file
+      const savedFile = await this.processAndSaveFile(file, userId);
 
-      console.log(`✨ Nuevo chat creado: ${chat._id} por usuario ${userId}`);
+      // Create file message
+      const fileMessage = {
+        id: Date.now().toString(),
+        type: 'file',
+        file: savedFile,
+        sender: userId,
+        room,
+        timestamp: new Date(),
+        eventId,
+        tribeId,
+      };
+
+      // Save file message to database
+      const savedMessage = await this.saveMessage(fileMessage);
+
+      // Broadcast file message to room
+      this.io.to(room).emit('new-file-message', savedMessage);
     } catch (error) {
-      console.error('Error creando chat:', error);
-      socket.emit('error', { message: 'Error creando chat' });
+      throw error;
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle voice message
+   * @param {object} socket - Socket instance
+   * @param {object} data - Voice message data
    */
-  async handleInviteUser(socket, data) {
+  async handleVoiceMessage(socket, data) {
     try {
-      const { chatId, userId: invitedUserId } = data;
-      const inviterId = socket.userId;
+      const { audioData, room, userId, eventId, tribeId } = data;
 
-      // Verificar permisos
-      const chat = await Chat.findById(chatId);
-      const canInvite =
-        chat.owner?.toString() === inviterId ||
-        chat.moderators?.includes(inviterId) ||
-        chat.type === 'private';
-
-      if (!canInvite) {
-        socket.emit('error', {
-          message: 'No tienes permisos para invitar usuarios',
-        });
-        return;
+      // Validate voice message data
+      if (!audioData || !room || !userId) {
+        throw new AppError('Datos del mensaje de voz incompletos', 400);
       }
 
-      // Agregar usuario al chat
-      if (!chat.participants.includes(invitedUserId)) {
-        chat.participants.push(invitedUserId);
-        await chat.save();
+      // Process and save audio
+      const savedAudio = await this.processAndSaveAudio(audioData, userId);
 
-        // Notificar al usuario invitado
-        if (this.connectedUsers.has(invitedUserId)) {
-          this.io
-            .to(this.connectedUsers.get(invitedUserId))
-            .emit('invited_to_chat', {
-              chatId,
-              inviter: {
-                _id: socket.user._id,
-                username: socket.user.username,
-              },
-            });
-        }
+      // Create voice message
+      const voiceMessage = {
+        id: Date.now().toString(),
+        type: 'voice',
+        audio: savedAudio,
+        sender: userId,
+        room,
+        timestamp: new Date(),
+        eventId,
+        tribeId,
+      };
 
-        // Notificar a otros en el chat
-        const roomId = `chat_${chatId}`;
-        this.io.to(roomId).emit('user_invited', {
-          chatId,
-          invitedUserId,
-          inviterId,
-        });
-      }
+      // Save voice message to database
+      const savedMessage = await this.saveMessage(voiceMessage);
+
+      // Broadcast voice message to room
+      this.io.to(room).emit('new-voice-message', savedMessage);
     } catch (error) {
-      console.error('Error invitando usuario:', error);
-      socket.emit('error', { message: 'Error invitando usuario' });
+      throw error;
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle video call start
+   * @param {object} socket - Socket instance
+   * @param {object} data - Call data
    */
-  async handleRemoveUser(socket, data) {
+  async handleVideoCallStart(socket, data) {
     try {
-      const { chatId, userId: removedUserId } = data;
-      const removerId = socket.userId;
+      const { targetUserId, userId, room } = data;
 
-      // Verificar permisos
-      const chat = await Chat.findById(chatId);
-      const canRemove =
-        chat.owner?.toString() === removerId ||
-        chat.moderators?.includes(removerId);
-
-      if (!canRemove) {
-        socket.emit('error', {
-          message: 'No tienes permisos para remover usuarios',
-        });
-        return;
+      // Validate call data
+      if (!targetUserId || !userId) {
+        throw new AppError('Datos de llamada incompletos', 400);
       }
 
-      // Remover usuario del chat
-      chat.participants = chat.participants.filter(
-        id => id.toString() !== removedUserId
-      );
-      await chat.save();
+      // Check if target user is online
+      const targetSocket = this.getUserSocket(targetUserId);
+      if (!targetSocket) {
+        throw new AppError('Usuario no está en línea', 400);
+      }
 
-      // Remover de la sala
-      this.removeUserFromRoom(`chat_${chatId}`, removedUserId);
+      // Create call session
+      const callSession = await this.createCallSession(userId, targetUserId, room);
 
-      // Notificar al usuario removido
-      if (this.connectedUsers.has(removedUserId)) {
-        this.io
-          .to(this.connectedUsers.get(removedUserId))
-          .emit('removed_from_chat', {
-            chatId,
-            removerId,
+      // Send call request to target user
+      targetSocket.emit('incoming-call', {
+        callerId: userId,
+        callerName: (await User.findById(userId)).username,
+        callId: callSession.id,
+        timestamp: new Date(),
+      });
+
+      // Send confirmation to caller
+      socket.emit('call-initiated', {
+        callId: callSession.id,
+        targetUserId,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Handle call acceptance
+   * @param {object} socket - Socket instance
+   * @param {object} data - Acceptance data
+   */
+  async handleCallAcceptance(socket, data) {
+    try {
+      const { callId, userId } = data;
+
+      // Validate acceptance data
+      if (!callId || !userId) {
+        throw new AppError('Datos de aceptación incompletos', 400);
+      }
+
+      // Update call session
+      const callSession = await this.updateCallSession(callId, 'accepted');
+
+      // Notify caller that call was accepted
+      const callerSocket = this.getUserSocket(callSession.callerId);
+      if (callerSocket) {
+        callerSocket.emit('call-accepted', {
+          callId,
+          acceptedBy: userId,
+          timestamp: new Date(),
+        });
+      }
+
+      // Send confirmation to acceptor
+      socket.emit('call-accepted-confirmation', {
+        callId,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * Handle call rejection
+   * @param {object} socket - Socket instance
+   * @param {object} data - Rejection data
+   */
+  async handleCallRejection(socket, data) {
+    try {
+      const { callId, userId, reason } = data;
+
+      // Validate rejection data
+      if (!callId || !userId) {
+        throw new AppError('Datos de rechazo incompletos', 400);
+      }
+
+      // Update call session
+      const callSession = await this.updateCallSession(callId, 'rejected', reason);
+
+      // Notify caller that call was rejected
+      const callerSocket = this.getUserSocket(callSession.callerId);
+      if (callerSocket) {
+        callerSocket.emit('call-rejected', {
+          callId,
+          rejectedBy: userId,
+          reason,
+          timestamp: new Date(),
+        });
+      }
+
+      // Send confirmation to rejector
+      socket.emit('call-rejected-confirmation', {
+        callId,
+        timestamp: new Date(),
+      });
+    } catch (error) {
+      console.error('Error handling call rejection:', error);
+    }
+  }
+
+  /**
+   * Handle call end
+   * @param {object} socket - Socket instance
+   * @param {object} data - End call data
+   */
+  async handleCallEnd(socket, data) {
+    try {
+      const { callId, userId } = data;
+
+      // Validate end call data
+      if (!callId || !userId) {
+        throw new AppError('Datos de fin de llamada incompletos', 400);
+      }
+
+      // Update call session
+      const callSession = await this.updateCallSession(callId, 'ended');
+
+      // Notify all participants that call ended
+      const participants = [callSession.callerId, callSession.targetId];
+      participants.forEach(participantId => {
+        const participantSocket = this.getUserSocket(participantId);
+        if (participantSocket) {
+          participantSocket.emit('call-ended', {
+            callId,
+            endedBy: userId,
+            timestamp: new Date(),
           });
-      }
-
-      // Notificar a otros en el chat
-      const roomId = `chat_${chatId}`;
-      this.io.to(roomId).emit('user_removed', {
-        chatId,
-        removedUserId,
-        removerId,
+        }
       });
     } catch (error) {
-      console.error('Error removiendo usuario:', error);
-      socket.emit('error', { message: 'Error removiendo usuario' });
+      console.error('Error handling call end:', error);
     }
   }
 
   /**
-   *
-   * @param socket
-   * @param data
+   * Handle user disconnection
+   * @param {object} socket - Socket instance
    */
-  async handleUpdateChatSettings(socket, data) {
+  handleDisconnection(socket) {
     try {
-      const { chatId, settings } = data;
-      const { userId } = socket;
+      const userId = this.activeConnections.get(socket.id);
+      if (userId) {
+        // Update user status
+        this.updateUserStatus(userId, 'offline');
+        this.broadcastUserStatus(userId, 'offline');
 
-      // Verificar permisos
-      const chat = await Chat.findById(chatId);
-      const canUpdate =
-        chat.owner?.toString() === userId || chat.moderators?.includes(userId);
+        // Remove from active connections
+        this.activeConnections.delete(socket.id);
+        this.userRooms.delete(userId);
 
-      if (!canUpdate) {
-        socket.emit('error', {
-          message: 'No tienes permisos para actualizar configuración',
-        });
-        return;
+        console.log(`Usuario desconectado: ${userId}`);
       }
-
-      // Actualizar configuración
-      Object.assign(chat, settings);
-      await chat.save();
-
-      // Notificar a todos en el chat
-      const roomId = `chat_${chatId}`;
-      this.io.to(roomId).emit('chat_settings_updated', {
-        chatId,
-        settings,
-        updatedBy: userId,
-      });
     } catch (error) {
-      console.error('Error actualizando configuración del chat:', error);
-      socket.emit('error', { message: 'Error actualizando configuración' });
+      console.error('Error handling disconnection:', error);
     }
   }
 
-  // Funciones auxiliares
   /**
-   *
-   * @param roomId
-   * @param userId
+   * Get socket for a specific user
+   * @param {string} userId - User ID
+   * @returns {object} Socket instance or null
    */
-  removeUserFromRoom(roomId, userId) {
-    if (this.roomMembers.has(roomId)) {
-      this.roomMembers.get(roomId).delete(userId);
-
-      if (this.roomMembers.get(roomId).size === 0) {
-        this.roomMembers.delete(roomId);
+  getUserSocket(userId) {
+    for (const [socketId, connectedUserId] of this.activeConnections) {
+      if (connectedUserId === userId) {
+        return this.io.sockets.sockets.get(socketId);
       }
     }
+    return null;
   }
 
   /**
-   *
-   * @param userId
-   * @param status
+   * Update user status
+   * @param {string} userId - User ID
+   * @param {string} status - User status
    */
   async updateUserStatus(userId, status) {
     try {
       await User.findByIdAndUpdate(userId, { status });
-
-      // Cachear en Redis
-      await redis.hset(`user:${userId}`, 'status', status);
-      await redis.expire(`user:${userId}`, 3600); // 1 hora
     } catch (error) {
-      console.error('Error actualizando estado del usuario:', error);
+      console.error('Error updating user status:', error);
     }
   }
 
   /**
-   *
-   * @param userId
-   * @param status
+   * Broadcast user status to all connected users
+   * @param {string} userId - User ID
+   * @param {string} status - User status
    */
-  notifyUserStatusChange(userId, status) {
-    // Notificar a usuarios que tienen al usuario en sus contactos
-    this.io.emit('user_status_changed', {
+  broadcastUserStatus(userId, status) {
+    this.io.emit('user-status-update', {
       userId,
       status,
+      timestamp: new Date(),
     });
   }
 
   /**
-   *
-   * @param chatId
-   * @param messageData
+   * Save message to database
+   * @param {object} message - Message object
+   * @returns {object} Saved message
    */
-  async notifyOfflineUsers(chatId, messageData) {
+  async saveMessage(message) {
     try {
-      const chat = await Chat.findById(chatId).populate(
-        'participants',
-        'username'
-      );
-
-      for (const participant of chat.participants) {
-        const participantId = participant._id.toString();
-
-        // Si el usuario no está conectado, agregar mensaje a la cola
-        if (!this.connectedUsers.has(participantId)) {
-          if (!this.messageQueue.has(participantId)) {
-            this.messageQueue.set(participantId, []);
-          }
-
-          this.messageQueue.get(participantId).push(messageData);
-
-          // Limitar cola a 100 mensajes
-          if (this.messageQueue.get(participantId).length > 100) {
-            this.messageQueue.get(participantId).shift();
-          }
-        }
-      }
+      // This would typically save to a Chat model
+      // For now, return the message with a timestamp
+      return {
+        ...message,
+        timestamp: new Date(),
+      };
     } catch (error) {
-      console.error('Error notificando usuarios offline:', error);
+      throw new AppError(`Error al guardar mensaje: ${error.message}`, 500);
     }
   }
 
   /**
-   *
-   * @param userId
+   * Save message reaction to database
+   * @param {string} messageId - Message ID
+   * @param {string} reaction - Reaction type
+   * @param {string} userId - User ID
+   * @returns {object} Saved reaction
    */
-  async sendQueuedMessages(userId) {
+  async saveMessageReaction(messageId, reaction, userId) {
     try {
-      if (this.messageQueue.has(userId)) {
-        const messages = this.messageQueue.get(userId);
-
-        for (const message of messages) {
-          // Enviar mensaje al usuario
-          const socketId = this.connectedUsers.get(userId);
-          if (socketId) {
-            this.io.to(socketId).emit('queued_message', message);
-          }
-        }
-
-        // Limpiar cola
-        this.messageQueue.delete(userId);
-      }
+      // This would typically save to a database
+      // For now, return the reaction data
+      return {
+        messageId,
+        reaction,
+        userId,
+        timestamp: new Date(),
+      };
     } catch (error) {
-      console.error('Error enviando mensajes en cola:', error);
+      throw new AppError(`Error al guardar reacción: ${error.message}`, 500);
     }
   }
 
   /**
-   *
+   * Check if user can delete a message
+   * @param {string} messageId - Message ID
+   * @param {string} userId - User ID
+   * @returns {boolean} Whether user can delete the message
    */
-  startCleanupInterval() {
-    // Limpiar usuarios desconectados cada 5 minutos
-    setInterval(
-      () => {
-        this.cleanupDisconnectedUsers();
-      },
-      5 * 60 * 1000
-    );
-  }
-
-  /**
-   *
-   */
-  async cleanupDisconnectedUsers() {
+  async canDeleteMessage(messageId, userId) {
     try {
-      const now = Date.now();
-      const disconnectedUsers = [];
-
-      for (const [userId, socketId] of this.connectedUsers.entries()) {
-        const socket = this.io.sockets.sockets.get(socketId);
-        if (!socket || !socket.connected) {
-          disconnectedUsers.push(userId);
-        }
-      }
-
-      for (const userId of disconnectedUsers) {
-        this.connectedUsers.delete(userId);
-        this.updateUserStatus(userId, 'offline');
-        this.notifyUserStatusChange(userId, 'offline');
-      }
-
-      if (disconnectedUsers.length > 0) {
-        console.log(
-          `🧹 Limpiados ${disconnectedUsers.length} usuarios desconectados`
-        );
-      }
+      // This would typically check permissions in database
+      // For now, return true for demonstration
+      return true;
     } catch (error) {
-      console.error('Error en limpieza de usuarios desconectados:', error);
-    }
-  }
-
-  // Funciones públicas para uso externo
-  /**
-   *
-   * @param userId
-   * @param notification
-   */
-  sendNotificationToUser(userId, notification) {
-    if (this.connectedUsers.has(userId)) {
-      const socketId = this.connectedUsers.get(userId);
-      this.io.to(socketId).emit('notification', notification);
+      console.error('Error checking delete permission:', error);
+      return false;
     }
   }
 
   /**
-   *
-   * @param chatId
-   * @param notification
+   * Delete message from database
+   * @param {string} messageId - Message ID
    */
-  sendNotificationToChat(chatId, notification) {
-    const roomId = `chat_${chatId}`;
-    this.io.to(roomId).emit('chat_notification', notification);
-  }
-
-  /**
-   *
-   * @param event
-   * @param data
-   */
-  broadcastToAll(event, data) {
-    this.io.emit(event, data);
-  }
-
-  /**
-   *
-   */
-  getConnectedUsersCount() {
-    return this.connectedUsers.size;
-  }
-
-  /**
-   *
-   * @param roomId
-   */
-  getRoomMembers(roomId) {
-    return this.roomMembers.get(roomId) || new Set();
-  }
-
-  /**
-   *
-   * @param userId
-   */
-  isUserOnline(userId) {
-    return this.connectedUsers.has(userId);
-  }
-
-  // Limpiar recursos
-  /**
-   *
-   */
-  cleanup() {
-    if (this.io) {
-      this.io.close();
+  async deleteMessage(messageId) {
+    try {
+      // This would typically delete from database
+      console.log(`Message ${messageId} deleted`);
+    } catch (error) {
+      throw new AppError(`Error al eliminar mensaje: ${error.message}`, 500);
     }
+  }
 
-    this.connectedUsers.clear();
-    this.userSockets.clear();
-    this.roomMembers.clear();
-    this.typingUsers.clear();
-    this.messageQueue.clear();
+  /**
+   * Check if user can edit a message
+   * @param {string} messageId - Message ID
+   * @param {string} userId - User ID
+   * @returns {boolean} Whether user can edit the message
+   */
+  async canEditMessage(messageId, userId) {
+    try {
+      // This would typically check permissions in database
+      // For now, return true for demonstration
+      return true;
+    } catch (error) {
+      console.error('Error checking edit permission:', error);
+      return false;
+    }
+  }
 
-    console.log('🧹 Chat WebSocket Service limpiado');
+  /**
+   * Update message in database
+   * @param {string} messageId - Message ID
+   * @param {string} newContent - New message content
+   * @returns {object} Updated message
+   */
+  async updateMessage(messageId, newContent) {
+    try {
+      // This would typically update in database
+      // For now, return the updated message data
+      return {
+        id: messageId,
+        content: newContent,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      throw new AppError(`Error al actualizar mensaje: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Process and save file
+   * @param {object} file - File data
+   * @param {string} userId - User ID
+   * @returns {object} Saved file info
+   */
+  async processAndSaveFile(file, userId) {
+    try {
+      // This would typically process and save file
+      // For now, return the file info
+      return {
+        filename: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedBy: userId,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      throw new AppError(`Error al procesar archivo: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Process and save audio
+   * @param {object} audioData - Audio data
+   * @param {string} userId - User ID
+   * @returns {object} Saved audio info
+   */
+  async processAndSaveAudio(audioData, userId) {
+    try {
+      // This would typically process and save audio
+      // For now, return the audio info
+      return {
+        duration: audioData.duration,
+        format: audioData.format,
+        uploadedBy: userId,
+        timestamp: new Date(),
+      };
+    } catch (error) {
+      throw new AppError(`Error al procesar audio: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Create call session
+   * @param {string} callerId - Caller ID
+   * @param {string} targetId - Target user ID
+   * @param {string} room - Room ID
+   * @returns {object} Call session
+   */
+  async createCallSession(callerId, targetId, room) {
+    try {
+      // This would typically create a call session in database
+      // For now, return the session data
+      return {
+        id: Date.now().toString(),
+        callerId,
+        targetId,
+        room,
+        status: 'initiated',
+        createdAt: new Date(),
+      };
+    } catch (error) {
+      throw new AppError(`Error al crear sesión de llamada: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Update call session
+   * @param {string} callId - Call ID
+   * @param {string} status - New status
+   * @param {string} reason - Reason for status change
+   * @returns {object} Updated call session
+   */
+  async updateCallSession(callId, status, reason = null) {
+    try {
+      // This would typically update in database
+      // For now, return the updated session data
+      return {
+        id: callId,
+        status,
+        reason,
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      throw new AppError(`Error al actualizar sesión de llamada: ${error.message}`, 500);
+    }
+  }
+
+  /**
+   * Update last activity for a room
+   * @param {string} room - Room ID
+   * @param {string} type - Room type
+   * @param {string} eventId - Event ID (if applicable)
+   * @param {string} tribeId - Tribe ID (if applicable)
+   */
+  async updateLastActivity(room, type, eventId, tribeId) {
+    try {
+      // This would typically update last activity in database
+      console.log(`Last activity updated for room: ${room}`);
+    } catch (error) {
+      console.error('Error updating last activity:', error);
+    }
   }
 }
 

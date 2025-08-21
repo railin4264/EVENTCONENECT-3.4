@@ -57,7 +57,7 @@ api.interceptors.response.use(
         // Try to refresh token
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
+          const response = await axios.post(`${API_BASE_URL}/api/auth/refresh-token`, {
             refreshToken,
           });
 
@@ -416,4 +416,4 @@ export const analyticsAPI = {
 
 // Export everything
 export default api;
-export { apiService, authAPI, eventsAPI, tribesAPI, postsAPI, chatAPI, notificationsAPI, searchAPI, locationAPI, analyticsAPI }; 
+export { api, apiService, authAPI, eventsAPI, tribesAPI, postsAPI, chatAPI, notificationsAPI, searchAPI, locationAPI, analyticsAPI };

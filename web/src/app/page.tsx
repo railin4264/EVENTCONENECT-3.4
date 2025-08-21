@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { HeroSection } from '@/components/sections/HeroSection';
-import { Card, CardContent, CardHeader, CardTitle, CardSubtitle } from '@/components/ui/Card';
+import { Card, CardContent, CardTitle, CardSubtitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { motion } from 'framer-motion';
 import { Calendar, MapPin, Users, Star, TrendingUp, Zap, Globe, Heart } from 'lucide-react';

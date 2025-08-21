@@ -1,262 +1,253 @@
-# 🚀 EventConnect v4.0.0 - Plataforma de Eventos Inteligente
+# EventConnect - Plataforma Integral para Eventos y Tribus
 
-> **La plataforma más avanzada para descubrir, crear y conectar con eventos increíbles**
+EventConnect es una plataforma completa para descubrir eventos, conectar con tribus y crear experiencias sociales únicas. Combina funcionalidades de redes sociales, gestión de eventos y análisis de datos para ofrecer una experiencia integral.
 
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/eventconnect/eventconnect)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Web%20%7C%20Mobile%20%7C%20Backend-blue.svg)](https://eventconnect.com)
+## 🚀 Características Principales
 
-## ✨ **NUEVAS FUNCIONALIDADES v4.0.0**
+- **Gestión de Eventos**: Crear, gestionar y descubrir eventos con funcionalidades avanzadas
+- **Sistema de Tribus**: Comunidades temáticas para conectar usuarios con intereses similares
+- **Chat en Tiempo Real**: Comunicación instantánea entre usuarios y tribus
+- **Sistema de Notificaciones**: Push, email y SMS para mantener a los usuarios informados
+- **Análisis de Datos**: Insights y analytics para eventos y usuarios
+- **PWA**: Aplicación web progresiva con funcionalidades offline
+- **API RESTful**: Backend robusto con documentación completa
+- **WebSockets**: Comunicación en tiempo real para chat y notificaciones
 
-### 🔐 **Sistema de Autenticación Avanzado**
-- **Multi-Factor Authentication (MFA)** con TOTP y códigos de respaldo
-- **OAuth 2.0** integrado con Google, Facebook, GitHub
-- **Gestión de sesiones** concurrentes y revocación inteligente
-- **Vinculación de cuentas** múltiples proveedores
-- **Tokens JWT** con refresh automático y seguridad avanzada
-
-### 📱 **PWA (Progressive Web App) Completo**
-- **Service Worker** avanzado con estrategias de cache inteligentes
-- **Instalación nativa** en dispositivos móviles y desktop
-- **Funcionamiento offline** con sincronización automática
-- **Notificaciones push** personalizadas y en tiempo real
-- **Background sync** para acciones offline
-- **App-like experience** con acceso desde pantalla de inicio
-
-### 🗺️ **Sistema de Geolocalización Inteligente**
-- **Tracking en tiempo real** con alta precisión
-- **Geofencing automático** para eventos y ubicaciones
-- **Análisis de movimientos** con métricas avanzadas
-- **Rutas optimizadas** y navegación inteligente
-- **Historial de ubicaciones** con análisis de patrones
-- **Eventos de ubicación** automáticos (entrada/salida de zonas)
-
-## 🏗️ **Arquitectura del Proyecto**
+## 🏗️ Arquitectura
 
 ```
-EventConnect/
-├── 📱 mobile/                 # App móvil React Native + Expo
-├── 🌐 web/                    # Frontend web Next.js 14 + React
-├── ⚙️ backend/                # API REST Node.js + Express
-├── 🎨 components/             # Sistema de diseño compartido
-├── 📚 docs/                   # Documentación técnica
-└── 🚀 scripts/                # Scripts de automatización
+eventconnect/
+├── backend/          # API Node.js + Express
+├── web/             # Frontend Next.js + React
+├── mobile/          # App React Native + Expo
+├── config/          # Configuraciones compartidas
+├── docs/            # Documentación
+└── scripts/         # Scripts de utilidad
 ```
 
-## 🎨 **Sistema de Diseño "Neon Urban"**
+## 📋 Prerrequisitos
 
-### **Paleta de Colores**
-- **Neon Blue**: `#00d4ff` - Color principal
-- **Neon Purple**: `#8b5cf6` - Acentos y highlights
-- **Neon Cyan**: `#06b6d4` - Elementos interactivos
-- **Neon Green**: `#10b981` - Estados de éxito
-- **Neon Orange**: `#f59e0b` - Advertencias y alertas
-- **Neon Pink**: `#ec4899` - Elementos destacados
+- **Node.js**: >= 18.0.0
+- **npm**: >= 9.0.0
+- **MongoDB**: >= 6.0
+- **Redis**: >= 7.0
+- **Git**: Para clonar el repositorio
 
-### **Efectos Visuales**
-- **Glassmorphism**: Transparencias y blur effects
-- **Neon Glow**: Bordes luminosos y sombras de color
-- **Gradientes**: Transiciones suaves entre colores
-- **Partículas**: Efectos de fondo animados
-- **Micro-interacciones**: Animaciones sutiles en hover/click
+## 🛠️ Instalación
 
-## 🚀 **Instalación Rápida**
+### 1. Clonar el Repositorio
 
-### **Requisitos Previos**
 ```bash
-Node.js >= 18.0.0
-npm >= 9.0.0
-MongoDB >= 6.0
-Redis >= 7.0
-```
-
-### **1. Clonar y Configurar**
-```bash
-git clone https://github.com/eventconnect/eventconnect.git
+git clone https://github.com/tu-usuario/eventconnect.git
 cd eventconnect
+```
+
+### 2. Instalar Dependencias
+
+```bash
+# Instalar todas las dependencias
 npm run install:all
+
+# O instalar por separado
+npm install                    # Dependencias raíz
+cd backend && npm install     # Backend
+cd ../web && npm install      # Frontend web
+cd ../mobile && npm install   # Frontend mobile
 ```
 
-### **2. Configurar Variables de Entorno**
+### 3. Configurar Variables de Entorno
+
+#### Backend (.env)
+
 ```bash
-# Backend
-cp backend/.env.example backend/.env
-# Web Frontend
-cp web/.env.example web/.env
-# Mobile App
-cp mobile/.env.example mobile/.env
+cd backend
+cp .env.example .env
 ```
 
-### **3. Iniciar Desarrollo**
+Editar `.env` con tus configuraciones:
+
+```env
+# Server Configuration
+NODE_ENV=development
+PORT=5000
+
+# Database Configuration
+MONGODB_URI=mongodb://localhost:27017/eventconnect
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-here
+
+# CORS Configuration
+CORS_ORIGIN=http://localhost:3000
+```
+
+#### Frontend Web (.env.local)
+
 ```bash
-# Desarrollo completo (Backend + Web + Mobile)
+cd web
+cp .env.example .env.local
+```
+
+Editar `.env.local`:
+
+```env
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+
+# Google Maps
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+```
+
+### 4. Configurar Base de Datos
+
+#### MongoDB
+
+```bash
+# Iniciar MongoDB (Ubuntu/Debian)
+sudo systemctl start mongod
+
+# O con Docker
+docker run -d -p 27017:27017 --name mongodb mongo:latest
+```
+
+#### Redis
+
+```bash
+# Iniciar Redis (Ubuntu/Debian)
+sudo systemctl start redis
+
+# O con Docker
+docker run -d -p 6379:6379 --name redis redis:latest
+```
+
+### 5. Inicializar Base de Datos
+
+```bash
+cd backend
+
+# Ejecutar migraciones
+npm run db:migrate
+
+# Sembrar datos de ejemplo
+npm run db:seed
+
+# Verificar estado
+npm run db:status
+```
+
+## 🚀 Ejecución
+
+### Desarrollo
+
+```bash
+# Ejecutar todo el stack
 npm run dev
 
-# Solo backend
-npm run dev:backend
-
-# Solo web frontend
-npm run dev:web
-
-# Solo mobile app
-npm run dev:mobile
+# O ejecutar por separado
+npm run dev:backend    # Backend en puerto 5000
+npm run dev:web        # Frontend web en puerto 3000
+npm run dev:mobile     # App mobile con Expo
 ```
 
-## 🌐 **URLs de Desarrollo**
+### Producción
 
-| Servicio | URL | Descripción |
-|----------|-----|-------------|
-| **Backend API** | `http://localhost:5000` | API REST + WebSocket |
-| **Web Frontend** | `http://localhost:3000` | Next.js App |
-| **Mobile App** | `http://localhost:8081` | Expo Dev Server |
-| **API Docs** | `http://localhost:5000/api-docs` | Swagger Documentation |
-| **Admin Panel** | `http://localhost:3000/admin` | Panel de administración |
+```bash
+# Construir todo
+npm run build
 
-## 🔧 **Funcionalidades Principales**
+# Ejecutar en producción
+npm run start:backend  # Backend
+npm run start:web      # Frontend web
+```
 
-### **🎯 Gestión de Eventos**
-- **Creación inteligente** con asistente paso a paso
-- **Categorización automática** con IA
-- **Recomendaciones personalizadas** basadas en preferencias
-- **Geolocalización** con mapas interactivos
-- **Sistema de tickets** con QR codes
-- **Streaming en vivo** integrado
+## 📱 Acceso a la Aplicación
 
-### **👥 Sistema de Tribus**
-- **Comunidades temáticas** con moderación automática
-- **Chat en tiempo real** con archivos multimedia
-- **Eventos exclusivos** para miembros
-- **Sistema de roles** y permisos
-- **Gamificación** con badges y niveles
+- **Frontend Web**: http://localhost:3000
+- **Backend API**: http://localhost:5000/api
+- **Health Check**: http://localhost:5000/health
+- **Documentación API**: http://localhost:5000/api/docs
 
-### **📱 Experiencia Móvil**
-- **App nativa** con React Native
-- **Notificaciones push** personalizadas
-- **Modo offline** con sincronización
-- **Geolocalización** con tracking opcional
-- **Cámara integrada** para capturas de eventos
+## 🧪 Testing
 
-### **🔐 Seguridad Avanzada**
-- **Autenticación MFA** con múltiples métodos
-- **OAuth 2.0** con proveedores sociales
-- **Rate limiting** inteligente
-- **Validación de datos** con Joi
-- **Encriptación** de datos sensibles
-- **Auditoría** completa de acciones
-
-## 🎮 **Sistema de Gamificación**
-
-### **🏆 Logros y Badges**
-- **Badges temáticos** por categorías de eventos
-- **Logros especiales** por hitos importantes
-- **Sistema de niveles** con XP progresivo
-- **Rankings** y leaderboards
-- **Recompensas** por participación activa
-
-### **📊 Progreso y Estadísticas**
-- **Dashboard personalizado** con métricas
-- **Historial de actividades** detallado
-- **Gráficos de progreso** interactivos
-- **Comparación** con otros usuarios
-- **Metas personalizables** y recordatorios
-
-## 🤖 **IA y Recomendaciones Inteligentes**
-
-### **🎯 Recomendaciones Personalizadas**
-- **Algoritmo de ML** para sugerencias
-- **Análisis de comportamiento** del usuario
-- **Predicción de preferencias** futuras
-- **Optimización continua** del modelo
-- **A/B testing** automático
-
-### **🔍 Búsqueda Inteligente**
-- **Búsqueda semántica** con NLP
-- **Filtros inteligentes** automáticos
-- **Sugerencias en tiempo real** mientras escribes
-- **Historial de búsquedas** con análisis
-- **Resultados personalizados** por ubicación
-
-## 🌍 **Internacionalización Completa**
-
-### **🌐 Soporte Multi-idioma**
-- **10 idiomas** soportados oficialmente
-- **RTL (Right-to-Left)** para árabe y hebreo
-- **Localización cultural** de contenido
-- **Formateo automático** de fechas, monedas, números
-- **Traducción automática** con IA
-
-### **🎨 Adaptación Cultural**
-- **Colores y símbolos** apropiados por región
-- **Formatos de fecha** locales
-- **Monedas** y sistemas de medida
-- **Saludos** y expresiones culturales
-- **Contenido** adaptado por región
-
-## ♿ **Sistema de Accesibilidad**
-
-### **👁️ Accesibilidad Visual**
-- **Modo alto contraste** para mejor visibilidad
-- **Tamaños de fuente** ajustables
-- **Modo daltónico** con alternativas de color
-- **Navegación por teclado** completa
-- **Screen reader** optimizado
-
-### **🔊 Accesibilidad Auditiva**
-- **Subtítulos** en videos y audio
-- **Transcripciones** de contenido
-- **Alertas visuales** para notificaciones
-- **Controles de volumen** con indicadores visuales
-- **Soporte para audífonos** y dispositivos asistivos
-
-## ⚡ **Optimizaciones de Performance**
-
-### **🚀 Core Web Vitals**
-- **LCP (Largest Contentful Paint)** < 2.5s
-- **FID (First Input Delay)** < 100ms
-- **CLS (Cumulative Layout Shift)** < 0.1
-- **TTFB (Time to First Byte)** < 800ms
-
-### **📱 PWA Optimizations**
-- **Service Worker** con cache inteligente
-- **Lazy loading** de componentes
-- **Code splitting** automático
-- **Image optimization** con WebP y AVIF
-- **Bundle analysis** y optimización
-
-## 🧪 **Testing y Calidad**
-
-### **🔍 Testing Automatizado**
 ```bash
 # Ejecutar todos los tests
-npm test
+npm run test
+
+# Tests específicos
+npm run test:backend   # Tests del backend
+npm run test:web       # Tests del frontend
+npm run test:mobile    # Tests de la app mobile
 
 # Tests con coverage
 npm run test:coverage
 
-# Tests en modo watch
-npm run test:watch
-
-# Tests específicos
-npm run test:backend    # Solo backend
-npm run test:web        # Solo frontend
-npm run test:mobile     # Solo mobile
+# Tests E2E
+npm run test:e2e
 ```
 
-### **📊 Métricas de Calidad**
-- **Coverage**: > 80% en todo el código
-- **Performance**: Lighthouse score > 90
-- **Accessibility**: WCAG 2.1 AA compliance
-- **Security**: OWASP Top 10 protection
-- **SEO**: 100/100 en PageSpeed Insights
+## 🔧 Scripts Disponibles
 
-## 🚀 **Despliegue y Producción**
+### Backend
 
-### **🐳 Docker**
+```bash
+cd backend
+
+# Desarrollo
+npm run dev              # Servidor de desarrollo
+npm run build            # Construir para producción
+npm run start            # Servidor de producción
+
+# Base de datos
+npm run db:migrate       # Ejecutar migraciones
+npm run db:seed          # Sembrar datos
+npm run db:reset         # Resetear base de datos
+npm run db:backup        # Crear backup
+npm run db:restore       # Restaurar backup
+
+# Testing y calidad
+npm run test             # Ejecutar tests
+npm run lint             # Verificar código
+npm run lint:fix         # Corregir errores de linting
+npm run format           # Formatear código
+```
+
+### Frontend Web
+
+```bash
+cd web
+
+# Desarrollo
+npm run dev              # Servidor de desarrollo
+npm run build            # Construir para producción
+npm run start            # Servidor de producción
+
+# Testing y calidad
+npm run test             # Ejecutar tests
+npm run lint             # Verificar código
+npm run type-check       # Verificar tipos TypeScript
+npm run storybook        # Abrir Storybook
+```
+
+## 🐳 Docker
+
+### Construir Imágenes
+
 ```bash
 # Construir todas las imágenes
 npm run docker:build
 
-# Levantar servicios
+# O construir por separado
+npm run docker:build:backend
+npm run docker:build:web
+```
+
+### Ejecutar con Docker Compose
+
+```bash
+# Iniciar servicios
 npm run docker:up
 
 # Ver logs
@@ -266,45 +257,117 @@ npm run docker:logs
 npm run docker:down
 ```
 
-### **☁️ Cloud Deployment**
-- **Backend**: Docker + Kubernetes
-- **Frontend**: Vercel/Netlify con CDN
-- **Mobile**: Expo EAS Build + App Store
-- **Database**: MongoDB Atlas
-- **Cache**: Redis Cloud
-- **Storage**: AWS S3/Cloudinary
+## 📊 Monitoreo y Logs
 
-## 📚 **Documentación Adicional**
+### Health Checks
 
-- **[API Documentation](./docs/api.md)** - Endpoints y ejemplos
-- **[Component Library](./docs/components.md)** - Sistema de diseño
-- **[Mobile Guide](./docs/mobile.md)** - Desarrollo móvil
-- **[Deployment](./docs/deployment.md)** - Guía de despliegue
-- **[Contributing](./docs/contributing.md)** - Cómo contribuir
+- **Backend**: http://localhost:5000/health
+- **Frontend**: http://localhost:3000/api/health
 
-## 🤝 **Contribuir**
+### Logs
 
-1. **Fork** el proyecto
-2. **Crea** una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** a la rama (`git push origin feature/AmazingFeature`)
-5. **Abre** un Pull Request
+```bash
+# Ver logs del backend
+cd backend && npm run logs
 
-## 📄 **Licencia**
+# Ver logs de Docker
+docker-compose logs -f backend
+```
 
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
+## 🔒 Seguridad
 
-## 🙏 **Agradecimientos**
+- **JWT**: Autenticación basada en tokens
+- **Rate Limiting**: Protección contra ataques de fuerza bruta
+- **CORS**: Configuración de orígenes permitidos
+- **Helmet**: Headers de seguridad HTTP
+- **Validación**: Validación de entrada en todas las APIs
+- **Sanitización**: Limpieza de datos de entrada
 
-- **React Team** por el framework increíble
-- **Next.js** por la experiencia de desarrollo
-- **Expo** por las herramientas móviles
-- **Tailwind CSS** por el sistema de diseño
-- **Framer Motion** por las animaciones fluidas
-- **Comunidad open source** por las librerías
+## 🌐 API Endpoints
+
+### Autenticación
+- `POST /api/auth/register` - Registro de usuario
+- `POST /api/auth/login` - Inicio de sesión
+- `POST /api/auth/refresh` - Renovar token
+- `POST /api/auth/logout` - Cerrar sesión
+
+### Usuarios
+- `GET /api/users` - Listar usuarios
+- `GET /api/users/:id` - Obtener usuario
+- `PUT /api/users/:id` - Actualizar usuario
+- `DELETE /api/users/:id` - Eliminar usuario
+
+### Eventos
+- `GET /api/events` - Listar eventos
+- `POST /api/events` - Crear evento
+- `GET /api/events/:id` - Obtener evento
+- `PUT /api/events/:id` - Actualizar evento
+- `DELETE /api/events/:id` - Eliminar evento
+
+### Tribus
+- `GET /api/tribes` - Listar tribus
+- `POST /api/tribes` - Crear tribu
+- `GET /api/tribes/:id` - Obtener tribu
+- `PUT /api/tribes/:id` - Actualizar tribu
+- `DELETE /api/tribes/:id` - Eliminar tribu
+
+## 🚨 Solución de Problemas
+
+### Problemas Comunes
+
+1. **Error de conexión a MongoDB**
+   - Verificar que MongoDB esté ejecutándose
+   - Verificar la URI en `.env`
+
+2. **Error de conexión a Redis**
+   - Verificar que Redis esté ejecutándose
+   - Verificar la configuración en `.env`
+
+3. **Error de puerto en uso**
+   - Cambiar el puerto en `.env`
+   - Verificar que no haya otros servicios usando el puerto
+
+4. **Error de dependencias**
+   - Eliminar `node_modules` y `package-lock.json`
+   - Ejecutar `npm install` nuevamente
+
+### Logs de Error
+
+```bash
+# Ver logs del backend
+cd backend && tail -f logs/app.log
+
+# Ver logs de Docker
+docker-compose logs -f backend
+```
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crear una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abrir un Pull Request
+
+## 📝 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 📞 Soporte
+
+- **Issues**: [GitHub Issues](https://github.com/tu-usuario/eventconnect/issues)
+- **Documentación**: [Wiki del proyecto](https://github.com/tu-usuario/eventconnect/wiki)
+- **Email**: soporte@eventconnect.com
+
+## 🙏 Agradecimientos
+
+- **Node.js** - Runtime de JavaScript
+- **Express** - Framework web
+- **Next.js** - Framework de React
+- **MongoDB** - Base de datos NoSQL
+- **Redis** - Base de datos en memoria
+- **Socket.IO** - Comunicación en tiempo real
 
 ---
 
-**⭐ ¿Te gusta EventConnect? ¡Dale una estrella al repositorio!**
-
-**🚀 ¿Listo para crear eventos increíbles? ¡Empieza ahora!** 
+**EventConnect** - Conectando personas a través de eventos y tribus 🎉 

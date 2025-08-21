@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Dimensions,
   StatusBar,
   TouchableOpacity,
   Image,
@@ -14,28 +13,23 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  interpolate,
 } from 'react-native-reanimated';
-import LinearGradient from 'react-native-linear-gradient';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Card, CardContent, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { 
   Search, 
   MapPin, 
   Calendar, 
   Users, 
-  Star, 
-  Filter,
   Heart,
   Share,
   Clock,
-  Tag,
   ArrowRight,
-  TrendingUp,
-  Fire
+  Flame
 } from 'lucide-react-native';
 
-const { width, height } = Dimensions.get('window');
+// const { width, height } = Dimensions.get('window');
 
 // ===== EVENT CARD COMPONENT =====
 const EventCard: React.FC<{
@@ -80,8 +74,8 @@ const EventCard: React.FC<{
 
   return (
     <Animated.View style={[styles.eventCard, animatedStyle]}>
-      <Card variant="glass" className="h-full">
-        <CardContent className="p-0">
+      <Card variant="glass">
+        <CardContent padding="none">
           {/* Event Image */}
           <View style={styles.eventImageContainer}>
             <Image
@@ -98,7 +92,7 @@ const EventCard: React.FC<{
             {/* Trending Badge */}
             {event.isTrending && (
               <View style={styles.trendingBadge}>
-                <Fire size={16} color="#ffffff" />
+                <Flame size={16} color="#ffffff" />
                 <Text style={styles.trendingText}>Trending</Text>
               </View>
             )}
@@ -116,7 +110,7 @@ const EventCard: React.FC<{
           {/* Event Content */}
           <View style={styles.eventContent}>
             <View style={styles.eventHeader}>
-              <CardTitle className="text-lg mb-2">{event.title}</CardTitle>
+              <CardTitle style={{ fontSize: 16, marginBottom: 8 }}>{event.title}</CardTitle>
               <Text style={styles.eventDescription} numberOfLines={2}>
                 {event.description}
               </Text>
@@ -161,7 +155,6 @@ const EventCard: React.FC<{
                 <Button 
                   variant="primary" 
                   size="sm"
-                  className="ml-2"
                 >
                   <Text style={styles.joinButtonText}>Unirse</Text>
                   <ArrowRight size={16} style={{ marginLeft: 4 }} />
@@ -220,7 +213,7 @@ const FilterChip: React.FC<{
 // ===== MAIN EVENTS SCREEN =====
 export const EventsScreen: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
 
   // ===== SAMPLE EVENTS DATA =====
   const events = [
@@ -331,8 +324,8 @@ export const EventsScreen: React.FC = () => {
       >
         {/* Search Section */}
         <View style={styles.searchSection}>
-          <Card variant="glass" className="mb-4">
-            <CardContent className="p-4">
+          <Card variant="glass">
+            <CardContent>
               <View style={styles.searchContainer}>
                 <Search size={20} color="#9ca3af" style={styles.searchIcon} />
                 <Text style={styles.searchPlaceholder}>
@@ -395,20 +388,15 @@ export const EventsScreen: React.FC = () => {
 
         {/* CTA Section */}
         <View style={styles.ctaSection}>
-          <Card variant="neon" className="mb-4">
-            <CardContent className="p-6 text-center">
+          <Card variant="neon">
+            <CardContent>
               <Text style={styles.ctaTitle}>
                 ¿No encuentras lo que buscas?
               </Text>
               <Text style={styles.ctaSubtitle}>
                 Crea tu propio evento y reúne a tu tribu
               </Text>
-              <Button 
-                variant="primary" 
-                size="lg" 
-                className="mt-4"
-                glow
-              >
+              <Button variant="primary" size="lg" glow>
                 Crear Evento
               </Button>
             </CardContent>
@@ -429,8 +417,7 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    backgroundColor: 'rgba(10, 10, 10, 0.8)',
-    backdropFilter: 'blur(20px)',
+    backgroundColor: 'rgba(10, 10, 10, 0.8)'
   },
   headerContent: {
     alignItems: 'center',

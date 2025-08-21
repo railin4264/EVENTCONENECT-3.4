@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Star, 
@@ -7,13 +7,10 @@ import {
   Target, 
   Users, 
   Calendar,
-  Heart,
-  Share,
-  Eye,
   Award,
   Crown,
-  Fire,
-  Lightning,
+  Flame as Fire,
+  Zap as Lightning,
   Diamond,
   Gem,
   CheckCircle,
@@ -21,8 +18,6 @@ import {
   Search
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Progress } from '@/components/ui/Progress';
 import { cn } from '@/lib/utils';
 
 // ===== ACHIEVEMENT TYPES =====
@@ -188,8 +183,7 @@ const achievements: Achievement[] = [
 // ===== ACHIEVEMENT CARD COMPONENT =====
 const AchievementCard: React.FC<{
   achievement: Achievement;
-  onUnlock?: (achievement: Achievement) => void;
-}> = ({ achievement, onUnlock }) => {
+}> = ({ achievement }) => {
   const getRarityStyles = () => {
     switch (achievement.rarity) {
       case 'common':
@@ -207,22 +201,7 @@ const AchievementCard: React.FC<{
     }
   };
 
-  const getRarityColor = () => {
-    switch (achievement.rarity) {
-      case 'common':
-        return 'text-gray-400';
-      case 'rare':
-        return 'text-blue-400';
-      case 'epic':
-        return 'text-purple-400';
-      case 'legendary':
-        return 'text-yellow-400';
-      case 'mythic':
-        return 'text-red-400';
-      default:
-        return 'text-gray-400';
-    }
-  };
+  // Removed unused getRarityColor helper
 
   const progressPercentage = (achievement.progress / achievement.maxProgress) * 100;
 

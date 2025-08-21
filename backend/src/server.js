@@ -5,15 +5,14 @@ const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const express = require('express');
-const mongoSanitize = require('express-mongo-sanitize');
-const rateLimit = require('express-rate-limit');
-const slowDown = require('express-slow-down');
 const helmet = require('helmet');
 const hpp = require('hpp');
 const mongoose = require('mongoose');
-const redis = require('redis');
-const socketIo = require('socket.io');
 const morgan = require('morgan');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
+const socketIo = require('socket.io');
 const xss = require('xss-clean');
 
 // Load environment variables
@@ -60,11 +59,14 @@ const io = socketIo(server, {
 // Initialize socket manager
 socket.initialize(server, { io });
 
-// Connect to MongoDB
-database.connectDB();
+// Connect external services (skip in tests)
+if (process.env.NODE_ENV !== 'test') {
+  // Connect to MongoDB
+  database.connectDB();
 
-// Connect to Redis
-redisConfig.connect();
+  // Connect to Redis
+  redisConfig.connect();
+}
 
 // Security middleware
 app.use(helmet());
@@ -164,13 +166,15 @@ io.on('connection', socket => {
   });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
-  console.log(`📱 Entorno: ${process.env.NODE_ENV}`);
-  console.log(`🔗 API: http://localhost:${PORT}/api`);
-  console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-});
+// Start server (skip in tests)
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 5000;
+  server.listen(PORT, () => {
+    console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
+    console.log(`📱 Entorno: ${process.env.NODE_ENV}`);
+    console.log(`🔗 API: http://localhost:${PORT}/api`);
+    console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+  });
+}
 
 module.exports = app;

@@ -9,7 +9,6 @@ import {
   BookmarkIcon,
   EllipsisHorizontalIcon,
   PhotoIcon,
-  VideoCameraIcon,
   CalendarDaysIcon,
   MapPinIcon,
   UsersIcon
@@ -47,19 +46,15 @@ const SocialFeed = ({
 
     switch (activeFilter) {
       case 'events':
-        filtered = posts.filter(post => post.type === 'event');
+        filtered = posts.filter((post: any) => post.type === 'event');
         break;
       case 'tribes':
-        filtered = posts.filter(post => post.type === 'tribe');
+        filtered = posts.filter((post: any) => post.type === 'tribe');
         break;
-      case 'following':
-        // Filter posts from users the current user follows
-        filtered = posts.filter(post => 
-          user?.following?.includes(post.author.id) || post.author.id === user?.id
-        );
-        break;
+      case 'all':
       default:
         filtered = posts;
+        break;
     }
 
     setFilteredPosts(filtered);
@@ -78,7 +73,7 @@ const SocialFeed = ({
     if (!isAuthenticated) return;
 
     try {
-      const post = posts.find(p => p.id === postId);
+      const post = posts.find((p: any) => p.id === postId);
       if (post?.isLiked) {
         await unlikePost(postId);
       } else {
@@ -288,7 +283,7 @@ const SocialFeed = ({
           ].map((filter) => (
             <button
               key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
+              onClick={() => setActiveFilter(filter.id as "all" | "events" | "tribes" | "following")}
               className={cn(
                 'px-4 py-2 text-sm font-medium rounded-md transition-colors',
                 activeFilter === filter.id

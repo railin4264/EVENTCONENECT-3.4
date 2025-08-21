@@ -1,37 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Eye, 
   EyeOff, 
   Volume2, 
-  VolumeX, 
   Keyboard,
   MousePointer,
   Contrast,
-  Palette,
-  Accessibility,
-  Braille,
-  Headphones,
   Monitor,
-  Smartphone,
-  Tablet,
+  Palette,
   Zap,
-  Settings,
-  CheckCircle,
-  AlertCircle,
-  Info,
-  ArrowUp,
+  Headphones,
   ArrowDown,
-  ArrowLeft,
   ArrowRight,
-  Enter,
-  Escape,
-  Tab,
-  Space
+  ArrowUp,
+  X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { cn } from '@/lib/utils';
 
 // ===== ACCESSIBILITY TYPES =====
@@ -346,10 +332,10 @@ const KeyboardNavigationGuide: React.FC<{
   className?: string;
 }> = ({ className }) => {
   const shortcuts = [
-    { key: 'Tab', description: 'Navegar entre elementos', icon: <Tab className="w-4 h-4" /> },
-    { key: 'Enter', description: 'Activar elemento', icon: <Enter className="w-4 h-4" /> },
-    { key: 'Space', description: 'Seleccionar/Activar', icon: <Space className="w-4 h-4" /> },
-    { key: 'Escape', description: 'Cerrar/Cancelar', icon: <Escape className="w-4 h-4" /> },
+    { key: 'Tab', description: 'Navegar entre elementos', icon: <ArrowRight className="w-4 h-4" /> },
+    { key: 'Enter', description: 'Activar elemento', icon: <ArrowDown className="w-4 h-4" /> },
+    { key: 'Space', description: 'Seleccionar/Activar', icon: <Keyboard className="w-4 h-4" /> },
+    { key: 'Escape', description: 'Cerrar/Cancelar', icon: <X className="w-4 h-4" /> },
     { key: '↑↓←→', description: 'Navegar en listas', icon: <ArrowUp className="w-4 h-4" /> },
     { key: 'H', description: 'Ir al inicio', icon: <ArrowUp className="w-4 h-4" /> },
     { key: 'E', description: 'Ir a eventos', icon: <ArrowRight className="w-4 h-4" /> },
@@ -592,7 +578,7 @@ const ColorBlindSimulator: React.FC<{
 
 // ===== MAIN ACCESSIBILITY SYSTEM COMPONENT =====
 export const AccessibilitySystem: React.FC = () => {
-  const [settings, setSettings] = useState<AccessibilitySettings>({
+  const [settings, _setSettings] = useState<AccessibilitySettings>({
     highContrast: false,
     fontSize: 'medium',
     colorBlindMode: 'none',
@@ -743,7 +729,7 @@ export const AccessibilitySystem: React.FC = () => {
             {/* Cognitive Accessibility */}
             <div>
               <h2 className="text-2xl font-bold text-white mb-4 flex items-center space-x-2">
-                <Brain className="w-6 h-6 text-orange-400" />
+                <Monitor className="w-6 h-6 text-orange-400" />
                 <span>Accesibilidad Cognitiva</span>
               </h2>
               <div className="space-y-4">
@@ -775,7 +761,7 @@ export const AccessibilitySystem: React.FC = () => {
           <Card variant="glass" className="w-full">
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
-                <Accessibility className="w-5 h-5 text-cyan-400" />
+                <Eye className="w-5 h-5 text-cyan-400" />
                 <span>Estado de Accesibilidad</span>
               </CardTitle>
             </CardHeader>
