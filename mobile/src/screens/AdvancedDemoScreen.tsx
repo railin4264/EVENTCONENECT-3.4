@@ -1,173 +1,216 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
+  Animated,
   StatusBar
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useDynamicTheme } from '../contexts/DynamicThemeContext';
+import { useNotifications } from '../components/notifications/ImmersiveNotifications';
 import { ParticleSystem } from '../components/advanced-systems/ParticleSystem';
 import { MorphingCard, FluidButton, BreathingElement } from '../components/advanced-systems/FluidTransitions';
-import { GamificationSystem } from '../components/gamification/GamificationSystem';
-import { useNotifications } from '../components/notifications/ImmersiveNotifications';
 import { DynamicIllustration } from '../components/advanced-systems/DynamicIllustrations';
 import { PredictiveSuggestions, AdvancedCustomization } from '../components/advanced-systems/PredictiveUI';
-import { SocialFeed } from '../components/feed/SocialFeed';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import { GamificationSystem } from '../components/gamification/GamificationSystem';
 
 export const AdvancedDemoScreen: React.FC = () => {
-  const { currentTheme, setEventType, setUserMood, setLocation } = useDynamicTheme();
+  const { currentTheme, setEventType } = useDynamicTheme();
   const { addNotification } = useNotifications();
-  const [showPredictive, setShowPredictive] = useState(false);
+  
+  const [activeTab, setActiveTab] = useState(0);
   const [showCustomization, setShowCustomization] = useState(false);
-  const [currentSection, setCurrentSection] = useState('feed');
+  
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
-  // Cambiar tema automáticamente
+  // Animación de entrada
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  // Cambiar tema aleatoriamente cada 10 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       const themes = ['music', 'tech', 'art', 'nature', 'sports', 'romantic'];
       const randomTheme = themes[Math.floor(Math.random() * themes.length)];
-      setEventType(randomTheme);
-      
-      // Feedback háptico sutil
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (randomTheme) {
+        setEventType(randomTheme);
+      }
     }, 10000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [setEventType]);
 
-  const handleSuggestionPress = (suggestion: any) => {
-    addNotification({
-      type: 'info',
-      title: 'Sugerencia Seleccionada',
-      message: `Has seleccionado: ${suggestion.title}`,
-      icon: suggestion.icon,
-      priority: 'medium',
-      autoClose: true,
-      duration: 3000
-    });
-  };
+  // Agregar notificaciones de ejemplo
+  useEffect(() => {
+    const notificationInterval = setInterval(() => {
+      const notifications = [
+        {
+          type: 'achievement' as const,
+          title: '¡Logro Desbloqueado!',
+          message: 'Has completado tu primer evento',
+          icon: '🏆',
+          priority: 'high' as const
+        },
+        {
+          type: 'event' as const,
+          title: 'Evento Próximo',
+          message: 'Tu evento comienza en 1 hora',
+          icon: '⏰',
+          priority: 'urgent' as const
+        },
+        {
+          type: 'social' as const,
+          title: 'Nueva Conexión',
+          message: 'María García se unió a tu evento',
+          icon: '👥',
+          priority: 'medium' as const
+        }
+      ];
 
-  const handleCustomizationSave = (settings: any) => {
-    addNotification({
-      type: 'success',
-      title: 'Configuración Guardada',
-      message: `Se han aplicado tus preferencias de ${settings.layout}`,
-      icon: '✅',
-      priority: 'high',
-      autoClose: true,
-      duration: 4000
-    });
-  };
-
-  const showRandomNotification = () => {
-    const notifications = [
-      {
-        type: 'achievement' as const,
-        title: '¡Nuevo Logro!',
-        message: 'Has desbloqueado "Explorador de Eventos"',
-        icon: '🏆',
-        priority: 'high' as const
-      },
-      {
-        type: 'event' as const,
-        title: 'Evento Próximo',
-        message: 'Tu evento favorito comienza en 1 hora',
-        icon: '🎉',
-        priority: 'urgent' as const
-      },
-      {
-        type: 'social' as const,
-        title: 'Nueva Conexión',
-        message: 'María te ha enviado una invitación',
-        icon: '👥',
-        priority: 'medium' as const
+      const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
+      if (randomNotification) {
+        addNotification(randomNotification);
       }
-    ];
+    }, 15000);
 
-    const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
-    addNotification(randomNotification);
+    return () => clearInterval(notificationInterval);
+  }, [addNotification]);
+
+  const handleTabPress = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(index);
   };
 
-  const renderSection = () => {
-    switch (currentSection) {
-      case 'feed':
-        return (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Feed Social</Text>
-            <SocialFeed />
-          </View>
-        );
+  const handleCustomizationSave = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
 
-      case 'particles':
-        return (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Sistema de Partículas 3D</Text>
-            <ParticleSystem theme={currentTheme.name} />
-          </View>
-        );
+  const tabs = [
+    { id: 0, name: 'Sistemas', icon: '⚡' },
+    { id: 1, name: 'Gamificación', icon: '🏆' },
+    { id: 2, name: 'Feed', icon: '📱' },
+    { id: 3, name: 'Config', icon: '⚙️' },
+  ];
 
-      case 'transitions':
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 0:
         return (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Transiciones Fluidas</Text>
-            <View style={styles.transitionsGrid}>
-              <MorphingCard style={styles.demoCard}>
-                <Text style={styles.demoCardText}>Tarjeta Morfing</Text>
-              </MorphingCard>
+          <View style={styles.tabContent}>
+            <Text style={styles.sectionTitle}>Sistemas Avanzados</Text>
+            
+            {/* Sistema de Partículas */}
+            <View style={styles.systemSection}>
+              <Text style={styles.systemTitle}>Sistema de Partículas 3D</Text>
+              <View style={styles.particleContainer}>
+                <ParticleSystem theme="default" />
+              </View>
+            </View>
+
+            {/* Transiciones Fluidas */}
+            <View style={styles.systemSection}>
+              <Text style={styles.systemTitle}>Transiciones Fluidas</Text>
+              <View style={styles.componentsRow}>
+                <MorphingCard style={styles.componentCard}>
+                  <Text style={styles.componentText}>Tarjeta Morfing</Text>
+                </MorphingCard>
+                
+                <FluidButton style={styles.componentButton}>
+                  <Text style={styles.componentText}>Botón Fluido</Text>
+                </FluidButton>
+              </View>
               
-              <FluidButton 
-                variant="expand" 
-                style={styles.demoButton}
-                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
-              >
-                Botón Fluido
-              </FluidButton>
-              
-              <BreathingElement style={styles.breathingElement}>
-                <Text style={styles.breathingText}>Elemento Respirando</Text>
+              <BreathingElement style={styles.breathingContainer}>
+                <Text style={styles.componentText}>Elemento Respirando</Text>
               </BreathingElement>
+            </View>
+
+            {/* Ilustraciones Dinámicas */}
+            <View style={styles.systemSection}>
+              <Text style={styles.systemTitle}>Ilustraciones Dinámicas</Text>
+              <View style={styles.illustrationsRow}>
+                <DynamicIllustration type="person" context="morning" size="small" />
+                <DynamicIllustration type="scene" context="music" size="small" />
+                <DynamicIllustration type="icon" context="success" size="small" />
+              </View>
+            </View>
+
+            {/* Interfaces Predictivas */}
+            <View style={styles.systemSection}>
+              <Text style={styles.systemTitle}>Interfaces Predictivas</Text>
+              <PredictiveSuggestions
+                context="search"
+                onSuggestionPress={(suggestion) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  console.log('Sugerencia seleccionada:', suggestion);
+                }}
+              />
             </View>
           </View>
         );
 
-      case 'gamification':
+      case 1:
         return (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Sistema de Gamificación</Text>
+          <View style={styles.tabContent}>
             <GamificationSystem userId="demo-user" />
           </View>
         );
 
-      case 'illustrations':
+      case 2:
         return (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Ilustraciones Dinámicas</Text>
-            <View style={styles.illustrationsGrid}>
-              <DynamicIllustration 
-                type="person" 
-                context="morning" 
-                size="medium"
-                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              />
-              <DynamicIllustration 
-                type="scene" 
-                context="music" 
-                size="medium"
-                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              />
-              <DynamicIllustration 
-                type="icon" 
-                context="success" 
-                size="medium"
-                onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
-              />
+          <View style={styles.tabContent}>
+            <Text style={styles.sectionTitle}>Feed Social</Text>
+            <Text style={styles.placeholderText}>
+              El feed social se mostrará aquí con todas las funcionalidades avanzadas
+            </Text>
+          </View>
+        );
+
+      case 3:
+        return (
+          <View style={styles.tabContent}>
+            <Text style={styles.sectionTitle}>Configuración</Text>
+            
+            <TouchableOpacity
+              style={styles.configButton}
+              onPress={() => setShowCustomization(true)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={currentTheme.gradients.primary}
+                style={styles.configButtonGradient}
+              >
+                <Text style={styles.configButtonText}>Personalización Avanzada</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <View style={styles.currentThemeInfo}>
+              <Text style={styles.themeLabel}>Tema Actual:</Text>
+              <Text style={styles.themeValue}>{currentTheme.name}</Text>
+              <Text style={styles.themeMood}>Estado de ánimo: {currentTheme.mood}</Text>
             </View>
           </View>
         );
@@ -178,291 +221,239 @@ export const AdvancedDemoScreen: React.FC = () => {
   };
 
   return (
-    <LinearGradient
-      colors={currentTheme.gradients.background}
-      style={styles.container}
-    >
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <LinearGradient
-          colors={currentTheme.gradients.primary}
-          style={styles.headerGradient}
-        >
-          <Text style={styles.headerTitle}>EventConnect Pro</Text>
-          <Text style={styles.headerSubtitle}>
-            Tema: {currentTheme.name} | Estado de ánimo: {currentTheme.mood}
-          </Text>
-        </LinearGradient>
-      </View>
-
-      {/* Navegación de secciones */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.sectionNavigation}
-        contentContainerStyle={styles.sectionNavigationContent}
+      {/* Header con gradiente */}
+      <LinearGradient
+        colors={currentTheme.gradients.primary}
+        style={styles.header}
       >
-        {[
-          { key: 'feed', label: 'Feed Social', icon: '📱' },
-          { key: 'particles', label: 'Partículas', icon: '✨' },
-          { key: 'transitions', label: 'Transiciones', icon: '🔄' },
-          { key: 'gamification', label: 'Gamificación', icon: '🏆' },
-          { key: 'illustrations', label: 'Ilustraciones', icon: '🎨' }
-        ].map((section) => (
+        <Animated.View
+          style={[
+            styles.headerContent,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <Text style={styles.headerTitle}>EventConnect</Text>
+          <Text style={styles.headerSubtitle}>Demo de Sistemas Avanzados</Text>
+        </Animated.View>
+      </LinearGradient>
+
+      {/* Navegación por pestañas */}
+      <View style={styles.tabNavigation}>
+        {tabs.map((tab) => (
           <TouchableOpacity
-            key={section.key}
+            key={tab.id}
             style={[
-              styles.sectionTab,
-              currentSection === section.key && styles.sectionTabActive
+              styles.tabButton,
+              activeTab === tab.id && styles.tabButtonActive,
             ]}
-            onPress={() => {
-              setCurrentSection(section.key);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
+            onPress={() => handleTabPress(tab.id)}
             activeOpacity={0.7}
           >
-            <Text style={styles.sectionTabIcon}>{section.icon}</Text>
+            <Text style={styles.tabIcon}>{tab.icon}</Text>
             <Text style={[
-              styles.sectionTabLabel,
-              currentSection === section.key && styles.sectionTabLabelActive
+              styles.tabText,
+              activeTab === tab.id && styles.tabTextActive,
             ]}>
-              {section.label}
+              {tab.name}
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </View>
 
-      {/* Contenido principal */}
-      <ScrollView 
+      {/* Contenido de la pestaña */}
+      <ScrollView
         style={styles.content}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {renderSection()}
-
-        {/* Botones de demostración */}
-        <View style={styles.demoButtonsContainer}>
-          <TouchableOpacity
-            style={styles.demoButton}
-            onPress={() => {
-              setShowPredictive(!showPredictive);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.demoButtonText}>
-              {showPredictive ? 'Ocultar' : 'Mostrar'} Sugerencias
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.demoButton}
-            onPress={() => {
-              setShowCustomization(true);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.demoButtonText}>Personalización</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.demoButton}
-            onPress={showRandomNotification}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.demoButtonText}>Notificación Aleatoria</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Información del tema actual */}
-        <View style={styles.themeInfo}>
-          <LinearGradient
-            colors={currentTheme.gradients.secondary}
-            style={styles.themeInfoGradient}
-          >
-            <Text style={styles.themeInfoTitle}>Información del Tema</Text>
-            <Text style={styles.themeInfoText}>
-              Nombre: {currentTheme.name}
-            </Text>
-            <Text style={styles.themeInfoText}>
-              Estado de ánimo: {currentTheme.mood}
-            </Text>
-            <Text style={styles.themeInfoText}>
-              Colores: {currentTheme.colors.primary} / {currentTheme.colors.secondary}
-            </Text>
-            <Text style={styles.themeInfoText}>
-              Partículas: {currentTheme.particles.count}
-            </Text>
-          </LinearGradient>
-        </View>
+        <Animated.View
+          style={[
+            styles.contentWrapper,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          {renderTabContent()}
+        </Animated.View>
       </ScrollView>
 
-      {/* Sugerencias predictivas */}
-      {showPredictive && (
-        <PredictiveSuggestions
-          context="actions"
-          onSuggestionPress={handleSuggestionPress}
-        />
-      )}
-
-      {/* Modal de personalización */}
+      {/* Panel de personalización */}
       <AdvancedCustomization
         isVisible={showCustomization}
         onClose={() => setShowCustomization(false)}
         onSave={handleCustomizationSave}
       />
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f8fafc',
   },
   header: {
     paddingTop: 50,
     paddingBottom: 20,
+    paddingHorizontal: 20,
   },
-  headerGradient: {
-    padding: 20,
+  headerContent: {
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 8,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
-  sectionNavigation: {
-    maxHeight: 80,
-  },
-  sectionNavigationContent: {
+  tabNavigation: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  sectionTab: {
+  tabButton: {
+    flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 20,
     paddingVertical: 12,
-    marginRight: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    minWidth: 100,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
   },
-  sectionTabActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+  tabButtonActive: {
+    backgroundColor: '#f3f4f6',
   },
-  sectionTabIcon: {
+  tabIcon: {
     fontSize: 24,
     marginBottom: 4,
   },
-  sectionTabLabel: {
+  tabText: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#6b7280',
     fontWeight: '500',
   },
-  sectionTabLabelActive: {
-    color: '#fff',
+  tabTextActive: {
+    color: '#1f2937',
     fontWeight: '600',
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
   },
-  sectionContainer: {
-    marginBottom: 30,
+  contentContainer: {
+    padding: 20,
+  },
+  contentWrapper: {
+    flex: 1,
+  },
+  tabContent: {
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#1f2937',
     marginBottom: 20,
     textAlign: 'center',
   },
-  transitionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    gap: 20,
-  },
-  demoCard: {
-    width: 150,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  demoCardText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  demoButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
-    minWidth: 120,
-    alignItems: 'center',
-  },
-  demoButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  breathingElement: {
-    width: 150,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-  },
-  breathingText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  illustrationsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 20,
-  },
-  demoButtonsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-around',
-    gap: 12,
+  systemSection: {
     marginBottom: 30,
   },
-  themeInfo: {
-    marginBottom: 30,
-  },
-  themeInfoGradient: {
-    padding: 20,
-    borderRadius: 20,
-  },
-  themeInfoTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
+  systemTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 16,
+  },
+  particleContainer: {
+    height: 200,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  componentsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  componentCard: {
+    flex: 1,
+    marginRight: 8,
+  },
+  componentButton: {
+    flex: 1,
+    marginLeft: 8,
+  },
+  componentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
     textAlign: 'center',
   },
-  themeInfoText: {
+  breathingContainer: {
+    backgroundColor: '#f3f4f6',
+    padding: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  illustrationsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  placeholderText: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#6b7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  configButton: {
+    marginBottom: 20,
+  },
+  configButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  configButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  currentThemeInfo: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  themeLabel: {
+    fontSize: 14,
+    color: '#6b7280',
     marginBottom: 8,
+  },
+  themeValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  themeMood: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });
 

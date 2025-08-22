@@ -259,11 +259,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return value;
 };
 
 export default useAuth;

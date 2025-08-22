@@ -79,11 +79,7 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
     resolvedTheme,
   };
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return value;
 };
 
 export default useTheme;

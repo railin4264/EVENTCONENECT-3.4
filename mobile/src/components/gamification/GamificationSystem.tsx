@@ -6,15 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
-  Animated,
-  PanGestureHandler,
-  State
+  Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
-import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get('window');
 
 interface UserLevel {
   level: number;
@@ -55,7 +52,6 @@ interface GamificationSystemProps {
 
 // Componente de badge 3D
 const Badge3D: React.FC<{ badge: Badge; isUnlocked: boolean }> = ({ badge, isUnlocked }) => {
-  const { currentTheme } = useDynamicTheme();
   const scaleValue = useRef(new Animated.Value(1)).current;
   const rotateValue = useRef(new Animated.Value(0)).current;
   const glowValue = useRef(new Animated.Value(0)).current;
@@ -104,13 +100,17 @@ const Badge3D: React.FC<{ badge: Badge; isUnlocked: boolean }> = ({ badge, isUnl
 
       return () => glowAnimation.stop();
     }
+    
+    return () => {
+      // Cleanup when not unlocked
+    };
   }, [isUnlocked, glowValue]);
 
   const handlePress = () => {
     if (isUnlocked) {
       // Feedback háptico
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      
+
       // Animación de escala
       Animated.sequence([
         Animated.timing(scaleValue, {
@@ -160,7 +160,7 @@ const Badge3D: React.FC<{ badge: Badge; isUnlocked: boolean }> = ({ badge, isUnl
           style={styles.badgeGradient}
         >
           <Text style={styles.badgeIcon}>{badge.icon}</Text>
-          
+
           {/* Check mark para badges desbloqueados */}
           {isUnlocked && (
             <View style={styles.unlockIndicator}>
@@ -191,7 +191,7 @@ const Badge3D: React.FC<{ badge: Badge; isUnlocked: boolean }> = ({ badge, isUnl
         <Text style={styles.badgeDescription} numberOfLines={2}>
           {badge.description}
         </Text>
-        
+
         <View style={[
           styles.rarityIndicator,
           { backgroundColor: color + '20' }
@@ -207,10 +207,8 @@ const Badge3D: React.FC<{ badge: Badge; isUnlocked: boolean }> = ({ badge, isUnl
 
 // Componente principal de gamificación
 export const GamificationSystem: React.FC<GamificationSystemProps> = ({
-  userId,
   style = {}
 }) => {
-  const { currentTheme } = useDynamicTheme();
   const [userLevel, setUserLevel] = useState<UserLevel>({
     level: 1,
     experience: 0,
@@ -219,8 +217,8 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
     color: '#6b7280',
     badge: '🌟'
   });
-  
-  const [badges, setBadges] = useState<Badge[]>([
+
+  const [badges] = useState<Badge[]>([
     {
       id: 'first-event',
       name: 'Primer Evento',
@@ -290,10 +288,10 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
           // Subir de nivel
           const newLevel = prev.level + 1;
           const newExpToNext = prev.experienceToNext * 1.5;
-          
+
           // Feedback háptico
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          
+
           return {
             ...prev,
             level: newLevel,
@@ -308,7 +306,9 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
       });
     }, 5000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
 
   // Animar barra de progreso
@@ -319,6 +319,10 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
       duration: 1000,
       useNativeDriver: false,
     }).start();
+    
+    return () => {
+      // Cleanup
+    };
   }, [userLevel.experience, userLevel.experienceToNext, progressBarWidth]);
 
   const getLevelTitle = (level: number): string => {
@@ -345,34 +349,18 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
     return '👑';
   };
 
-  const unlockBadge = (badgeId: string) => {
-    setBadges(prev => prev.map(badge => 
-      badge.id === badgeId 
-        ? { ...badge, unlocked: true, unlockedAt: new Date() }
-        : badge
-    ));
-    
-    setRecentUnlock(badges.find(b => b.id === badgeId) || null);
-    
-    // Feedback háptico
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Limpiar notificación después de 3 segundos
-    setTimeout(() => setRecentUnlock(null), 3000);
-  };
-
   const unlockAchievement = (achievementId: string) => {
-    setAchievements(prev => prev.map(achievement => 
-      achievement.id === achievementId 
+    setAchievements(prev => prev.map(achievement =>
+      achievement.id === achievementId
         ? { ...achievement, unlocked: true, unlockedAt: new Date() }
         : achievement
     ));
-    
+
     setRecentUnlock(achievements.find(a => a.id === achievementId) || null);
-    
+
     // Feedback háptico
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
+
     // Limpiar notificación después de 3 segundos
     setTimeout(() => setRecentUnlock(null), 3000);
   };
@@ -382,7 +370,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
       {/* Nivel del usuario */}
       <View style={styles.levelCard}>
         <LinearGradient
-          colors={currentTheme.gradients.primary}
+          colors={['#8b5cf6', '#7c3aed']}
           style={styles.levelGradient}
         >
           <View style={styles.levelHeader}>
@@ -394,12 +382,12 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                 {userLevel.experience} / {userLevel.experienceToNext} XP
               </Text>
             </View>
-            
+
             <View style={styles.levelBadgeContainer}>
               <Text style={styles.levelBadge}>{userLevel.badge}</Text>
             </View>
           </View>
-          
+
           {/* Barra de progreso */}
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
@@ -446,13 +434,13 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
             <View style={styles.achievementIcon}>
               <Text style={styles.achievementIconText}>{achievement.icon}</Text>
             </View>
-            
+
             <View style={styles.achievementInfo}>
               <Text style={styles.achievementName}>{achievement.name}</Text>
               <Text style={styles.achievementDescription}>
                 {achievement.description}
               </Text>
-              
+
               {/* Barra de progreso del logro */}
               <View style={styles.achievementProgress}>
                 <View style={styles.achievementProgressBar}>
@@ -470,7 +458,7 @@ export const GamificationSystem: React.FC<GamificationSystemProps> = ({
                 </Text>
               </View>
             </View>
-            
+
             <View style={[
               styles.achievementStatus,
               {

@@ -37,37 +37,37 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
       default: {
         colors: ['#3b82f6', '#8b5cf6', '#06b6d4'],
         particleCount: 30,
-        sizeRange: [2, 6],
-        speedRange: [0.5, 2],
-        lifeRange: [100, 200]
+        sizeRange: [2, 6] as [number, number],
+        speedRange: [0.5, 2] as [number, number],
+        lifeRange: [100, 200] as [number, number]
       },
       energy: {
         colors: ['#ef4444', '#f59e0b', '#fbbf24'],
         particleCount: 40,
-        sizeRange: [3, 8],
-        speedRange: [1, 3],
-        lifeRange: [80, 150]
+        sizeRange: [3, 8] as [number, number],
+        speedRange: [1, 3] as [number, number],
+        lifeRange: [80, 150] as [number, number]
       },
       cosmic: {
         colors: ['#8b5cf6', '#a855f7', '#ec4899'],
         particleCount: 50,
-        sizeRange: [1, 5],
-        speedRange: [0.3, 1.5],
-        lifeRange: [120, 250]
+        sizeRange: [1, 5] as [number, number],
+        speedRange: [0.3, 1.5] as [number, number],
+        lifeRange: [120, 250] as [number, number]
       },
       nature: {
         colors: ['#22c55e', '#16a34a', '#84cc16'],
         particleCount: 35,
-        sizeRange: [2, 7],
-        speedRange: [0.4, 1.8],
-        lifeRange: [100, 200]
+        sizeRange: [2, 7] as [number, number],
+        speedRange: [0.4, 1.8] as [number, number],
+        lifeRange: [100, 200] as [number, number]
       },
       tech: {
         colors: ['#06b6d4', '#0891b2', '#0ea5e9'],
         particleCount: 45,
-        sizeRange: [2, 6],
-        speedRange: [0.8, 2.5],
-        lifeRange: [90, 180]
+        sizeRange: [2, 6] as [number, number],
+        speedRange: [0.8, 2.5] as [number, number],
+        lifeRange: [90, 180] as [number, number]
       }
     };
     return configs[theme] || configs.default;

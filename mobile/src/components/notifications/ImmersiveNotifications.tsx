@@ -7,17 +7,12 @@ import {
   ScrollView,
   Dimensions,
   Animated,
-  PanGestureHandler,
-  State,
   Alert,
   Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
-import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export interface Notification {
   id: string;
@@ -64,11 +59,9 @@ export const useNotifications = () => {
 const NotificationItem: React.FC<{
   notification: Notification;
   onRemove: (id: string) => void;
-  onMarkAsRead: (id: string) => void;
   onAction: (action: NotificationAction) => void;
-}> = ({ notification, onRemove, onMarkAsRead, onAction }) => {
-  const { currentTheme } = useDynamicTheme();
-  const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+}> = ({ notification, onRemove, onAction }) => {
+  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').width)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
@@ -92,7 +85,7 @@ const NotificationItem: React.FC<{
     info: {
       colors: ['#3b82f6', '#2563eb'],
       icon: 'ℹ️',
-      haptic: Haptics.NotificationFeedbackType.Info
+      haptic: Haptics.NotificationFeedbackType.Success
     },
     achievement: {
       colors: ['#fbbf24', '#f59e0b'],
@@ -143,7 +136,7 @@ const NotificationItem: React.FC<{
         onRemove(notification.id);
       }, duration);
     }
-  }, []);
+  }, [slideAnim, scaleAnim, opacityAnim, config.haptic, notification.autoClose, notification.duration, notification.id, onRemove]);
 
   // Animación de shake para notificaciones urgentes
   useEffect(() => {
@@ -166,18 +159,16 @@ const NotificationItem: React.FC<{
 
       return () => shakeAnimation.stop();
     }
+    
+    return () => {
+      // Cleanup when not urgent
+    };
   }, [notification.priority, shakeAnim]);
-
-  const handlePress = () => {
-    if (!notification.read) {
-      onMarkAsRead(notification.id);
-    }
-  };
 
   const handleRemove = () => {
     Animated.parallel([
       Animated.timing(slideAnim, {
-        toValue: screenWidth,
+        toValue: Dimensions.get('window').width,
         duration: 300,
         useNativeDriver: true,
       }),
@@ -219,7 +210,7 @@ const NotificationItem: React.FC<{
           <View style={styles.notificationIcon}>
             <Text style={styles.notificationIconText}>{config.icon}</Text>
           </View>
-          
+
           <View style={styles.notificationInfo}>
             <Text style={styles.notificationTitle} numberOfLines={1}>
               {notification.title}
@@ -228,7 +219,7 @@ const NotificationItem: React.FC<{
               {notification.message}
             </Text>
           </View>
-          
+
           <TouchableOpacity
             onPress={handleRemove}
             style={styles.closeButton}
@@ -296,7 +287,7 @@ export const ImmersiveNotificationSystem: React.FC<{
 }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
-  const panelAnim = useRef(new Animated.Value(-screenHeight)).current;
+  const panelAnim = useRef(new Animated.Value(-Dimensions.get('window').height)).current;
   const badgeAnim = useRef(new Animated.Value(1)).current;
 
   const addNotification = (notificationData: Omit<Notification, 'id' | 'timestamp' | 'read'>) => {
@@ -329,7 +320,7 @@ export const ImmersiveNotificationSystem: React.FC<{
   };
 
   const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => 
+    setNotifications(prev => prev.map(n =>
       n.id === id ? { ...n, read: true } : n
     ));
   };
@@ -339,7 +330,7 @@ export const ImmersiveNotificationSystem: React.FC<{
   };
 
   const togglePanel = () => {
-    const toValue = showPanel ? -screenHeight : 0;
+    const toValue = showPanel ? -Dimensions.get('window').height : 0;
     Animated.timing(panelAnim, {
       toValue,
       duration: 300,
@@ -361,12 +352,12 @@ export const ImmersiveNotificationSystem: React.FC<{
     const configureNotifications = async () => {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-      
+
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-      
+
       if (finalStatus !== 'granted') {
         Alert.alert('Permisos', 'Se requieren permisos para las notificaciones');
         return;
@@ -384,6 +375,10 @@ export const ImmersiveNotificationSystem: React.FC<{
     };
 
     configureNotifications();
+    
+    return () => {
+      // Cleanup
+    };
   }, []);
 
   return (
@@ -410,7 +405,7 @@ export const ImmersiveNotificationSystem: React.FC<{
           style={styles.floatingButtonGradient}
         >
           <Text style={styles.floatingButtonIcon}>🔔</Text>
-          
+
           {/* Badge de notificaciones no leídas */}
           {unreadCount > 0 && (
             <Animated.View
@@ -453,7 +448,7 @@ export const ImmersiveNotificationSystem: React.FC<{
               >
                 <Text style={styles.clearAllButtonText}>Limpiar</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 onPress={togglePanel}
                 style={styles.closePanelButton}
@@ -477,7 +472,6 @@ export const ImmersiveNotificationSystem: React.FC<{
                   key={notification.id}
                   notification={notification}
                   onRemove={removeNotification}
-                  onMarkAsRead={markAsRead}
                   onAction={handleAction}
                 />
               ))
