@@ -15,7 +15,20 @@ class PostController {
 
       // Add author information
       postData.author = userId;
-      postData.status = 'active';
+      // Status lo maneja el modelo (default 'published')
+
+      // Si no es encuesta, eliminar poll del payload para evitar validaciones
+      if (postData.type && postData.type !== 'poll') {
+        delete postData.poll;
+      }
+
+      // Limpiar location si no vienen coordenadas válidas
+      if (postData.location) {
+        const coords = postData.location.coordinates;
+        if (!Array.isArray(coords) || coords.length !== 2) {
+          delete postData.location;
+        }
+      }
 
       // Handle media uploads if any
       if (req.files && req.files.length > 0) {

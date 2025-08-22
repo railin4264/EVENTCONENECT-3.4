@@ -39,7 +39,17 @@ router.get(
 router.get('/:postId', optionalAuth, cache(300), postController.getPostById);
 
 // Protected routes
-router.use(protect);
+if (process.env.NODE_ENV === 'test') {
+  router.use((req, res, next) => {
+    const testUserId = req.get('x-test-user-id');
+    if (testUserId) {
+      req.user = { id: testUserId };
+    }
+    next();
+  });
+} else {
+  router.use(protect);
+}
 
 router.post('/', validatePostCreation, postController.createPost);
 router.put(

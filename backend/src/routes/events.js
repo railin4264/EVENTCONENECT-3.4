@@ -64,6 +64,11 @@ router.put(
   validateEventUpdate,
   eventController.updateEvent
 );
+router.put(
+  '/:eventId/cancel',
+  ownerOrAdmin('host'),
+  eventController.cancelEvent
+);
 router.delete('/:eventId', ownerOrAdmin('host'), eventController.deleteEvent);
 
 // Event interactions

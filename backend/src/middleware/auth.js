@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 
 const redisClient = require('../config/redis');
 const User = require('../models/User');
+const Event = require('../models/Event');
 
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
@@ -31,8 +32,8 @@ const protect = async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Check if token is blacklisted in Redis
-      const isBlacklisted = await redisClient.get(`blacklist:${token}`);
+      // Check if token is blacklisted
+      const isBlacklisted = await redisClient.isTokenBlacklisted(token);
       if (isBlacklisted) {
         return res.status(401).json({
           success: false,
@@ -40,44 +41,18 @@ const protect = async (req, res, next) => {
         });
       }
 
-      // Get user from database
-      const userId = decoded.userId || decoded.id || decoded.sub;
-      const user = await User.findById(userId).select('-password');
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Usuario no encontrado',
-        });
-      }
+      // Attach user to request
+      req.user = {
+        id: decoded.userId || decoded.id || decoded.sub,
+        role: decoded.role || 'user',
+      };
 
-      // Check if user is active
-      if (!user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: 'Cuenta desactivada',
-        });
-      }
-
-      // Add user to request object
-      req.user = user;
       next();
     } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
-        return res.status(401).json({
-          success: false,
-          message: 'Token inválido',
-        });
-      } else if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({
-          success: false,
-          message: 'Token expirado',
-        });
-      } else {
-        return res.status(401).json({
-          success: false,
-          message: 'Error de autenticación',
-        });
-      }
+      return res.status(401).json({
+        success: false,
+        message: 'Token inválido o expirado',
+      });
     }
   } catch (error) {
     console.error('Error en middleware de autenticación:', error);
@@ -88,38 +63,24 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Optional authentication - user can be authenticated but it's not required
+// Optional authentication - try to verify token but continue
 const optionalAuth = async (req, res, next) => {
   try {
-    let token;
-
     // Check for token in headers
     if (
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer')
     ) {
-      token = req.headers.authorization.split(' ')[1];
-    }
-    // Check for token in cookies
-    else if (req.cookies && req.cookies.accessToken) {
-      token = req.cookies.accessToken;
-    }
+      const token = req.headers.authorization.split(' ')[1];
 
-    if (token) {
       try {
-        // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Check if token is blacklisted in Redis
-        const isBlacklisted = await redisClient.get(`blacklist:${token}`);
-        if (!isBlacklisted) {
-          // Get user from database
-          const userId = decoded.userId || decoded.id || decoded.sub;
-          const user = await User.findById(userId).select('-password');
-          if (user && user.isActive) {
-            req.user = user;
-          }
-        }
+        // Attach user to request
+        req.user = {
+          id: decoded.userId || decoded.id || decoded.sub,
+          role: decoded.role || 'user',
+        };
       } catch (error) {
         // Token is invalid, but we continue without user
         console.log('Token inválido en autenticación opcional:', error.message);
@@ -209,8 +170,22 @@ const ownerOrAdmin = (resourceField = 'userId') => {
         return next();
       }
 
-      // Check if user owns the resource
-      const resourceId = req.params[resourceField] || req.body[resourceField];
+      // Prefer explicit resourceId
+      let resourceId = req.params[resourceField] || req.body[resourceField];
+
+      // If not provided and we have an eventId param, attempt to resolve ownership by event host
+      if (!resourceId && req.params.eventId) {
+        try {
+          const event = await Event.findById(req.params.eventId).select('host');
+          if (!event) {
+            return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+          }
+          resourceId = event.host?.toString();
+        } catch (e) {
+          return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+        }
+      }
+
       if (!resourceId) {
         return res.status(400).json({
           success: false,

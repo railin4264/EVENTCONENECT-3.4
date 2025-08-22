@@ -76,7 +76,7 @@ class EventController {
       } = req.query;
 
       // Build query
-      const query = { status: 'active' };
+      const query = { status: 'published' };
 
       // Category filter
       if (category) {
@@ -329,12 +329,12 @@ class EventController {
       }
 
       // Check if event is active
-      if (event.status !== 'active') {
-        throw new AppError('No puedes unirte a un evento inactivo', 400);
+      if (event.status !== 'published') {
+        throw new AppError('No puedes unirte a un evento no publicado', 400);
       }
 
       // Check if event has started
-      if (event.startDate < new Date()) {
+      if (event.dateTime && event.dateTime.start && event.dateTime.start < new Date()) {
         throw new AppError(
           'No puedes unirte a un evento que ya ha comenzado',
           400
@@ -342,23 +342,35 @@ class EventController {
       }
 
       // Check if user is already attending
-      if (event.attendees.includes(userId)) {
+      const attendees = Array.isArray(event.attendees) ? event.attendees : [];
+      const alreadyAttending = attendees.some(a => {
+        if (!a) return false;
+        // Support both ObjectId array and object array with { user }
+        if (typeof a === 'string' || typeof a === 'number') return a.toString() === userId.toString();
+        if (a._id && !a.user) return a._id.toString() === userId.toString();
+        if (a.user) return a.user.toString() === userId.toString();
+        return false;
+      });
+      if (alreadyAttending) {
         throw new AppError('Ya estás registrado en este evento', 400);
       }
 
       // Check capacity
-      if (event.capacity && event.attendees.length >= event.capacity) {
+      if (event.capacity && attendees.length >= event.capacity) {
         throw new AppError('El evento ha alcanzado su capacidad máxima', 400);
       }
 
       // Add user to attendees
-      event.attendees.push(userId);
-      event.attendeeCount = event.attendees.length;
+      const mapped = (Array.isArray(event.attendees) ? event.attendees : []).map(a =>
+        a && a.user ? a : { user: a, status: 'confirmed' }
+      );
+      event.attendees = [...mapped, { user: userId, status: 'confirmed' }];
+      event.currentAttendees = event.attendees.length;
       await event.save();
 
       // Populate event data
       await event.populate('host', 'username firstName lastName avatar');
-      await event.populate('attendees', 'username firstName lastName avatar');
+      await event.populate('attendees.user', 'username firstName lastName avatar');
 
       res.status(200).json({
         success: true,
@@ -426,15 +438,16 @@ class EventController {
         throw new AppError('Evento no encontrado', 404);
       }
 
-      const isLiked = event.likes.includes(userId);
+      const likes = Array.isArray(event.likes) ? event.likes : [];
+      const isLiked = likes.some(l => l && l.toString() === userId.toString());
 
       if (isLiked) {
         // Unlike
-        event.likes = event.likes.filter(like => like.toString() !== userId);
+        event.likes = likes.filter(like => like.toString() !== userId.toString());
         event.likeCount = Math.max(0, (event.likeCount || 0) - 1);
       } else {
         // Like
-        event.likes.push(userId);
+        event.likes = [...likes, userId];
         event.likeCount = (event.likeCount || 0) + 1;
       }
 
@@ -592,27 +605,29 @@ class EventController {
   // Get nearby events
   getNearbyEvents = asyncHandler(async (req, res, next) => {
     try {
-      const { latitude, longitude, radius = 50, limit = 20 } = req.query;
+      const { latitude, longitude, lat, lng, radius = 50, limit = 20 } = req.query;
+      const latNum = parseFloat(latitude ?? lat);
+      const lngNum = parseFloat(longitude ?? lng);
 
-      if (!latitude || !longitude) {
+      if (Number.isNaN(latNum) || Number.isNaN(lngNum)) {
         throw new AppError('Latitud y longitud son requeridas', 400);
       }
 
       const events = await Event.find({
-        status: 'active',
-        startDate: { $gte: new Date() },
+        status: 'published',
+        'dateTime.start': { $gte: new Date() },
         location: {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: [parseFloat(longitude), parseFloat(latitude)],
+              coordinates: [lngNum, latNum],
             },
             $maxDistance: parseFloat(radius) * 1000, // Convert km to meters
           },
         },
       })
         .populate('host', 'username firstName lastName avatar')
-        .sort({ startDate: 1 })
+        .sort({ 'dateTime.start': 1 })
         .limit(parseInt(limit))
         .lean();
 
@@ -780,7 +795,9 @@ class EventController {
   // Search events
   searchEvents = asyncHandler(async (req, res, next) => {
     try {
+      const src = req.method === 'GET' ? req.query : req.body;
       const {
+        q,
         query,
         category,
         location,
@@ -791,22 +808,23 @@ class EventController {
         page = 1,
         limit = 20,
         sortBy = 'relevance',
-      } = req.body;
+      } = src;
 
       // Build search query
-      const searchQuery = { status: 'active' };
+      const searchQuery = { status: 'published' };
 
       // Text search
-      if (query) {
-        searchQuery.$text = { $search: query };
+      const text = q || query;
+      if (text) {
+        searchQuery.$text = { $search: text };
       }
 
       // Apply other filters
       if (category) searchQuery.category = category;
       if (dateFrom || dateTo) {
-        searchQuery.startDate = {};
-        if (dateFrom) searchQuery.startDate.$gte = new Date(dateFrom);
-        if (dateTo) searchQuery.startDate.$lte = new Date(dateTo);
+        searchQuery['dateTime.start'] = {};
+        if (dateFrom) searchQuery['dateTime.start'].$gte = new Date(dateFrom);
+        if (dateTo) searchQuery['dateTime.start'].$lte = new Date(dateTo);
       }
       if (tags && tags.length > 0) {
         searchQuery.tags = { $in: tags };
@@ -816,7 +834,7 @@ class EventController {
       let sort = {};
       switch (sortBy) {
         case 'date':
-          sort = { startDate: 1 };
+          sort = { 'dateTime.start': 1 };
           break;
         case 'price':
           sort = { 'price.amount': 1 };
@@ -826,10 +844,10 @@ class EventController {
           break;
         case 'relevance':
         default:
-          if (query) {
+          if (text) {
             sort = { score: { $meta: 'textScore' } };
           } else {
-            sort = { startDate: 1 };
+            sort = { 'dateTime.start': 1 };
           }
       }
 
@@ -858,6 +876,94 @@ class EventController {
             limit: parseInt(limit),
           },
         },
+      });
+    } catch (error) {
+      // Fallback cuando no existe índice de texto
+      if (
+        (error && error.message && error.message.includes('text index required')) ||
+        (error && error.codeName === 'IndexNotFound')
+      ) {
+        try {
+          const src = req.method === 'GET' ? req.query : req.body;
+          const { q, query, category, dateFrom, dateTo, tags, page = 1, limit = 20 } = src;
+          const text = q || query;
+
+          const searchQuery = { status: 'published' };
+          if (text) {
+            const regex = new RegExp(text, 'i');
+            searchQuery.$or = [{ title: regex }, { description: regex }, { tags: { $in: [regex] } }];
+          }
+          if (category) searchQuery.category = category;
+          if (dateFrom || dateTo) {
+            searchQuery['dateTime.start'] = {};
+            if (dateFrom) searchQuery['dateTime.start'].$gte = new Date(dateFrom);
+            if (dateTo) searchQuery['dateTime.start'].$lte = new Date(dateTo);
+          }
+          if (tags && tags.length > 0) {
+            searchQuery.tags = { $in: tags };
+          }
+
+          const skip = (parseInt(page) - 1) * parseInt(limit);
+          const events = await Event.find(searchQuery)
+            .populate('host', 'username firstName lastName avatar')
+            .sort({ 'dateTime.start': 1 })
+            .skip(skip)
+            .limit(parseInt(limit))
+            .lean();
+          const total = await Event.countDocuments(searchQuery);
+          const totalPages = Math.ceil(total / parseInt(limit));
+
+          return res.status(200).json({
+            success: true,
+            data: {
+              events,
+              pagination: {
+                currentPage: parseInt(page),
+                totalPages,
+                total,
+                hasNextPage: page < totalPages,
+                hasPrevPage: page > 1,
+                limit: parseInt(limit),
+              },
+            },
+          });
+        } catch (fallbackError) {
+          return next(fallbackError);
+        }
+      }
+      next(error);
+    }
+  });
+
+  // Cancel event
+  cancelEvent = asyncHandler(async (req, res, next) => {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        throw new AppError('Evento no encontrado', 404);
+      }
+
+      if (event.host.toString() !== userId && req.user.role !== 'admin') {
+        throw new AppError('No tienes permisos para cancelar este evento', 403);
+      }
+
+      if (event.dateTime && event.dateTime.start < new Date()) {
+        throw new AppError('No puedes cancelar un evento que ya ha comenzado', 400);
+      }
+
+      event.status = 'cancelled';
+      if (req.body && req.body.reason) {
+        event.cancellationReason = req.body.reason;
+      }
+      await event.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Evento cancelado exitosamente',
+        data: { event },
       });
     } catch (error) {
       next(error);

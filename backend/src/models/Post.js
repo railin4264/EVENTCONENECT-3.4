@@ -96,7 +96,9 @@ const postSchema = new mongoose.Schema(
     poll: {
       question: {
         type: String,
-        required: true,
+        required: function () {
+          return this.type === 'poll';
+        },
         maxlength: [
           200,
           'La pregunta de la encuesta no puede exceder 200 caracteres',
@@ -106,7 +108,9 @@ const postSchema = new mongoose.Schema(
         {
           text: {
             type: String,
-            required: true,
+            required: function () {
+              return this.parent().parent().type === 'poll';
+            },
             maxlength: [100, 'Cada opción no puede exceder 100 caracteres'],
           },
           votes: [
