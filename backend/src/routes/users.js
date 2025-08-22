@@ -1,9 +1,9 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 
+const { redis } = require('../config');
 const { AppError } = require('../middleware/errorHandler');
 const { User, Event, Tribe, Post } = require('../models');
-const { redis } = require('../config');
 
 const router = express.Router();
 
@@ -335,12 +335,13 @@ router.delete('/:id/follow', requireAuth, async (req, res, next) => {
 // Función auxiliar para obtener estadísticas del usuario
 async function getUserStats(userId) {
   try {
-    const [eventCount, tribeCount, postCount, followerCount] = await Promise.all([
-      Event.countDocuments({ host: userId, status: 'active' }),
-      Tribe.countDocuments({ members: userId }),
-      Post.countDocuments({ author: userId, status: 'active' }),
-      User.countDocuments({ following: userId }),
-    ]);
+    const [eventCount, tribeCount, postCount, followerCount] =
+      await Promise.all([
+        Event.countDocuments({ host: userId, status: 'active' }),
+        Tribe.countDocuments({ members: userId }),
+        Post.countDocuments({ author: userId, status: 'active' }),
+        User.countDocuments({ following: userId }),
+      ]);
 
     return {
       eventCount,

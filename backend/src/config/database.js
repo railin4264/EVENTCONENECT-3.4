@@ -57,7 +57,7 @@ const connectDB = async () => {
     return conn;
   } catch (err) {
     console.error(`❌ Error al conectar a MongoDB: ${err.message}`);
-    process.exit(1);
+    throw new Error(`Error al conectar a MongoDB: ${err.message}`);
   }
 };
 
@@ -218,9 +218,6 @@ const backupDatabase = async (backupPath = './backup') => {
     if (!fs.existsSync(backupPath)) {
       fs.mkdirSync(backupPath, { recursive: true });
     }
-
-    // Extract database name from connection string
-    const dbName = process.env.MONGODB_URI.split('/').pop().split('?')[0];
 
     // Create backup command
     const backupCommand = `mongodump --uri="${process.env.MONGODB_URI}" --archive="${backupFile}" --gzip`;

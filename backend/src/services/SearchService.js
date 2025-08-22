@@ -1,6 +1,6 @@
+const { redis } = require('../config');
 const { AppError } = require('../middleware/errorHandler');
 const { Event, Tribe, User, Post } = require('../models');
-const { redis } = require('../config');
 
 /**
  * Servicio de búsqueda avanzada para EventConnect
@@ -38,7 +38,7 @@ class SearchService {
       const combinedResults = this.combineAndRankResults(
         { events, tribes, users, posts },
         query,
-        userId,
+        userId
       );
 
       // Apply pagination
@@ -149,7 +149,7 @@ class SearchService {
 
       const users = await User.find(searchQuery)
         .select(
-          'username email avatar bio location interests rating eventCount tribeCount',
+          'username email avatar bio location interests rating eventCount tribeCount'
         )
         .sort(this.getUserSortCriteria(filters.sort))
         .skip((page - 1) * limit)
@@ -165,7 +165,10 @@ class SearchService {
 
       return scoredUsers.sort((a, b) => b.relevanceScore - a.relevanceScore);
     } catch (error) {
-      throw new AppError(`Error en búsqueda de usuarios: ${error.message}`, 500);
+      throw new AppError(
+        `Error en búsqueda de usuarios: ${error.message}`,
+        500
+      );
     }
   }
 
@@ -226,7 +229,7 @@ class SearchService {
             text: s._id,
             type: 'event',
             count: s.count,
-          })),
+          }))
         );
       }
 
@@ -243,7 +246,7 @@ class SearchService {
             text: s._id,
             type: 'tribe',
             count: s.count,
-          })),
+          }))
         );
       }
 
@@ -260,7 +263,7 @@ class SearchService {
             text: s._id,
             type: 'user',
             count: s.count,
-          })),
+          }))
         );
       }
 
@@ -277,7 +280,7 @@ class SearchService {
             text: s._id,
             type: 'category',
             count: s.count,
-          })),
+          }))
         );
       }
 
@@ -285,7 +288,7 @@ class SearchService {
     } catch (error) {
       throw new AppError(
         `Error al obtener búsquedas populares: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -299,7 +302,7 @@ class SearchService {
   async getSearchAnalytics(userId, timeRange = '7d') {
     try {
       const analytics = await redis.get(
-        `search:analytics:${userId}:${timeRange}`,
+        `search:analytics:${userId}:${timeRange}`
       );
 
       if (analytics) {
@@ -318,14 +321,14 @@ class SearchService {
       await redis.set(
         `search:analytics:${userId}:${timeRange}`,
         JSON.stringify(results),
-        3600,
+        3600
       );
 
       return results;
     } catch (error) {
       throw new AppError(
         `Error al obtener analytics de búsqueda: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -746,7 +749,7 @@ class SearchService {
     } catch (error) {
       throw new AppError(
         `Error al obtener búsquedas populares: ${error.message}`,
-        500,
+        500
       );
     }
   }

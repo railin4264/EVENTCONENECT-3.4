@@ -578,7 +578,7 @@ class AuthController {
   });
 
   // ===== MFA (Multi-Factor Authentication) =====
-  
+
   // Enable MFA for user
   enableMFA = asyncHandler(async (req, res, next) => {
     try {
@@ -592,10 +592,14 @@ class AuthController {
 
       // Generate MFA secret
       const mfaSecret = jwt.generateMFASecret();
-      
+
       // Generate QR code for TOTP apps
-      const qrCode = jwt.generateMFAQRCode(user.email, mfaSecret, 'EventConnect');
-      
+      const qrCode = jwt.generateMFAQRCode(
+        user.email,
+        mfaSecret,
+        'EventConnect'
+      );
+
       // Store MFA secret (encrypted)
       user.mfaSecret = await bcrypt.hash(mfaSecret, 12);
       user.mfaEnabled = true;
@@ -608,8 +612,8 @@ class AuthController {
         data: {
           mfaSecret,
           qrCode,
-          backupCodes: jwt.generateBackupCodes()
-        }
+          backupCodes: jwt.generateBackupCodes(),
+        },
       });
     } catch (error) {
       next(error);
@@ -642,7 +646,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'MFA verificado exitosamente'
+        message: 'MFA verificado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -674,7 +678,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'MFA deshabilitado exitosamente'
+        message: 'MFA deshabilitado exitosamente',
       });
     } catch (error) {
       next(error);
@@ -682,14 +686,14 @@ class AuthController {
   });
 
   // ===== OAuth Integration =====
-  
+
   // OAuth login
   oauthLogin = asyncHandler(async (req, res, next) => {
     try {
       const { provider, accessToken, profile } = req.body;
 
-      let user = await User.findOne({ 
-        [`oauth.${provider}.id`]: profile.id 
+      let user = await User.findOne({
+        [`oauth.${provider}.id`]: profile.id,
       });
 
       if (!user) {
@@ -698,16 +702,17 @@ class AuthController {
           email: profile.email,
           username: profile.username || `user_${Date.now()}`,
           firstName: profile.firstName || profile.name?.split(' ')[0],
-          lastName: profile.lastName || profile.name?.split(' ').slice(1).join(' '),
+          lastName:
+            profile.lastName || profile.name?.split(' ').slice(1).join(' '),
           isVerified: true,
           oauth: {
             [provider]: {
               id: profile.id,
               accessToken,
               refreshToken: profile.refreshToken,
-              expiresAt: profile.expiresAt
-            }
-          }
+              expiresAt: profile.expiresAt,
+            },
+          },
         });
         await user.save();
       } else {
@@ -716,7 +721,7 @@ class AuthController {
           id: profile.id,
           accessToken,
           refreshToken: profile.refreshToken,
-          expiresAt: profile.expiresAt
+          expiresAt: profile.expiresAt,
         };
         await user.save();
       }
@@ -738,10 +743,10 @@ class AuthController {
             email: user.email,
             username: user.username,
             firstName: user.firstName,
-            lastName: user.lastName
+            lastName: user.lastName,
           },
-          tokens
-        }
+          tokens,
+        },
       });
     } catch (error) {
       next(error);
@@ -762,11 +767,14 @@ class AuthController {
       // Check if OAuth account is already linked to another user
       const existingUser = await User.findOne({
         [`oauth.${provider}.id`]: profile.id,
-        _id: { $ne: userId }
+        _id: { $ne: userId },
       });
 
       if (existingUser) {
-        throw new AppError('Esta cuenta OAuth ya está vinculada a otro usuario', 400);
+        throw new AppError(
+          'Esta cuenta OAuth ya está vinculada a otro usuario',
+          400
+        );
       }
 
       // Link OAuth account
@@ -775,14 +783,14 @@ class AuthController {
         id: profile.id,
         accessToken,
         refreshToken: profile.refreshToken,
-        expiresAt: profile.expiresAt
+        expiresAt: profile.expiresAt,
       };
 
       await user.save();
 
       res.status(200).json({
         success: true,
-        message: 'Cuenta OAuth vinculada exitosamente'
+        message: 'Cuenta OAuth vinculada exitosamente',
       });
     } catch (error) {
       next(error);
@@ -806,7 +814,10 @@ class AuthController {
 
       // Check if user has password (can't unlink if no other auth method)
       if (!user.password && Object.keys(user.oauth || {}).length === 1) {
-        throw new AppError('No se puede desvincular la única cuenta de autenticación', 400);
+        throw new AppError(
+          'No se puede desvincular la única cuenta de autenticación',
+          400
+        );
       }
 
       // Unlink OAuth account
@@ -815,7 +826,7 @@ class AuthController {
 
       res.status(200).json({
         success: true,
-        message: 'Cuenta OAuth desvinculada exitosamente'
+        message: 'Cuenta OAuth desvinculada exitosamente',
       });
     } catch (error) {
       next(error);

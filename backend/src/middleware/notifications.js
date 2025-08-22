@@ -1,14 +1,14 @@
 const redisClient = require('../config/redis');
 const Notification = require('../models/Notification');
-const User = require('../models/User');
+const mongoose = require('mongoose');
 
 // WebSocket connection manager
 /**
- *
+ * Manages WebSocket connections and room management for real-time notifications
  */
 class WebSocketManager {
   /**
-   *
+   * Initialize the WebSocket manager
    */
   constructor() {
     this.connections = new Map(); // userId -> socket
@@ -18,9 +18,9 @@ class WebSocketManager {
 
   // Add connection
   /**
-   *
-   * @param userId
-   * @param socket
+   * Add a new user connection
+   * @param {string} userId - The user ID
+   * @param {Object} socket - The socket object
    */
   addConnection(userId, socket) {
     this.connections.set(userId, socket);
@@ -35,8 +35,8 @@ class WebSocketManager {
 
   // Remove connection
   /**
-   *
-   * @param userId
+   * Remove a user connection
+   * @param {string} userId - The user ID
    */
   removeConnection(userId) {
     const socket = this.connections.get(userId);
@@ -59,9 +59,9 @@ class WebSocketManager {
 
   // Join room
   /**
-   *
-   * @param roomId
-   * @param socketId
+   * Join a socket to a room
+   * @param {string} roomId - The room ID
+   * @param {string} socketId - The socket ID
    */
   joinRoom(roomId, socketId) {
     if (!this.rooms.has(roomId)) {
@@ -81,9 +81,9 @@ class WebSocketManager {
 
   // Leave room
   /**
-   *
-   * @param roomId
-   * @param socketId
+   * Remove a socket from a room
+   * @param {string} roomId - The room ID
+   * @param {string} socketId - The socket ID
    */
   leaveRoom(roomId, socketId) {
     const room = this.rooms.get(roomId);
@@ -209,11 +209,11 @@ const wsManager = new WebSocketManager();
 
 // Notification service
 /**
- *
+ * Manages notification creation, storage, and retrieval.
  */
 class NotificationService {
   /**
-   *
+   * Initialize the notification service
    */
   constructor() {
     this.wsManager = wsManager;
@@ -221,8 +221,8 @@ class NotificationService {
 
   // Create notification
   /**
-   *
-   * @param data
+   * Create a new notification
+   * @param {Object} data - Notification data
    */
   async createNotification(data) {
     try {
@@ -253,9 +253,9 @@ class NotificationService {
 
   // Store offline notification in Redis
   /**
-   *
-   * @param userId
-   * @param notification
+   * Store a notification for an offline user in Redis
+   * @param {string} userId - The user ID
+   * @param {Object} notification - The notification object
    */
   async storeOfflineNotification(userId, notification) {
     try {
@@ -284,8 +284,8 @@ class NotificationService {
 
   // Get offline notifications for user
   /**
-   *
-   * @param userId
+   * Retrieve offline notifications for a user from Redis
+   * @param {string} userId - The user ID
    */
   async getOfflineNotifications(userId) {
     try {
@@ -304,11 +304,11 @@ class NotificationService {
 
   // Send event notification
   /**
-   *
-   * @param eventId
-   * @param type
-   * @param recipients
-   * @param data
+   * Send a notification for an event
+   * @param {string} eventId - The event ID
+   * @param {string} type - The notification type (e.g., 'invite', 'update')
+   * @param {Array<string>} recipients - Array of recipient user IDs
+   * @param {Object} data - Additional data for the notification
    */
   async sendEventNotification(eventId, type, recipients, data = {}) {
     try {
@@ -340,11 +340,11 @@ class NotificationService {
 
   // Send tribe notification
   /**
-   *
-   * @param tribeId
-   * @param type
-   * @param recipients
-   * @param data
+   * Send a notification for a tribe
+   * @param {string} tribeId - The tribe ID
+   * @param {string} type - The notification type (e.g., 'invite', 'update')
+   * @param {Array<string>} recipients - Array of recipient user IDs
+   * @param {Object} data - Additional data for the notification
    */
   async sendTribeNotification(tribeId, type, recipients, data = {}) {
     try {
@@ -376,11 +376,11 @@ class NotificationService {
 
   // Send social notification
   /**
-   *
-   * @param type
-   * @param recipientId
-   * @param senderId
-   * @param data
+   * Send a notification for a social event (e.g., follow, like, comment, mention)
+   * @param {string} type - The notification type (e.g., 'follow', 'like', 'comment', 'mention')
+   * @param {string} recipientId - The recipient user ID
+   * @param {string} senderId - The sender user ID
+   * @param {Object} data - Additional data for the notification
    */
   async sendSocialNotification(type, recipientId, senderId, data = {}) {
     try {
@@ -407,11 +407,11 @@ class NotificationService {
 
   // Send chat notification
   /**
-   *
-   * @param chatId
-   * @param senderId
-   * @param recipientId
-   * @param message
+   * Send a notification for a chat message
+   * @param {string} chatId - The chat ID
+   * @param {string} senderId - The sender user ID
+   * @param {string} recipientId - The recipient user ID
+   * @param {string} message - The chat message
    */
   async sendChatNotification(chatId, senderId, recipientId, message) {
     try {
@@ -440,8 +440,8 @@ class NotificationService {
 
   // Get notification titles
   /**
-   *
-   * @param type
+   * Get the title for an event notification
+   * @param {string} type - The notification type
    */
   getEventNotificationTitle(type) {
     const titles = {
@@ -457,9 +457,9 @@ class NotificationService {
   }
 
   /**
-   *
-   * @param type
-   * @param data
+   * Get the message for an event notification
+   * @param {string} type - The notification type
+   * @param {Object} data - Additional data for the notification
    */
   getEventNotificationMessage(type, data) {
     const messages = {
@@ -475,8 +475,8 @@ class NotificationService {
   }
 
   /**
-   *
-   * @param type
+   * Get the title for a tribe notification
+   * @param {string} type - The notification type
    */
   getTribeNotificationTitle(type) {
     const titles = {
@@ -490,9 +490,9 @@ class NotificationService {
   }
 
   /**
-   *
-   * @param type
-   * @param data
+   * Get the message for a tribe notification
+   * @param {string} type - The notification type
+   * @param {Object} data - Additional data for the notification
    */
   getTribeNotificationMessage(type, data) {
     const messages = {
@@ -506,8 +506,8 @@ class NotificationService {
   }
 
   /**
-   *
-   * @param type
+   * Get the title for a social notification
+   * @param {string} type - The notification type
    */
   getSocialNotificationTitle(type) {
     const titles = {
@@ -521,9 +521,9 @@ class NotificationService {
   }
 
   /**
-   *
-   * @param type
-   * @param data
+   * Get the message for a social notification
+   * @param {string} type - The notification type
+   * @param {Object} data - Additional data for the notification
    */
   getSocialNotificationMessage(type, data) {
     const messages = {
@@ -538,9 +538,9 @@ class NotificationService {
 
   // Mark notification as read
   /**
-   *
-   * @param notificationId
-   * @param userId
+   * Mark a notification as read
+   * @param {string} notificationId - The notification ID
+   * @param {string} userId - The user ID
    */
   async markAsRead(notificationId, userId) {
     try {
@@ -567,8 +567,8 @@ class NotificationService {
 
   // Mark all notifications as read
   /**
-   *
-   * @param userId
+   * Mark all notifications for a user as read
+   * @param {string} userId - The user ID
    */
   async markAllAsRead(userId) {
     try {
@@ -589,9 +589,9 @@ class NotificationService {
 
   // Get user notifications
   /**
-   *
-   * @param userId
-   * @param options
+   * Get notifications for a user
+   * @param {string} userId - The user ID
+   * @param {Object} options - Pagination and filtering options
    */
   async getUserNotifications(userId, options = {}) {
     try {
@@ -629,9 +629,9 @@ class NotificationService {
 
   // Delete notification
   /**
-   *
-   * @param notificationId
-   * @param userId
+   * Delete a notification
+   * @param {string} notificationId - The notification ID
+   * @param {string} userId - The user ID
    */
   async deleteNotification(notificationId, userId) {
     try {
@@ -645,7 +645,7 @@ class NotificationService {
         throw new Error('No autorizado para eliminar esta notificación');
       }
 
-      await notification.remove();
+      await notification.deleteOne();
 
       return { success: true, message: 'Notificación eliminada' };
     } catch (error) {
@@ -656,13 +656,13 @@ class NotificationService {
 
   // Get notification stats
   /**
-   *
-   * @param userId
+   * Get notification statistics for a user
+   * @param {string} userId - The user ID
    */
   async getNotificationStats(userId) {
     try {
       const stats = await Notification.aggregate([
-        { $match: { recipient: mongoose.Types.ObjectId(userId) } },
+        { $match: { recipient: new mongoose.Types.ObjectId(userId) } },
         {
           $group: {
             _id: '$status',
