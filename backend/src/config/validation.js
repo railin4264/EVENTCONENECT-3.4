@@ -2,13 +2,14 @@ const Joi = require('joi');
 
 // Common validation patterns
 const patterns = {
-  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  password:
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-  phone: /^\+?[\d\s\-\(\)]{10,}$/,
-  username: /^[a-zA-Z0-9_]{3,20}$/,
-  url: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/,
-  coordinates: /^-?\d+(\.\d+)?$/,
+  email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+  // Safe password pattern - requires at least 8 characters, 1 uppercase, 1 lowercase, 1 number
+  password: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&._-]{8,}$/,
+  phone: /^\+?[1-9]\d{1,14}$/, // E.164 format without leading zeros
+  username: /^[a-zA-Z0-9._-]{3,30}$/,
+  url: /^https?:\/\/(?:[-\w.])+(?::[0-9]+)?(?:\/(?:[\w._~:/?#[\]@!$&'()*+,;=-])*)?$/,
+  coordinates:
+    /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/,
 };
 
 // Common validation messages
