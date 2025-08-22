@@ -145,10 +145,14 @@ describe('Event Flow Integration Tests', () => {
             start: new Date(eventData.startDate).toISOString(),
             end: new Date(eventData.endDate).toISOString(),
           },
-          location: eventData.location,
+          location: {
+            type: 'Point',
+            coordinates: eventData.location.coordinates,
+            address: eventData.location.address,
+          },
           capacity: eventData.capacity,
-          price: { amount: 0 },
-          isPrivate: false,
+          price: { amount: 0, type: 'free', currency: 'USD' },
+          features: { isPrivate: false },
         })
         .expect(201);
 
@@ -316,10 +320,14 @@ describe('Event Flow Integration Tests', () => {
               start: new Date(eventData.startDate).toISOString(),
               end: new Date(eventData.endDate).toISOString(),
             },
-            location: eventData.location,
+            location: {
+              type: 'Point',
+              coordinates: eventData.location.coordinates,
+              address: eventData.location.address,
+            },
             capacity: eventData.capacity,
-            price: { amount: eventData.pricing.type === 'paid' ? eventData.pricing.price : 0 },
-            isPrivate: false,
+            price: { amount: eventData.pricing.type === 'paid' ? eventData.pricing.price : 0, type: eventData.pricing.type === 'paid' ? 'paid' : 'free', currency: 'USD' },
+            features: { isPrivate: false },
           })
           .expect(201);
       }
@@ -380,12 +388,23 @@ describe('Event Flow Integration Tests', () => {
         .set('Cookie', [`accessToken=${hostToken}`])
         .set('x-test-user-id', hostUser._id.toString())
         .send({
-          ...eventData,
+          title: eventData.title,
+          description: eventData.description,
+          category: eventData.category,
+          subcategory: eventData.subcategory,
+          tags: eventData.tags,
           dateTime: {
             start: new Date(eventData.startDate).toISOString(),
             end: new Date(eventData.endDate).toISOString(),
           },
-          price: { amount: 0 },
+          location: {
+            type: 'Point',
+            coordinates: eventData.location.coordinates,
+            address: eventData.location.address,
+          },
+          capacity: eventData.capacity,
+          price: { amount: 0, type: 'free', currency: 'USD' },
+          features: { isPrivate: false },
         })
         .expect(201);
 
@@ -469,12 +488,23 @@ describe('Event Flow Integration Tests', () => {
         .set('Cookie', [`accessToken=${hostToken}`])
         .set('x-test-user-id', hostUser._id.toString())
         .send({
-          ...eventData,
+          title: eventData.title,
+          description: eventData.description,
+          category: eventData.category,
+          subcategory: eventData.subcategory,
+          tags: eventData.tags,
           dateTime: {
             start: new Date(eventData.startDate).toISOString(),
             end: new Date(eventData.endDate).toISOString(),
           },
-          price: { amount: 0 },
+          location: {
+            type: 'Point',
+            coordinates: eventData.location.coordinates,
+            address: eventData.location.address,
+          },
+          capacity: eventData.capacity,
+          price: { amount: 0, type: 'free', currency: 'USD' },
+          features: { isPrivate: false },
         })
         .expect(201);
 
