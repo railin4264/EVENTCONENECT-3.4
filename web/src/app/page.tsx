@@ -1,6 +1,10 @@
 'use client';
 
 import React from 'react';
+import { PersonalizedHome } from '@/components/sections/PersonalizedHome';
+import { useAuth } from '@/hooks/useAuth';
+
+// Importaciones para landing page (usuarios no autenticados)
 import { HeroSection } from '@/components/sections/HeroSection';
 import { Card, CardContent, CardTitle, CardSubtitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -214,6 +218,14 @@ const CTASection: React.FC = () => {
 
 // ===== MAIN PAGE COMPONENT =====
 export default function HomePage() {
+  const { isAuthenticated } = useAuth();
+
+  // Si el usuario está autenticado, mostrar home personalizado
+  if (isAuthenticated) {
+    return <PersonalizedHome />;
+  }
+
+  // Si no está autenticado, mostrar landing page
   return (
     <main className="min-h-screen">
       {/* Hero Section */}
