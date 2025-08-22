@@ -133,7 +133,22 @@ describe('Event Flow Integration Tests', () => {
       const createEventResponse = await request(app)
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
-        .send(eventData)
+        .set('Cookie', [`accessToken=${hostToken}`])
+        .send({
+          title: eventData.title,
+          description: eventData.description,
+          category: eventData.category,
+          subcategory: eventData.subcategory,
+          tags: eventData.tags,
+          dateTime: {
+            start: new Date(eventData.startDate).toISOString(),
+            end: new Date(eventData.endDate).toISOString(),
+          },
+          location: eventData.location,
+          capacity: eventData.capacity,
+          price: { amount: 0 },
+          isPrivate: false,
+        })
         .expect(201);
 
       expect(createEventResponse.body.success).toBe(true);
@@ -288,7 +303,22 @@ describe('Event Flow Integration Tests', () => {
         await request(app)
           .post('/api/events')
           .set('Authorization', `Bearer ${hostToken}`)
-          .send(eventData)
+          .set('Cookie', [`accessToken=${hostToken}`])
+          .send({
+            title: eventData.title,
+            description: eventData.description,
+            category: eventData.category,
+            subcategory: eventData.subcategory,
+            tags: eventData.tags,
+            dateTime: {
+              start: new Date(eventData.startDate).toISOString(),
+              end: new Date(eventData.endDate).toISOString(),
+            },
+            location: eventData.location,
+            capacity: eventData.capacity,
+            price: { amount: eventData.pricing.type === 'paid' ? eventData.pricing.price : 0 },
+            isPrivate: false,
+          })
           .expect(201);
       }
 
@@ -345,7 +375,15 @@ describe('Event Flow Integration Tests', () => {
       const createEventResponse = await request(app)
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
-        .send(eventData)
+        .set('Cookie', [`accessToken=${hostToken}`])
+        .send({
+          ...eventData,
+          dateTime: {
+            start: new Date(eventData.startDate).toISOString(),
+            end: new Date(eventData.endDate).toISOString(),
+          },
+          price: { amount: 0 },
+        })
         .expect(201);
 
       const eventId = createEventResponse.body.data.event._id;
@@ -360,6 +398,7 @@ describe('Event Flow Integration Tests', () => {
       const updateResponse = await request(app)
         .put(`/api/events/${eventId}`)
         .set('Authorization', `Bearer ${hostToken}`)
+        .set('Cookie', [`accessToken=${hostToken}`])
         .send(updateData)
         .expect(200);
 
@@ -382,6 +421,7 @@ describe('Event Flow Integration Tests', () => {
       const cancelResponse = await request(app)
         .put(`/api/events/${eventId}/cancel`)
         .set('Authorization', `Bearer ${hostToken}`)
+        .set('Cookie', [`accessToken=${hostToken}`])
         .send(cancelData)
         .expect(200);
 
@@ -421,7 +461,15 @@ describe('Event Flow Integration Tests', () => {
       const createEventResponse = await request(app)
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
-        .send(eventData)
+        .set('Cookie', [`accessToken=${hostToken}`])
+        .send({
+          ...eventData,
+          dateTime: {
+            start: new Date(eventData.startDate).toISOString(),
+            end: new Date(eventData.endDate).toISOString(),
+          },
+          price: { amount: 0 },
+        })
         .expect(201);
 
       const eventId = createEventResponse.body.data.event._id;
@@ -525,6 +573,7 @@ describe('Event Flow Integration Tests', () => {
       const createEventResponse = await request(app)
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
+        .set('Cookie', [`accessToken=${hostToken}`])
         .send(eventData)
         .expect(201);
 
@@ -534,18 +583,23 @@ describe('Event Flow Integration Tests', () => {
       const updateData = { title: 'Unauthorized Update' };
       await request(app)
         .put(`/api/events/${eventId}`)
+        .set('Authorization', 'Bearer invalid-token')
+        .set('Cookie', [`accessToken=invalid-token`])
         .send(updateData)
         .expect(401);
 
       // Try to delete event without authorization
       await request(app)
         .delete(`/api/events/${eventId}`)
+        .set('Authorization', 'Bearer invalid-token')
+        .set('Cookie', [`accessToken=invalid-token`])
         .expect(401);
 
       // Try to access with invalid token
       await request(app)
         .put(`/api/events/${eventId}`)
         .set('Authorization', 'Bearer invalid-token')
+        .set('Cookie', [`accessToken=invalid-token`])
         .send(updateData)
         .expect(401);
     });
@@ -563,7 +617,10 @@ describe('Event Flow Integration Tests', () => {
       const response = await request(app)
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
-        .send(invalidEventData)
+        .set('Cookie', [`accessToken=${hostToken}`])
+        .send({
+          ...invalidEventData,
+        })
         .expect(400);
 
       expect(response.body.success).toBe(false);
@@ -583,6 +640,7 @@ describe('Event Flow Integration Tests', () => {
       await request(app)
         .put(`/api/events/${nonExistentId}`)
         .set('Authorization', `Bearer ${hostToken}`)
+        .set('Cookie', [`accessToken=${hostToken}`])
         .send({ title: 'Update' })
         .expect(404);
 
@@ -590,6 +648,7 @@ describe('Event Flow Integration Tests', () => {
       await request(app)
         .delete(`/api/events/${nonExistentId}`)
         .set('Authorization', `Bearer ${hostToken}`)
+        .set('Cookie', [`accessToken=${hostToken}`])
         .expect(404);
     });
   });
