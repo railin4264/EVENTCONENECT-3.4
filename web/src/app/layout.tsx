@@ -4,6 +4,8 @@ import './globals.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { AuthProvider } from '@/components/providers/AuthProvider';
+import { DynamicThemeProvider } from '@/contexts/DynamicThemeContext';
+import { ImmersiveNotificationSystem } from '@/components/notifications/ImmersiveNotifications';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -98,12 +100,17 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         
-        {/* Meta tags for better SEO */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+        {/* Meta tags for PWA */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="theme-color" content="#06b6d4" />
-        <meta name="color-scheme" content="dark light" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="EventConnect" />
         
-        {/* Structured data for better search results */}
+        {/* Preload critical resources */}
+        <link rel="preload" href="/api/health" as="fetch" crossOrigin="anonymous" />
+        
+        {/* Structured data for SEO */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -111,31 +118,62 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebApplication",
               "name": "EventConnect",
-              "description": "Plataforma social para descubrir eventos y conectar con comunidades",
+              "description": "Plataforma social para eventos y comunidades",
               "url": "https://eventconnect.app",
               "applicationCategory": "SocialNetworkingApplication",
-              "operatingSystem": "Web, iOS, Android",
+              "operatingSystem": "Web",
               "offers": {
                 "@type": "Offer",
                 "price": "0",
                 "priceCurrency": "USD"
-              },
-              "author": {
-                "@type": "Organization",
-                "name": "EventConnect Team"
               }
             })
           }}
         />
       </head>
-      <body className={`${inter.className} antialiased`}>
-        <ThemeProvider>
-          <QueryProvider>
+      <body className={`${inter.variable} antialiased`}>
+        {/* Providers */}
+        <DynamicThemeProvider>
+          <ImmersiveNotificationSystem>
             <AuthProvider>
-              {children}
+              <QueryProvider>
+                <ThemeProvider>
+                  {/* Main content */}
+                  <main className="min-h-screen">
+                    {children}
+                  </main>
+                  
+                  {/* Global UI elements */}
+                  <div id="portal-root" />
+                  
+                  {/* Performance monitoring */}
+                  <script
+                    dangerouslySetInnerHTML={{
+                      __html: `
+                        // Performance monitoring
+                        if ('performance' in window) {
+                          window.addEventListener('load', () => {
+                            const perfData = performance.getEntriesByType('navigation')[0];
+                            if (perfData) {
+                              console.log('Page Load Time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
+                            }
+                          });
+                        }
+                        
+                        // Service Worker registration
+                        if ('serviceWorker' in navigator) {
+                          navigator.serviceWorker.register('/sw.js')
+                            .then(registration => console.log('SW registered'))
+                            .catch(error => console.log('SW registration failed'));
+                        }
+                      `
+                    }}
+                  />
+                </ThemeProvider>
+              </QueryProvider>
             </AuthProvider>
-          </QueryProvider>
-        </ThemeProvider>
+          </ImmersiveNotificationSystem>
+        </DynamicThemeProvider>
       </body>
     </html>
   );

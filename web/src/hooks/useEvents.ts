@@ -1,7 +1,7 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { api } from './useAuth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { eventsAPI } from '@/services/api';
 
 interface Event {
   id: string;
@@ -102,23 +102,23 @@ interface EventFilters {
     start: string;
     end: string;
   };
-  search?: string;
   priceRange?: {
     min: number;
     max: number;
   };
   tags?: string[];
-  hostId?: string;
   status?: string;
-  page?: number;
-  limit?: number;
+  hostId?: string;
+  userId?: string;
+  type?: 'all' | 'created' | 'attending' | 'past';
+  recommendations?: boolean;
 }
 
 interface CreateEventData {
   title: string;
   description: string;
   category: string;
-  tags?: string[];
+  tags: string[];
   location: {
     coordinates: [number, number];
     address: string;
@@ -143,100 +143,129 @@ interface CreateEventData {
       endDate: string;
     };
   };
-  settings?: {
-    isPublic?: boolean;
-    allowComments?: boolean;
-    requireApproval?: boolean;
-    maxWaitlist?: number;
+  settings: {
+    isPublic: boolean;
+    allowComments: boolean;
+    requireApproval: boolean;
+    maxWaitlist: number;
   };
 }
 
-interface UpdateEventData extends Partial<CreateEventData> {
+interface UpdateEventData {
   id: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  tags?: string[];
+  location?: {
+    coordinates: [number, number];
+    address: string;
+    city: string;
+    country: string;
+    venue?: string;
+  };
+  dateTime?: {
+    start: string;
+    end: string;
+    timezone: string;
+  };
+  capacity?: {
+    max: number;
+  };
+  pricing?: {
+    isFree: boolean;
+    amount?: number;
+    currency?: string;
+    earlyBird?: {
+      amount: number;
+      endDate: string;
+    };
+  };
+  settings?: {
+    isPublic: boolean;
+    allowComments: boolean;
+    requireApproval: boolean;
+    maxWaitlist: number;
+  };
 }
 
 // Fetch events with filters
 const fetchEvents = async (filters: EventFilters = {}): Promise<{ events: Event[]; pagination: any }> => {
-  const params = new URLSearchParams();
+  const params: any = {};
   
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       if (key === 'location' && typeof value === 'object') {
         // Backend expects latitude/longitude explicitly
         const [latitude, longitude] = value.coordinates;
-        params.append('latitude', latitude.toString());
-        params.append('longitude', longitude.toString());
-        if (value.radius) params.append('radius', value.radius.toString());
+        params.latitude = latitude;
+        params.longitude = longitude;
+        if (value.radius) params.radius = value.radius;
       } else if (key === 'dateRange' && typeof value === 'object') {
-        params.append('dateRange[start]', value.start);
-        params.append('dateRange[end]', value.end);
+        params.dateRange = value;
       } else if (key === 'priceRange' && typeof value === 'object') {
-        params.append('priceRange[min]', value.min.toString());
-        params.append('priceRange[max]', value.max.toString());
+        params.priceRange = value;
       } else if (key === 'tags' && Array.isArray(value)) {
-        value.forEach(tag => params.append('tags', tag));
+        params.tags = value;
       } else {
-        params.append(key, value.toString());
+        params[key] = value;
       }
     }
   });
 
-  const response = await api.get(`/api/events?${params.toString()}`);
-  return response.data;
+  return eventsAPI.getEvents(params);
 };
 
 // Fetch single event
 const fetchEvent = async (id: string): Promise<Event> => {
-  const response = await api.get(`/api/events/${id}`);
-  return response.data.event;
+  return eventsAPI.getEvent(id);
 };
 
 // Create event
 const createEvent = async (data: CreateEventData): Promise<Event> => {
-  const response = await api.post('/api/events', data);
-  return response.data.event;
+  return eventsAPI.createEvent(data);
 };
 
 // Update event
 const updateEvent = async (data: UpdateEventData): Promise<Event> => {
   const { id, ...updateData } = data;
-  const response = await api.put(`/api/events/${id}`, updateData);
-  return response.data.event;
+  return eventsAPI.updateEvent(id, updateData);
 };
 
 // Delete event
 const deleteEvent = async (id: string): Promise<void> => {
-  await api.delete(`/api/events/${id}`);
+  await eventsAPI.deleteEvent(id);
 };
 
 // Join event
 const joinEvent = async (eventId: string): Promise<Event> => {
-  const response = await api.post(`/api/events/${eventId}/join`);
-  return response.data.event;
+  return eventsAPI.joinEvent(eventId);
 };
 
 // Leave event
 const leaveEvent = async (eventId: string): Promise<Event> => {
-  const response = await api.delete(`/api/events/${eventId}/leave`);
-  return response.data.event;
+  return eventsAPI.leaveEvent(eventId);
 };
 
 // Get user's events
 const fetchUserEvents = async (userId: string, type: 'all' | 'created' | 'attending' | 'past' = 'all'): Promise<Event[]> => {
-  const response = await api.get(`/api/events/user/${userId}?type=${type}`);
-  return response.data.events;
+  const params = { userId, type };
+  const result = await eventsAPI.getEvents(params);
+  return result.events || [];
 };
 
 // Get nearby events
 const fetchNearbyEvents = async (coordinates: [number, number], radius: number = 50): Promise<Event[]> => {
-  const response = await api.get(`/api/events/nearby?lat=${coordinates[0]}&lng=${coordinates[1]}&radius=${radius}`);
-  return response.data.events;
+  const params = { lat: coordinates[0], lng: coordinates[1], radius };
+  const result = await eventsAPI.getEvents(params);
+  return result.events || [];
 };
 
 // Get event recommendations
-const fetchEventRecommendations = async (userId: string): Promise<Event[]> => {
-  const response = await api.get(`/api/events/recommendations`);
-  return response.data.events;
+const fetchEventRecommendations = async (_userId: string): Promise<Event[]> => {
+  const params = { recommendations: true };
+  const result = await eventsAPI.getEvents(params);
+  return result.events || [];
 };
 
 export const useEvents = (filters: EventFilters = {}) => {
@@ -248,22 +277,20 @@ export const useEvents = (filters: EventFilters = {}) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['events', filters],
-    () => fetchEvents(filters),
-    {
-      keepPreviousData: true,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-    }
-  );
+  } = useQuery({
+    queryKey: ['events', filters],
+    queryFn: () => fetchEvents(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (cacheTime renamed to gcTime in v4)
+  });
 
   // Create event mutation
-  const createEventMutation = useMutation(createEvent, {
-    onSuccess: (newEvent) => {
+  const createEventMutation = useMutation({
+    mutationFn: createEvent,
+    onSuccess: (newEvent: Event) => {
       // Invalidate and refetch events
-      queryClient.invalidateQueries(['events']);
-      queryClient.invalidateQueries(['user', newEvent.host.id, 'events']);
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['user', newEvent.host.id, 'events'] });
       
       // Add new event to cache
       queryClient.setQueryData(['events', newEvent.id], newEvent);
@@ -271,41 +298,45 @@ export const useEvents = (filters: EventFilters = {}) => {
   });
 
   // Update event mutation
-  const updateEventMutation = useMutation(updateEvent, {
-    onSuccess: (updatedEvent) => {
+  const updateEventMutation = useMutation({
+    mutationFn: updateEvent,
+    onSuccess: (updatedEvent: Event) => {
       // Update event in cache
       queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
-      queryClient.invalidateQueries(['events']);
-      queryClient.invalidateQueries(['user', updatedEvent.host.id, 'events']);
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['user', updatedEvent.host.id, 'events'] });
     },
   });
 
   // Delete event mutation
-  const deleteEventMutation = useMutation(deleteEvent, {
-    onSuccess: (_, eventId) => {
+  const deleteEventMutation = useMutation({
+    mutationFn: deleteEvent,
+    onSuccess: (_: void, eventId: string) => {
       // Remove event from cache
-      queryClient.removeQueries(['events', eventId]);
-      queryClient.invalidateQueries(['events']);
+      queryClient.removeQueries({ queryKey: ['events', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     },
   });
 
   // Join event mutation
-  const joinEventMutation = useMutation(joinEvent, {
-    onSuccess: (updatedEvent) => {
+  const joinEventMutation = useMutation({
+    mutationFn: joinEvent,
+    onSuccess: (updatedEvent: Event) => {
       // Update event in cache
       queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
-      queryClient.invalidateQueries(['events']);
-      queryClient.invalidateQueries(['user', 'events']);
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'events'] });
     },
   });
 
   // Leave event mutation
-  const leaveEventMutation = useMutation(leaveEvent, {
-    onSuccess: (updatedEvent) => {
+  const leaveEventMutation = useMutation({
+    mutationFn: leaveEvent,
+    onSuccess: (updatedEvent: Event) => {
       // Update event in cache
       queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
-      queryClient.invalidateQueries(['events']);
-      queryClient.invalidateQueries(['user', 'events']);
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'events'] });
     },
   });
 
@@ -327,32 +358,28 @@ export const useEvents = (filters: EventFilters = {}) => {
     leaveEvent: leaveEventMutation.mutateAsync,
     
     // Mutations state
-    isCreating: createEventMutation.isLoading,
-    isUpdating: updateEventMutation.isLoading,
-    isDeleting: deleteEventMutation.isLoading,
-    isJoining: joinEventMutation.isLoading,
-    isLeaving: leaveEventMutation.isLoading,
+    isCreating: createEventMutation.isPending,
+    isUpdating: updateEventMutation.isPending,
+    isDeleting: deleteEventMutation.isPending,
+    isJoining: joinEventMutation.isPending,
+    isLeaving: leaveEventMutation.isPending,
   };
 };
 
 // Hook for single event
 export const useEvent = (id: string) => {
-  const queryClient = useQueryClient();
-
   const {
     data: event,
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['events', id],
-    () => fetchEvent(id),
-    {
-      enabled: !!id,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['events', id],
+    queryFn: () => fetchEvent(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     event,
@@ -369,15 +396,13 @@ export const useUserEvents = (userId: string, type: 'all' | 'created' | 'attendi
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['user', userId, 'events', type],
-    () => fetchUserEvents(userId, type),
-    {
-      enabled: !!userId,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['user', userId, 'events', type],
+    queryFn: () => fetchUserEvents(userId, type),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     events: events || [],
@@ -394,15 +419,13 @@ export const useNearbyEvents = (coordinates: [number, number], radius: number = 
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['events', 'nearby', coordinates, radius],
-    () => fetchNearbyEvents(coordinates, radius),
-    {
-      enabled: !!coordinates,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['events', 'nearby', coordinates, radius],
+    queryFn: () => fetchNearbyEvents(coordinates, radius),
+    enabled: !!coordinates,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     events: events || [],
@@ -419,15 +442,13 @@ export const useEventRecommendations = (userId: string) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['events', 'recommendations', userId],
-    () => fetchEventRecommendations(userId),
-    {
-      enabled: !!userId,
-      staleTime: 10 * 60 * 1000, // 10 minutes
-      cacheTime: 15 * 60 * 1000, // 15 minutes
-    }
-  );
+  } = useQuery({
+    queryKey: ['events', 'recommendations', userId],
+    queryFn: () => fetchEventRecommendations(userId),
+    enabled: !!userId,
+    staleTime: 15 * 60 * 1000, // 15 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
 
   return {
     events: events || [],

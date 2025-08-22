@@ -1,7 +1,7 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { api } from './useAuth';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { tribesAPI } from '@/services/api';
 
 interface Tribe {
   id: string;
@@ -115,50 +115,45 @@ const fetchTribes = async (filters: TribeFilters = {}): Promise<{ tribes: Tribe[
     }
   });
 
-  const response = await api.get(`/api/tribes?${params.toString()}`);
-  return response.data;
+  return tribesAPI.getTribes(params);
 };
 
 // Fetch single tribe
 const fetchTribe = async (id: string): Promise<Tribe> => {
-  const response = await api.get(`/api/tribes/${id}`);
-  return response.data.tribe;
+  return tribesAPI.getTribe(id);
 };
 
 // Create tribe
 const createTribe = async (data: CreateTribeData): Promise<Tribe> => {
-  const response = await api.post('/api/tribes', data);
-  return response.data.tribe;
+  return tribesAPI.createTribe(data);
 };
 
 // Update tribe
 const updateTribe = async (data: UpdateTribeData): Promise<Tribe> => {
   const { id, ...updateData } = data;
-  const response = await api.put(`/api/tribes/${id}`, updateData);
-  return response.data.tribe;
+  return tribesAPI.updateTribe(id, updateData);
 };
 
 // Delete tribe
 const deleteTribe = async (id: string): Promise<void> => {
-  await api.delete(`/api/tribes/${id}`);
+  await tribesAPI.deleteTribe(id);
 };
 
 // Join tribe
 const joinTribe = async (tribeId: string): Promise<Tribe> => {
-  const response = await api.post(`/api/tribes/${tribeId}/join`);
-  return response.data.tribe;
+  return tribesAPI.joinTribe(tribeId);
 };
 
 // Leave tribe
 const leaveTribe = async (tribeId: string): Promise<Tribe> => {
-  const response = await api.delete(`/api/tribes/${tribeId}/leave`);
-  return response.data.tribe;
+  return tribesAPI.leaveTribe(tribeId);
 };
 
 // Get user's tribes
 const fetchUserTribes = async (userId: string, type: 'all' | 'created' | 'joined' | 'moderating' = 'all'): Promise<Tribe[]> => {
-  const response = await api.get(`/api/tribes/user/${userId}?type=${type}`);
-  return response.data.tribes;
+  const params = { userId, type };
+  const result = await tribesAPI.getTribes(params);
+  return result.tribes || [];
 };
 
 export const useTribes = (filters: TribeFilters = {}) => {
@@ -170,22 +165,20 @@ export const useTribes = (filters: TribeFilters = {}) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['tribes', filters],
-    () => fetchTribes(filters),
-    {
-      keepPreviousData: true,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-    }
-  );
+  } = useQuery({
+    queryKey: ['tribes', filters],
+    queryFn: () => fetchTribes(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (cacheTime renamed to gcTime in v4)
+  });
 
   // Create tribe mutation
-  const createTribeMutation = useMutation(createTribe, {
-    onSuccess: (newTribe) => {
+  const createTribeMutation = useMutation({
+    mutationFn: createTribe,
+    onSuccess: (newTribe: Tribe) => {
       // Invalidate and refetch tribes
-      queryClient.invalidateQueries(['tribes']);
-      queryClient.invalidateQueries(['user', newTribe.creator.id, 'tribes']);
+      queryClient.invalidateQueries({ queryKey: ['tribes'] });
+      queryClient.invalidateQueries({ queryKey: ['user', newTribe.creator.id, 'tribes'] });
       
       // Add new tribe to cache
       queryClient.setQueryData(['tribes', newTribe.id], newTribe);
@@ -193,41 +186,45 @@ export const useTribes = (filters: TribeFilters = {}) => {
   });
 
   // Update tribe mutation
-  const updateTribeMutation = useMutation(updateTribe, {
-    onSuccess: (updatedTribe) => {
+  const updateTribeMutation = useMutation({
+    mutationFn: updateTribe,
+    onSuccess: (updatedTribe: Tribe) => {
       // Update tribe in cache
       queryClient.setQueryData(['tribes', updatedTribe.id], updatedTribe);
-      queryClient.invalidateQueries(['tribes']);
-      queryClient.invalidateQueries(['user', updatedTribe.creator.id, 'tribes']);
+      queryClient.invalidateQueries({ queryKey: ['tribes'] });
+      queryClient.invalidateQueries({ queryKey: ['user', updatedTribe.creator.id, 'tribes'] });
     },
   });
 
   // Delete tribe mutation
-  const deleteTribeMutation = useMutation(deleteTribe, {
-    onSuccess: (_, tribeId) => {
+  const deleteTribeMutation = useMutation({
+    mutationFn: deleteTribe,
+    onSuccess: (_: void, tribeId: string) => {
       // Remove tribe from cache
-      queryClient.removeQueries(['tribes', tribeId]);
-      queryClient.invalidateQueries(['tribes']);
+      queryClient.removeQueries({ queryKey: ['tribes', tribeId] });
+      queryClient.invalidateQueries({ queryKey: ['tribes'] });
     },
   });
 
   // Join tribe mutation
-  const joinTribeMutation = useMutation(joinTribe, {
-    onSuccess: (updatedTribe) => {
+  const joinTribeMutation = useMutation({
+    mutationFn: joinTribe,
+    onSuccess: (updatedTribe: Tribe) => {
       // Update tribe in cache
       queryClient.setQueryData(['tribes', updatedTribe.id], updatedTribe);
-      queryClient.invalidateQueries(['tribes']);
-      queryClient.invalidateQueries(['user', 'tribes']);
+      queryClient.invalidateQueries({ queryKey: ['tribes'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'tribes'] });
     },
   });
 
   // Leave tribe mutation
-  const leaveTribeMutation = useMutation(leaveTribe, {
-    onSuccess: (updatedTribe) => {
+  const leaveTribeMutation = useMutation({
+    mutationFn: leaveTribe,
+    onSuccess: (updatedTribe: Tribe) => {
       // Update tribe in cache
       queryClient.setQueryData(['tribes', updatedTribe.id], updatedTribe);
-      queryClient.invalidateQueries(['tribes']);
-      queryClient.invalidateQueries(['user', 'tribes']);
+      queryClient.invalidateQueries({ queryKey: ['tribes'] });
+      queryClient.invalidateQueries({ queryKey: ['user', 'tribes'] });
     },
   });
 
@@ -249,32 +246,28 @@ export const useTribes = (filters: TribeFilters = {}) => {
     leaveTribe: leaveTribeMutation.mutateAsync,
     
     // Mutations state
-    isCreating: createTribeMutation.isLoading,
-    isUpdating: updateTribeMutation.isLoading,
-    isDeleting: deleteTribeMutation.isLoading,
-    isJoining: joinTribeMutation.isLoading,
-    isLeaving: leaveTribeMutation.isLoading,
+    isCreating: createTribeMutation.isPending,
+    isUpdating: updateTribeMutation.isPending,
+    isDeleting: deleteTribeMutation.isPending,
+    isJoining: joinTribeMutation.isPending,
+    isLeaving: leaveTribeMutation.isPending,
   };
 };
 
 // Hook for single tribe
 export const useTribe = (id: string) => {
-  const queryClient = useQueryClient();
-
   const {
     data: tribe,
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['tribes', id],
-    () => fetchTribe(id),
-    {
-      enabled: !!id,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['tribes', id],
+    queryFn: () => fetchTribe(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     tribe,
@@ -291,15 +284,13 @@ export const useUserTribes = (userId: string, type: 'all' | 'created' | 'joined'
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['user', userId, 'tribes', type],
-    () => fetchUserTribes(userId, type),
-    {
-      enabled: !!userId,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['user', userId, 'tribes', type],
+    queryFn: () => fetchUserTribes(userId, type),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     tribes: tribes || [],

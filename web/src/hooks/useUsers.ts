@@ -1,5 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { api } from './useAuth';
+'use client'
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiService } from '@/services/api';
 
 interface User {
   id: string;
@@ -93,48 +95,42 @@ const fetchUsers = async (filters: UserFilters = {}): Promise<{ users: User[]; p
     }
   });
 
-  const response = await api.get(`/api/users?${params.toString()}`);
-  return response.data;
+  return apiService.get(`/api/users?${params.toString()}`);
 };
 
 // Fetch single user
 const fetchUser = async (id: string): Promise<User> => {
-  const response = await api.get(`/api/users/${id}`);
-  return response.data.user;
+  return apiService.get(`/api/users/${id}`);
 };
 
 // Update user profile
 const updateUser = async (data: UpdateUserData): Promise<User> => {
-  const response = await api.put('/api/users/profile', data);
-  return response.data.user;
+  return apiService.put('/api/users/profile', data);
 };
 
 // Follow user
 const followUser = async (userId: string): Promise<void> => {
-  await api.post(`/api/users/${userId}/follow`);
+  await apiService.post(`/api/users/${userId}/follow`);
 };
 
 // Unfollow user
 const unfollowUser = async (userId: string): Promise<void> => {
-  await api.delete(`/api/users/${userId}/follow`);
+  await apiService.delete(`/api/users/${userId}/follow`);
 };
 
 // Get user followers
 const fetchUserFollowers = async (userId: string): Promise<User[]> => {
-  const response = await api.get(`/api/users/${userId}/followers`);
-  return response.data.followers;
+  return apiService.get(`/api/users/${userId}/followers`);
 };
 
 // Get user following
 const fetchUserFollowing = async (userId: string): Promise<User[]> => {
-  const response = await api.get(`/api/users/${userId}/following`);
-  return response.data.following;
+  return apiService.get(`/api/users/${userId}/following`);
 };
 
 // Get user recommendations
 const fetchUserRecommendations = async (userId: string): Promise<User[]> => {
-  const response = await api.get(`/api/users/${userId}/recommendations`);
-  return response.data.recommendations;
+  return apiService.get(`/api/users/${userId}/recommendations`);
 };
 
 export const useUsers = (filters: UserFilters = {}) => {
@@ -146,31 +142,30 @@ export const useUsers = (filters: UserFilters = {}) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['users', filters],
-    () => fetchUsers(filters),
-    {
-      keepPreviousData: true,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-    }
-  );
+  } = useQuery({
+    queryKey: ['users', filters],
+    queryFn: () => fetchUsers(filters),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (cacheTime renamed to gcTime in v4)
+  });
 
   // Follow user mutation
-  const followUserMutation = useMutation(followUser, {
-    onSuccess: (_, userId) => {
+  const followUserMutation = useMutation({
+    mutationFn: followUser,
+    onSuccess: (_: void, userId: string) => {
       // Invalidate user-related queries
-      queryClient.invalidateQueries(['users', userId]);
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users', userId] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 
   // Unfollow user mutation
-  const unfollowUserMutation = useMutation(unfollowUser, {
-    onSuccess: (_, userId) => {
+  const unfollowUserMutation = useMutation({
+    mutationFn: unfollowUser,
+    onSuccess: (_: void, userId: string) => {
       // Invalidate user-related queries
-      queryClient.invalidateQueries(['users', userId]);
-      queryClient.invalidateQueries(['users']);
+      queryClient.invalidateQueries({ queryKey: ['users', userId] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 
@@ -189,29 +184,25 @@ export const useUsers = (filters: UserFilters = {}) => {
     unfollowUser: unfollowUserMutation.mutateAsync,
     
     // Mutations state
-    isFollowing: followUserMutation.isLoading,
-    isUnfollowing: unfollowUserMutation.isLoading,
+    isFollowing: followUserMutation.isPending,
+    isUnfollowing: unfollowUserMutation.isPending,
   };
 };
 
 // Hook for single user
 export const useUser = (id: string) => {
-  const queryClient = useQueryClient();
-
   const {
     data: user,
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['users', id],
-    () => fetchUser(id),
-    {
-      enabled: !!id,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['users', id],
+    queryFn: () => fetchUser(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     user,
@@ -228,15 +219,13 @@ export const useUserFollowers = (userId: string) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['users', userId, 'followers'],
-    () => fetchUserFollowers(userId),
-    {
-      enabled: !!userId,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['users', userId, 'followers'],
+    queryFn: () => fetchUserFollowers(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     followers: followers || [],
@@ -253,15 +242,13 @@ export const useUserFollowing = (userId: string) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['users', userId, 'following'],
-    () => fetchUserFollowing(userId),
-    {
-      enabled: !!userId,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['users', userId, 'following'],
+    queryFn: () => fetchUserFollowing(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     following: following || [],
@@ -278,15 +265,13 @@ export const useUserRecommendations = (userId: string) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['users', userId, 'recommendations'],
-    () => fetchUserRecommendations(userId),
-    {
-      enabled: !!userId,
-      staleTime: 10 * 60 * 1000, // 10 minutes
-      cacheTime: 15 * 60 * 1000, // 15 minutes
-    }
-  );
+  } = useQuery({
+    queryKey: ['users', userId, 'recommendations'],
+    queryFn: () => fetchUserRecommendations(userId),
+    enabled: !!userId,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes (cacheTime renamed to gcTime in v4)
+  });
 
   return {
     recommendations: recommendations || [],
