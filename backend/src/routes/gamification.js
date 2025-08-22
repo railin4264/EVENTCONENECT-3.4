@@ -4,7 +4,7 @@ const { body, query, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 
 // Middleware
-const { authenticateToken } = require('../middleware/auth');
+const { protect: authenticateToken } = require('../middleware/auth');
 const { handleValidationErrors } = require('../middleware/validation');
 
 // Services
@@ -76,9 +76,9 @@ router.get('/achievements',
   authenticateToken,
   [
     query('category').optional().isIn(['events', 'social', 'creation', 'engagement']),
-    query('rarity').optional().isIn(['common', 'rare', 'epic', 'legendary'])
+    query('rarity').optional().isIn(['common', 'rare', 'epic', 'legendary']),
+    handleValidationErrors
   ],
-  handleValidationErrors,
   async (req, res) => {
     try {
       const userId = req.user.id;
@@ -127,10 +127,8 @@ router.get('/achievements',
  */
 router.get('/leaderboard',
   gamificationLimiter,
-  [
-    query('timeframe').optional().isIn(['week', 'month', 'all']),
-    query('limit').optional().isInt({ min: 10, max: 100 })
-  ],
+  query('timeframe').optional().isIn(['week', 'month', 'all']),
+  query('limit').optional().isInt({ min: 10, max: 100 }),
   handleValidationErrors,
   async (req, res) => {
     try {
@@ -183,11 +181,9 @@ router.get('/leaderboard',
 router.post('/action',
   gamificationLimiter,
   authenticateToken,
-  [
-    body('action').isIn(['attended_event', 'created_event', 'joined_tribe', 'early_join', 'shared_event'])
-      .withMessage('Acción inválida'),
-    body('data').optional().isObject()
-  ],
+  body('action').isIn(['attended_event', 'created_event', 'joined_tribe', 'early_join', 'shared_event'])
+    .withMessage('Acción inválida'),
+  body('data').optional().isObject(),
   handleValidationErrors,
   async (req, res) => {
     try {
@@ -300,10 +296,8 @@ router.get('/stats/global',
 if (process.env.NODE_ENV === 'development') {
   router.post('/simulate',
     authenticateToken,
-    [
-      body('action').isString().notEmpty(),
-      body('data').optional().isObject()
-    ],
+    body('action').isString().notEmpty(),
+    body('data').optional().isObject(),
     handleValidationErrors,
     async (req, res) => {
       try {

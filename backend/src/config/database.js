@@ -2,9 +2,14 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    if (!process.env.MONGODB_URI) {
+      console.log('⚠️ MONGODB_URI no configurado, usando modo sin base de datos');
+      return null;
+    }
+
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 3000, // Reduced timeout
+      serverSelectionTimeoutMS: 5000, // Increased timeout
       socketTimeoutMS: 45000,
     });
 
@@ -53,7 +58,8 @@ const connectDB = async () => {
     return conn;
   } catch (err) {
     console.error(`❌ Error al conectar a MongoDB: ${err.message}`);
-    process.exit(1);
+    console.log('⚠️ Continuando sin base de datos (modo desarrollo)');
+    return null;
   }
 };
 

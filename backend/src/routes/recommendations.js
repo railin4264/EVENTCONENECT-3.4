@@ -4,7 +4,7 @@ const { body, query, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
 
 // Middleware
-const { authenticateToken } = require('../middleware/auth');
+const { protect: authenticateToken } = require('../middleware/auth');
 const { handleValidationErrors } = require('../middleware/validation');
 
 // Services
@@ -68,11 +68,9 @@ const recommendationLimiter = rateLimit({
 router.get('/personalized', 
   recommendationLimiter,
   authenticateToken,
-  [
-    query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit debe ser entre 1 y 50'),
-    query('category').optional().isString().trim(),
-    query('includeReasons').optional().isBoolean()
-  ],
+  query('limit').optional().isInt({ min: 1, max: 50 }).withMessage('Limit debe ser entre 1 y 50'),
+  query('category').optional().isString().trim(),
+  query('includeReasons').optional().isBoolean(),
   handleValidationErrors,
   async (req, res) => {
     try {
@@ -146,11 +144,9 @@ router.get('/personalized',
  */
 router.get('/trending',
   recommendationLimiter,
-  [
-    query('timeWindow').optional().isIn(['1h', '6h', '24h', '7d']),
-    query('location').optional().isIn(['local', 'city', 'global']),
-    query('category').optional().isString().trim()
-  ],
+  query('timeWindow').optional().isIn(['1h', '6h', '24h', '7d']),
+  query('location').optional().isIn(['local', 'city', 'global']),
+  query('category').optional().isString().trim(),
   handleValidationErrors,
   async (req, res) => {
     try {
@@ -219,9 +215,7 @@ router.get('/trending',
  *           default: 5
  */
 router.get('/similar/:eventId',
-  [
-    query('limit').optional().isInt({ min: 1, max: 20 })
-  ],
+  query('limit').optional().isInt({ min: 1, max: 20 }),
   handleValidationErrors,
   async (req, res) => {
     try {
@@ -279,11 +273,9 @@ router.get('/similar/:eventId',
  */
 router.post('/feedback',
   authenticateToken,
-  [
-    body('eventId').isString().notEmpty().withMessage('Event ID es requerido'),
-    body('action').isIn(['liked', 'disliked', 'joined', 'ignored', 'shared']).withMessage('Acción inválida'),
-    body('context').optional().isObject()
-  ],
+  body('eventId').isString().notEmpty().withMessage('Event ID es requerido'),
+  body('action').isIn(['liked', 'disliked', 'joined', 'ignored', 'shared']).withMessage('Acción inválida'),
+  body('context').optional().isObject(),
   handleValidationErrors,
   async (req, res) => {
     try {

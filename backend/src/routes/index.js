@@ -10,6 +10,10 @@ const tribeRoutes = require('./tribes');
 const userRoutes = require('./users');
 const watchlistRoutes = require('./watchlist');
 
+// Nuevas rutas para funcionalidades futuras
+const recommendationRoutes = require('./recommendations');
+const gamificationRoutes = require('./gamification');
+
 module.exports = {
   authRoutes,
   eventRoutes,
@@ -22,4 +26,6 @@ module.exports = {
   userRoutes,
   locationRoutes,
   watchlistRoutes,
+  recommendationRoutes,
+  gamificationRoutes,
 };
