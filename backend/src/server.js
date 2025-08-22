@@ -45,6 +45,10 @@ const {
   watchlistRoutes,
 } = require('./routes');
 
+// Nuevas rutas para funcionalidades futuras
+const recommendationRoutes = require('./routes/recommendations');
+const gamificationRoutes = require('./routes/gamification');
+
 // Create Express app
 const app = express();
 const server = http.createServer(app);
@@ -149,6 +153,10 @@ app.use('/api/search', searchRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/location', locationRoutes);
 app.use('/api/watchlist', watchlistRoutes);
+
+// Nuevas rutas para funcionalidades futuras
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/gamification', gamificationRoutes);
 
 // 404 handler
 app.use(notFound);
