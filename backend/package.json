@@ -18,7 +18,7 @@
     "security:fix": "npm audit fix",
     "db:migrate": "node src/scripts/database.js migrate",
     "db:rollback": "node src/scripts/database.js rollback",
-    "db:seed": "node src/scripts/database.js seed",
+    "db:seed": "node src/scripts/seed.js",
     "db:clear": "node src/scripts/database.js clear",
     "db:reset": "node src/scripts/database.js reset",
     "db:status": "node src/scripts/database.js status",
@@ -89,6 +89,7 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
+    "@faker-js/faker": "^8.3.1",
     "@babel/cli": "^7.23.5",
     "@babel/core": "^7.23.5",
     "@babel/preset-env": "^7.23.5",
