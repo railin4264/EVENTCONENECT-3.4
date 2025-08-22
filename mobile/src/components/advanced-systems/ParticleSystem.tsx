@@ -6,7 +6,6 @@ import {
   Animated,
   TouchableWithoutFeedback
 } from 'react-native';
-import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
 
 interface Particle {
   id: number;
@@ -30,9 +29,7 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
   theme = 'default',
   style = {}
 }) => {
-  const { currentTheme } = useDynamicTheme();
   const [particles, setParticles] = useState<Particle[]>([]);
-  const [touchPosition, setTouchPosition] = useState({ x: 0, y: 0 });
 
   // Configuración de temas
   const themeConfig = useMemo(() => {
@@ -90,7 +87,7 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
         vy: (Math.random() - 0.5) * themeConfig.speedRange[1],
         size: Math.random() * (themeConfig.sizeRange[1] - themeConfig.sizeRange[0]) + themeConfig.sizeRange[0],
         opacity: Math.random() * 0.8 + 0.2,
-        color: themeConfig.colors[Math.floor(Math.random() * themeConfig.colors.length)],
+        color: themeConfig.colors[Math.floor(Math.random() * themeConfig.colors.length)] || '#3b82f6',
         life: Math.random() * (themeConfig.lifeRange[1] - themeConfig.lifeRange[0]) + themeConfig.lifeRange[0],
         maxLife: Math.random() * (themeConfig.lifeRange[1] - themeConfig.lifeRange[0]) + themeConfig.lifeRange[0]
       });
@@ -152,11 +149,9 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
   // Manejar toque
   const handleTouch = (event: any) => {
     const { locationX, locationY } = event.nativeEvent;
-    setTouchPosition({ x: locationX, y: locationY });
 
     // Crear partículas de explosión en el punto de toque
     const explosionParticles: Particle[] = [];
-    const { width, height } = Dimensions.get('window');
 
     for (let i = 0; i < 10; i++) {
       explosionParticles.push({
@@ -167,7 +162,7 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
         vy: (Math.random() - 0.5) * 5,
         size: Math.random() * 4 + 2,
         opacity: 1,
-        color: themeConfig.colors[Math.floor(Math.random() * themeConfig.colors.length)],
+        color: themeConfig.colors[Math.floor(Math.random() * themeConfig.colors.length)] || '#3b82f6',
         life: 50,
         maxLife: 50
       });

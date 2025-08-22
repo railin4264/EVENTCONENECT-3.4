@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
+  Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -42,7 +42,6 @@ export const MorphingCard: React.FC<MorphingCardProps> = ({
   onPress
 }) => {
   const { currentTheme } = useDynamicTheme();
-  const [isPressed, setIsPressed] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const shineAnim = useRef(new Animated.Value(0)).current;
@@ -70,7 +69,6 @@ export const MorphingCard: React.FC<MorphingCardProps> = ({
   }, [breathingAnim]);
 
   const handlePressIn = () => {
-    setIsPressed(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     Animated.parallel([
@@ -93,8 +91,6 @@ export const MorphingCard: React.FC<MorphingCardProps> = ({
   };
 
   const handlePressOut = () => {
-    setIsPressed(false);
-    
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 1,
@@ -179,13 +175,11 @@ export const FluidButton: React.FC<FluidButtonProps> = ({
   onPress
 }) => {
   const { currentTheme } = useDynamicTheme();
-  const [isPressed, setIsPressed] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const rippleAnim = useRef(new Animated.Value(0)).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
-    setIsPressed(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     Animated.parallel([
@@ -211,8 +205,6 @@ export const FluidButton: React.FC<FluidButtonProps> = ({
   };
 
   const handlePressOut = () => {
-    setIsPressed(false);
-    
     Animated.parallel([
       Animated.timing(scaleAnim, {
         toValue: 1,
@@ -367,7 +359,10 @@ export const WaterFlowNavigation: React.FC<WaterFlowNavigationProps> = ({
         style={[
           styles.flowIndicator,
           {
-            left: `${flowPosition}%`,
+            left: flowPosition.interpolate({
+              inputRange: [0, 100],
+              outputRange: ['0%', '100%'],
+            }),
           },
         ]}
       >

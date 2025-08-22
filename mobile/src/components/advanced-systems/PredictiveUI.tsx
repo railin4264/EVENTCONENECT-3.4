@@ -5,14 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
   Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Componente de sugerencias predictivas
 export const PredictiveSuggestions: React.FC<{
@@ -258,7 +255,7 @@ export const AdvancedCustomization: React.FC<{
     animations: 'high'
   });
 
-  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -278,7 +275,7 @@ export const AdvancedCustomization: React.FC<{
     } else {
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: Dimensions.get('window').height,
+          toValue: 1000,
           duration: 300,
           useNativeDriver: true,
         }),
@@ -556,7 +553,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: Dimensions.get('window').height * 0.8,
+    maxHeight: 600,
   },
   modalTitle: {
     fontSize: 24,

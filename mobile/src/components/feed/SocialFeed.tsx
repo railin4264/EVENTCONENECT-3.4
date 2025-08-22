@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions,
   Animated,
   RefreshControl,
   FlatList
@@ -14,10 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
-import { MorphingCard, FluidButton } from '../advanced-systems/FluidTransitions';
-import { DynamicIllustration } from '../advanced-systems/DynamicIllustrations';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+import { MorphingCard } from '../advanced-systems/FluidTransitions';
 
 interface Post {
   id: string;
@@ -52,7 +48,6 @@ export const SocialFeed: React.FC = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -150,7 +145,7 @@ export const SocialFeed: React.FC = () => {
     setPosts(samplePosts);
   };
 
-  const generateSampleComments = (postId: string) => {
+  const generateSampleComments = () => {
     const sampleComments: Comment[] = [
       {
         id: 'c1',
@@ -202,7 +197,7 @@ export const SocialFeed: React.FC = () => {
     } else {
       setSelectedPost(posts.find(p => p.id === postId) || null);
       setShowComments(true);
-      generateSampleComments(postId);
+      generateSampleComments();
     }
   };
 
@@ -556,7 +551,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: screenHeight * 0.6,
+    maxHeight: 400,
   },
   commentsPanelGradient: {
     borderTopLeftRadius: 20,
