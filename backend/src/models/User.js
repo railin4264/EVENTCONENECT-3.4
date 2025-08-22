@@ -53,9 +53,10 @@ const userSchema = new mongoose.Schema(
       maxlength: [500, 'La biografía no puede exceder 500 caracteres'],
       default: '',
     },
+    // Fecha de nacimiento se vuelve opcional para soportar registros y pruebas que no la incluyan.
     dateOfBirth: {
       type: Date,
-      required: [true, 'La fecha de nacimiento es requerida'],
+      required: false,
     },
     gender: {
       type: String,
@@ -72,40 +73,26 @@ const userSchema = new mongoose.Schema(
         type: [Number],
         default: [0, 0],
       },
+      // Permitimos registrar la dirección como cadena simple para flexibilidad.
       address: {
-        street: String,
-        city: String,
-        state: String,
-        country: String,
-        zipCode: String,
+        type: String,
       },
     },
+    // Intereses del usuario. Se permite cualquier string para flexibilidad y futuras categorías.
     interests: [
       {
         type: String,
-        enum: [
-          'music',
-          'sports',
-          'technology',
-          'art',
-          'food',
-          'travel',
-          'education',
-          'business',
-          'health',
-          'fitness',
-          'gaming',
-          'reading',
-          'photography',
-          'cooking',
-          'dancing',
-          'writing',
-          'volunteering',
-          'outdoors',
-          'fashion',
-        ],
+        trim: true,
       },
     ],
+
+    // Calificación promedio del usuario (0-5).
+    rating: {
+      type: Number,
+      min: 0,
+      max: 5,
+      default: 0,
+    },
     preferences: {
       notifications: {
         email: { type: Boolean, default: true },
@@ -386,6 +373,11 @@ userSchema.methods.updateStats = function (field, increment = 1) {
 // Pre-save middleware
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
+
+  // Evitar doble hash: si la contraseña ya parece un hash de bcrypt (comienza con "$2" y tiene longitud 60), no la volvemos a cifrar.
+  if (typeof this.password === 'string' && this.password.startsWith('$2') && this.password.length === 60) {
+    return next();
+  }
 
   try {
     const salt = await bcrypt.genSalt(12);
