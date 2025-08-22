@@ -66,6 +66,7 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
+    "health": "node scripts/health-check.js",
     "prepare": "husky install",
     "commit": "cz",
     "release": "semantic-release"
