@@ -678,7 +678,6 @@ describe('Event Flow Integration Tests', () => {
         .delete(`/api/events/${eventId}`)
         .set('Authorization', 'Bearer invalid-token')
         .set('Cookie', [`accessToken=invalid-token`])
-        .set('x-test-user-id', hostUser._id.toString())
         .expect(401);
 
       // Try to access with invalid token
@@ -686,7 +685,6 @@ describe('Event Flow Integration Tests', () => {
         .put(`/api/events/${eventId}`)
         .set('Authorization', 'Bearer invalid-token')
         .set('Cookie', [`accessToken=invalid-token`])
-        .set('x-test-user-id', hostUser._id.toString())
         .send(updateData)
         .expect(401);
     });
