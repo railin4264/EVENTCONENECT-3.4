@@ -11,19 +11,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // EventConnect Brand Colors
+        // EventConnect Brand Colors - Recomendaciones 2024
         primary: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-          950: '#082f49',
+          50: '#eef2ff',
+          100: '#e0e7ff',
+          200: '#c7d2fe',
+          300: '#a5b4fc',
+          400: '#818cf8',
+          500: '#4F46E5', // Primary recomendado
+          600: '#4338ca',
+          700: '#3730a3',
+          800: '#312e81',
+          900: '#1e1b4b',
+          950: '#0f0d2a',
         },
         secondary: {
           50: '#fdf4ff',
@@ -57,12 +57,12 @@ module.exports = {
           200: '#bbf7d0',
           300: '#86efac',
           400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',
-          950: '#052e16',
+          500: '#10B981', // Success recomendado
+          600: '#059669',
+          700: '#047857',
+          800: '#065f46',
+          900: '#064e3b',
+          950: '#022c22',
         },
         warning: {
           50: '#fffbeb',
@@ -70,7 +70,7 @@ module.exports = {
           200: '#fde68a',
           300: '#fcd34d',
           400: '#fbbf24',
-          500: '#f59e0b',
+          500: '#F59E0B', // Warning recomendado
           600: '#d97706',
           700: '#b45309',
           800: '#92400e',
@@ -83,7 +83,7 @@ module.exports = {
           200: '#fecaca',
           300: '#fca5a5',
           400: '#f87171',
-          500: '#ef4444',
+          500: '#EF4444', // Error recomendado
           600: '#dc2626',
           700: '#b91c1c',
           800: '#991b1b',
@@ -102,6 +102,21 @@ module.exports = {
           800: '#262626',
           900: '#171717',
           950: '#0a0a0a',
+        },
+        // Colores de fondo recomendados
+        background: {
+          light: '#FFFFFF',
+          dark: '#0B0B0C',
+        },
+        text: {
+          primary: {
+            light: '#111827',
+            dark: '#F3F4F6',
+          },
+          secondary: {
+            light: '#6B7280',
+            dark: '#9CA3AF',
+          },
         },
       },
       fontFamily: {
@@ -154,6 +169,13 @@ module.exports = {
         '144': '36rem',
       },
       borderRadius: {
+        'DEFAULT': '0.5rem', // 8px recomendado
+        'sm': '0.25rem', // 4px
+        'md': '0.5rem', // 8px
+        'lg': '0.75rem', // 12px
+        'xl': '1rem', // 16px - chips recomendado
+        '2xl': '1.5rem', // 24px
+        '3xl': '1.875rem', // 30px
         '4xl': '2rem',
         '5xl': '2.5rem',
         '6xl': '3rem',
@@ -283,6 +305,9 @@ module.exports = {
         xs: '2px',
       },
       boxShadow: {
+        // Sombras recomendadas
+        'card': '0 2px 8px rgba(0, 0, 0, 0.12)', // Sombra principal para tarjetas
+        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.15)', // Hover state
         'inner-lg': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
         'inner-xl': 'inset 0 4px 6px -1px rgba(0, 0, 0, 0.1), inset 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'glow': '0 0 20px rgba(59, 130, 246, 0.5)',

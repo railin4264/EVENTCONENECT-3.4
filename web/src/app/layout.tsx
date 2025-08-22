@@ -68,8 +68,8 @@ export const metadata: Metadata = {
   category: 'social networking',
   classification: 'social networking platform',
   other: {
-    'theme-color': '#06b6d4',
-    'msapplication-TileColor': '#06b6d4',
+    'theme-color': '#4F46E5',
+    'msapplication-TileColor': '#4F46E5',
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'default',
     'apple-mobile-web-app-title': 'EventConnect',
@@ -98,7 +98,7 @@ export default function RootLayout({
         
         {/* Meta tags for PWA */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="theme-color" content="#06b6d4" />
+        <meta name="theme-color" content="#4F46E5" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="EventConnect" />

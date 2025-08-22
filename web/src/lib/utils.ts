@@ -1,17 +1,62 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+// Función para combinar clases de CSS con Tailwind
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: string | Date): string {
-  const d = new Date(date);
-  return d.toLocaleDateString('es-ES', {
+// Función para formatear fechas
+export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions) {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  return dateObj.toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    ...options
   });
+}
+
+// Función para formatear números
+export function formatNumber(num: number, options?: Intl.NumberFormatOptions) {
+  return num.toLocaleString('es-ES', options);
+}
+
+// Función para capitalizar primera letra
+export function capitalize(str: string) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Función para generar IDs únicos
+export function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// Función para debounce
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+// Función para throttle
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
 }
 
 export function formatDateTime(date: string | Date): string {
@@ -58,31 +103,6 @@ export function generateSlug(text: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '');
-}
-
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
-
-export function throttle<T extends (...args: any[]) => any>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
 }
 
 export function isValidEmail(email: string): boolean {
