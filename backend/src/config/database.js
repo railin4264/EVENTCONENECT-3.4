@@ -52,8 +52,8 @@ const connectDB = async () => {
 
     return conn;
   } catch (err) {
-    console.error(`❌ Error al conectar a MongoDB: ${err.message}`);
-    process.exit(1);
+    console.warn(`⚠️ Error al conectar a MongoDB: ${err.message}. Continuando sin conexión a MongoDB`);
+    return null;
   }
 };
 
