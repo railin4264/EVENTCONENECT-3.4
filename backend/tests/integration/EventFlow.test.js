@@ -591,19 +591,23 @@ describe('Event Flow Integration Tests', () => {
         subcategory: 'meeting',
         tags: ['business', 'private'],
         startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 1 * 60 * 60 * 1000),
+        endDate: new Date(
+          Date.now() + 3 * 24 * 60 * 60 * 1000 + 1 * 60 * 60 * 1000
+        ),
         location: {
           type: 'Point',
           coordinates: [-74.006, 40.7128],
-          address: '123 Private St, New York, NY 10001',
-          city: 'New York',
-          state: 'NY',
-          country: 'USA',
-          venue: 'Private Office'
+          address: {
+            street: '123 Private St',
+            city: 'New York',
+            state: 'NY',
+            country: 'USA',
+            zipCode: '10001',
+          },
         },
         capacity: 20,
         pricing: { type: 'free', price: 0, currency: 'USD' },
-        isPrivate: false
+        isPrivate: false,
       };
 
       const createEventResponse = await request(app)
@@ -611,7 +615,25 @@ describe('Event Flow Integration Tests', () => {
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
         .set('x-test-user-id', hostUser._id.toString())
-        .send(eventData)
+        .send({
+          title: eventData.title,
+          description: eventData.description,
+          category: eventData.category,
+          subcategory: eventData.subcategory,
+          tags: eventData.tags,
+          dateTime: {
+            start: new Date(eventData.startDate).toISOString(),
+            end: new Date(eventData.endDate).toISOString(),
+          },
+          location: {
+            type: 'Point',
+            coordinates: eventData.location.coordinates,
+            address: eventData.location.address,
+          },
+          capacity: eventData.capacity,
+          price: { amount: 0, type: 'free', currency: 'USD' },
+          features: { isPrivate: false },
+        })
         .expect(201);
 
       const eventId = createEventResponse.body.data.event._id;

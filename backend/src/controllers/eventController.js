@@ -15,15 +15,24 @@ class EventController {
 
       // Add host information
       eventData.host = userId;
-      eventData.status = 'active';
+      // Set status to published on creation
+      eventData.status = 'published';
 
-      // Handle location coordinates
+      // Normalize location coordinates
       if (eventData.location && eventData.location.coordinates) {
-        eventData.location.type = 'Point';
-        eventData.location.coordinates = [
-          eventData.location.coordinates.longitude,
-          eventData.location.coordinates.latitude,
-        ];
+        const coords = eventData.location.coordinates;
+        if (Array.isArray(coords) && coords.length === 2) {
+          eventData.location.type = 'Point';
+          eventData.location.coordinates = [coords[0], coords[1]];
+        } else if (
+          typeof coords === 'object' &&
+          coords !== null &&
+          'longitude' in coords &&
+          'latitude' in coords
+        ) {
+          eventData.location.type = 'Point';
+          eventData.location.coordinates = [coords.longitude, coords.latitude];
+        }
       }
 
       // Create event
