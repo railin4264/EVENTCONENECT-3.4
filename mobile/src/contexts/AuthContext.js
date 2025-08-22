@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
@@ -30,9 +31,11 @@ export const AuthProvider = ({ children }) => {
 
     // Request interceptor para agregar token
     api.interceptors.request.use(
-      (config) => {
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
+      async (config) => {
+        const storedAccess = await SecureStore.getItemAsync('accessToken');
+        const bearer = token || storedAccess;
+        if (bearer) {
+          config.headers.Authorization = `Bearer ${bearer}`;
         }
         return config;
       },
@@ -77,8 +80,8 @@ export const AuthProvider = ({ children }) => {
 
   const loadStoredTokens = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem('accessToken');
-      const storedRefreshToken = await AsyncStorage.getItem('refreshToken');
+      const storedToken = await SecureStore.getItemAsync('accessToken');
+      const storedRefreshToken = await SecureStore.getItemAsync('refreshToken');
       const storedUser = await AsyncStorage.getItem('user');
 
       if (storedToken && storedRefreshToken && storedUser) {
@@ -86,8 +89,6 @@ export const AuthProvider = ({ children }) => {
         setRefreshToken(storedRefreshToken);
         setUser(JSON.parse(storedUser));
         setIsAuthenticated(true);
-        
-        // Verificar si el token sigue siendo válido
         await validateToken(storedToken);
       }
     } catch (error) {
@@ -120,9 +121,9 @@ export const AuthProvider = ({ children }) => {
         const { tokens, user: userData } = response.data.data;
         const { accessToken, refreshToken: newRefreshToken } = tokens || {};
         
-        // Guardar tokens
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', newRefreshToken);
+        // Guardar tokens en SecureStore y user en AsyncStorage
+        await SecureStore.setItemAsync('accessToken', accessToken);
+        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         
         // Actualizar estado
@@ -131,7 +132,7 @@ export const AuthProvider = ({ children }) => {
         setUser(userData);
         setIsAuthenticated(true);
         
-        return { success: true };
+        return { success: true }; 
       } else {
         throw new Error(response?.data?.message || 'Error en login');
       }
@@ -153,8 +154,8 @@ export const AuthProvider = ({ children }) => {
         const { accessToken, refreshToken: newRefreshToken } = tokens || {};
         
         // Guardar tokens
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', newRefreshToken);
+        await SecureStore.setItemAsync('accessToken', accessToken);
+        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
         await AsyncStorage.setItem('user', JSON.stringify(newUser));
         
         // Actualizar estado
@@ -177,11 +178,12 @@ export const AuthProvider = ({ children }) => {
 
   const refreshAccessToken = async () => {
     try {
-      if (!refreshToken) throw new Error('No hay refresh token');
+      const currentRefresh = refreshToken || (await SecureStore.getItemAsync('refreshToken'));
+      if (!currentRefresh) throw new Error('No hay refresh token');
 
       const response = await axios.post(
         `${API_BASE_URL}/api/auth/refresh-token`,
-        { refreshToken }
+        { refreshToken: currentRefresh }
       );
 
       if (response?.data?.success) {
@@ -189,8 +191,8 @@ export const AuthProvider = ({ children }) => {
         const { accessToken, refreshToken: newRefreshToken } = tokens || {};
         
         // Actualizar tokens
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', newRefreshToken);
+        await SecureStore.setItemAsync('accessToken', accessToken);
+        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
         
         setToken(accessToken);
         setRefreshToken(newRefreshToken);
@@ -206,7 +208,8 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       // Llamar al endpoint de logout si hay token
-      if (token) {
+      const bearer = token || (await SecureStore.getItemAsync('accessToken'));
+      if (bearer) {
         try {
           await api?.post('/api/auth/logout', {});
         } catch (error) {
@@ -214,8 +217,10 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // Limpiar tokens del servidor
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+      // Limpiar tokens y user
+      await SecureStore.deleteItemAsync('accessToken');
+      await SecureStore.deleteItemAsync('refreshToken');
+      await AsyncStorage.multiRemove(['user']);
       
       // Limpiar estado
       setToken(null);

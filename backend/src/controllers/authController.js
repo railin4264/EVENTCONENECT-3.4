@@ -82,6 +82,24 @@ class AuthController {
       const userResponse = user.toObject();
       delete userResponse.password;
 
+      // Set HttpOnly cookies
+      const isProd = process.env.NODE_ENV === 'production';
+      const accessMaxAgeMs = 15 * 60 * 1000; // 15m
+      const refreshMaxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7d
+      res.cookie('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: accessMaxAgeMs,
+      });
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: refreshMaxAgeMs,
+        path: '/api/auth',
+      });
+
       res.status(201).json({
         success: true,
         message: 'Usuario registrado exitosamente',
@@ -152,6 +170,24 @@ class AuthController {
       const userResponse = user.toObject();
       delete userResponse.password;
 
+      // Set HttpOnly cookies
+      const isProd = process.env.NODE_ENV === 'production';
+      const accessMaxAgeMs = 15 * 60 * 1000; // 15m
+      const refreshMaxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7d
+      res.cookie('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: accessMaxAgeMs,
+      });
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: refreshMaxAgeMs,
+        path: '/api/auth',
+      });
+
       res.status(200).json({
         success: true,
         message: 'Login exitoso',
@@ -185,6 +221,11 @@ class AuthController {
         await jwt.revokeAllUserTokens(userId);
       }
 
+      // Clear cookies
+      const isProd = process.env.NODE_ENV === 'production';
+      res.clearCookie('accessToken', { httpOnly: true, sameSite: 'lax', secure: isProd });
+      res.clearCookie('refreshToken', { httpOnly: true, sameSite: 'lax', secure: isProd, path: '/api/auth' });
+
       res.status(200).json({
         success: true,
         message: 'Logout exitoso',
@@ -199,12 +240,14 @@ class AuthController {
     try {
       const { refreshToken } = req.body;
 
-      if (!refreshToken) {
+      if (!refreshToken && !(req.cookies && req.cookies.refreshToken)) {
         throw new AppError('Refresh token es requerido', 400);
       }
 
+      const tokenToUse = refreshToken || req.cookies.refreshToken;
+
       // Verify refresh token
-      const decoded = jwt.verifyRefreshToken(refreshToken);
+      const decoded = jwt.verifyRefreshToken(tokenToUse);
 
       // Get user
       const user = await User.findById(decoded.userId).select('-password');
@@ -229,6 +272,24 @@ class AuthController {
           ip: req.ip,
         }
       );
+
+      // Rotate cookies
+      const isProd = process.env.NODE_ENV === 'production';
+      const accessMaxAgeMs = 15 * 60 * 1000; // 15m
+      const refreshMaxAgeMs = 7 * 24 * 60 * 60 * 1000; // 7d
+      res.cookie('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: accessMaxAgeMs,
+      });
+      res.cookie('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: isProd,
+        maxAge: refreshMaxAgeMs,
+        path: '/api/auth',
+      });
 
       res.status(200).json({
         success: true,
