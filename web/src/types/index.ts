@@ -1,237 +1,195 @@
-// User types
+// ===== USER TYPES =====
 export interface User {
   id: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  name: string;
-  username: string;
   avatar?: string;
-  bio?: string;
-  role: 'user' | 'admin' | 'moderator';
-  isVerified: boolean;
-  isActive: boolean;
-  preferences: UserPreferences;
-  stats: UserStats;
-  createdAt: string;
-  updatedAt: string;
-  lastActiveAt: string;
-}
-
-export interface UserPreferences {
-  notifications: {
-    push: boolean;
-    email: boolean;
-    sms: boolean;
-    inApp: boolean;
-    types: string[];
-    quietHours: {
-      enabled: boolean;
-      start: string;
-      end: string;
+  interests?: string[];
+  location?: {
+    city: string;
+    country: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
     };
   };
-  privacy: {
-    profileVisibility: 'public' | 'friends' | 'private';
-    locationSharing: boolean;
-    activityStatus: boolean;
+  friends?: string[];
+  eventsAttended?: number;
+  eventsAttendedThisMonth?: number;
+  totalPoints?: number;
+  recentAchievements?: Achievement[];
+  notificationPreferences?: {
+    trending?: boolean;
+    friends?: boolean;
+    reminders?: boolean;
+    newEvents?: boolean;
   };
-  theme: 'light' | 'dark' | 'system';
-  language: string;
-  timezone: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export interface UserStats {
-  eventsCreated: number;
-  eventsAttended: number;
-  tribesJoined: number;
-  postsCreated: number;
-  followers: number;
-  following: number;
-  badges: Badge[];
-  level: number;
-  experience: number;
-}
-
-// Event types
+// ===== EVENT TYPES =====
 export interface Event {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   category: string;
-  tags: string[];
-  startDate: string;
-  endDate: string;
-  location: Location;
-  capacity: number;
-  currentAttendees: number;
-  price: number;
-  currency: string;
-  isFree: boolean;
-  organizer: User;
-  attendees: User[];
-  images: string[];
-  status: 'draft' | 'published' | 'cancelled' | 'completed';
-  visibility: 'public' | 'private' | 'invite-only';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Location {
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  postalCode: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
+  tags?: string[];
+  image?: string;
+  date: string;
+  location?: string | {
+    address?: string;
+    city?: string;
+    venue?: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
   };
-  venue?: string;
-  room?: string;
+  distance?: string;
+  attendees?: number;
+  price?: number;
+  host?: {
+    id?: string;
+    name?: string;
+    username?: string;
+    firstName?: string;
+    lastName?: string;
+    avatar?: string;
+    rating?: number;
+  };
+  hostTribe?: {
+    id: string;
+    name: string;
+    members?: Array<{ id: string; name: string }>;
+  };
+  isPopular?: boolean;
+  isTrending?: boolean;
+  friendsAttending?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  
+  // Métricas de engagement
+  likes?: number;
+  shares?: number;
+  comments?: number;
+  views?: number;
+  
+  // Compatibilidad con formato existente
+  dateTime?: {
+    start: string;
+    end: string;
+  };
+  capacity?: {
+    current: number;
+    max: number;
+  };
+  pricing?: {
+    isFree: boolean;
+    amount?: number;
+  };
+  media?: {
+    images: string[];
+  };
 }
 
-// Tribe types
+// ===== TRIBE TYPES =====
 export interface Tribe {
   id: string;
   name: string;
   description: string;
+  image?: string;
+  members: number;
   category: string;
-  tags: string[];
-  avatar?: string;
-  banner?: string;
-  members: User[];
-  moderators: User[];
-  owner: User;
-  memberCount: number;
-  isPrivate: boolean;
-  isVerified: boolean;
-  rules: string[];
-  topics: string[];
+  isRecommended?: boolean;
+  createdBy: string;
+  moderators?: string[];
+  tags?: string[];
+  location?: {
+    city: string;
+    country: string;
+  };
+  settings?: {
+    isPublic: boolean;
+    requireApproval: boolean;
+    maxMembers?: number;
+  };
+  stats?: {
+    eventsCreated: number;
+    totalMembers: number;
+    activeMembers: number;
+  };
   createdAt: string;
   updatedAt: string;
 }
 
-// Post types
-export interface Post {
+// ===== GAMIFICATION TYPES =====
+export interface Achievement {
   id: string;
-  content: string;
-  author: User;
-  images?: string[];
-  video?: string;
-  location?: Location;
-  event?: Event;
-  tribe?: Tribe;
-  likes: User[];
-  comments: Comment[];
-  shares: number;
-  views: number;
-  isEdited: boolean;
-  isPinned: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Comment {
-  id: string;
-  content: string;
-  author: User;
-  post: string;
-  parentComment?: string;
-  replies: Comment[];
-  likes: User[];
-  isEdited: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Chat types
-export interface Chat {
-  id: string;
-  type: 'direct' | 'group';
-  name?: string;
-  avatar?: string;
-  participants: User[];
-  lastMessage?: Message;
-  unreadCount: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Message {
-  id: string;
-  content: string;
-  type: 'text' | 'image' | 'file' | 'location' | 'event';
-  sender: User;
-  chat: string;
-  replyTo?: Message;
-  attachments?: Attachment[];
-  isEdited: boolean;
-  isDeleted: boolean;
-  readBy: User[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Attachment {
-  id: string;
-  type: 'image' | 'file' | 'audio' | 'video';
-  url: string;
-  filename: string;
-  size: number;
-  mimeType: string;
-}
-
-// Notification types
-export interface Notification {
-  id: string;
-  type: NotificationType;
   title: string;
-  body: string;
-  data: Record<string, any>;
-  recipient: User;
-  sender?: User;
-  isRead: boolean;
-  isClicked: boolean;
-  priority: 'low' | 'normal' | 'high';
-  channels: ('push' | 'email' | 'sms' | 'in-app')[];
-  expiresAt?: string;
-  createdAt: string;
+  description: string;
+  icon: string;
+  points: number;
+  category: 'events' | 'social' | 'creation' | 'engagement';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
+  unlockedAt?: Date;
+  progress?: {
+    current: number;
+    target: number;
+  };
 }
 
-export type NotificationType = 
-  | 'event_invite'
-  | 'event_reminder'
-  | 'event_update'
-  | 'event_cancelled'
-  | 'tribe_invite'
-  | 'tribe_update'
-  | 'new_message'
-  | 'mention'
-  | 'like'
-  | 'comment'
-  | 'follow'
-  | 'system'
-  | 'security'
-  | 'promotional';
-
-// Badge types
 export interface Badge {
   id: string;
   name: string;
   description: string;
   icon: string;
-  category: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
-  unlockedAt: string;
+  color: string;
+  requirements: string;
+  earnedAt?: Date;
 }
 
-// Search types
+export interface UserLevel {
+  level: number;
+  title: string;
+  pointsRequired: number;
+  benefits: string[];
+  badge?: Badge;
+}
+
+// ===== NOTIFICATION TYPES =====
+export interface Notification {
+  id: string;
+  type: 'event_reminder' | 'friend_joined' | 'trending' | 'achievement' | 'tribe_invite' | 'event_update';
+  title: string;
+  message: string;
+  data?: {
+    eventId?: string;
+    userId?: string;
+    tribeId?: string;
+    achievementId?: string;
+    [key: string]: any;
+  };
+  read: boolean;
+  createdAt: string;
+  expiresAt?: string;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  actions?: Array<{
+    label: string;
+    action: string;
+    style: 'primary' | 'secondary' | 'danger';
+  }>;
+}
+
+// ===== SEARCH TYPES =====
 export interface SearchFilters {
-  query: string;
-  type: 'all' | 'events' | 'tribes' | 'users' | 'posts';
+  query?: string;
   category?: string;
-  location?: Location;
-  radius?: number;
+  location?: {
+    coordinates: [number, number];
+    radius: number;
+  };
   dateRange?: {
     start: string;
     end: string;
@@ -241,217 +199,128 @@ export interface SearchFilters {
     max: number;
   };
   tags?: string[];
+  sortBy?: 'relevance' | 'date' | 'distance' | 'popularity' | 'price';
+  sortOrder?: 'asc' | 'desc';
 }
 
-export interface SearchResult {
-  events: Event[];
-  tribes: Tribe[];
-  users: User[];
-  posts: Post[];
+export interface SearchResult<T> {
+  items: T[];
   total: number;
-  hasMore: boolean;
-}
-
-// API types
-export interface ApiResponse<T = any> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
-  errors?: Record<string, string[]>;
-  pagination?: Pagination;
-}
-
-export interface Pagination {
   page: number;
   limit: number;
-  total: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
+  hasMore: boolean;
+  filters: SearchFilters;
+  suggestions?: string[];
+}
+
+// ===== API TYPES =====
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  success: boolean;
+  timestamp: string;
 }
 
 export interface ApiError {
-  status: number;
   message: string;
-  code?: string;
+  code: string;
   details?: any;
+  timestamp: string;
 }
 
-// Form types
-export interface FormField {
-  name: string;
-  label: string;
-  type: 'text' | 'email' | 'password' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'time' | 'file';
-  placeholder?: string;
-  required?: boolean;
-  validation?: ValidationRule[];
-  options?: SelectOption[];
-  multiple?: boolean;
-}
-
-export interface ValidationRule {
-  type: 'required' | 'minLength' | 'maxLength' | 'pattern' | 'email' | 'url' | 'custom';
-  value?: any;
-  message: string;
-}
-
-export interface SelectOption {
-  value: string | number;
-  label: string;
-  disabled?: boolean;
-}
-
-// UI types
-export interface Toast {
-  id: string;
-  type: 'success' | 'error' | 'warning' | 'info';
-  title: string;
-  message?: string;
-  duration?: number;
-  action?: {
-    label: string;
-    onClick: () => void;
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
 }
 
-export interface Modal {
-  id: string;
-  title: string;
-  content: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-  onClose?: () => void;
-  onConfirm?: () => void;
-  confirmText?: string;
-  cancelText?: string;
-  isClosable?: boolean;
-}
-
-// Map types
-export interface MapMarker {
-  id: string;
-  type: 'event' | 'tribe' | 'user';
-  position: {
-    latitude: number;
-    longitude: number;
-  };
-  title: string;
-  description?: string;
-  icon?: string;
-  data: Event | Tribe | User;
-}
-
-export interface MapBounds {
-  north: number;
-  south: number;
-  east: number;
-  west: number;
-}
-
-// Analytics types
+// ===== ANALYTICS TYPES =====
 export interface AnalyticsEvent {
   name: string;
-  category: string;
-  action: string;
-  label?: string;
-  value?: number;
-  properties?: Record<string, any>;
-  timestamp: string;
-}
-
-export interface PageView {
-  path: string;
-  title: string;
+  properties: Record<string, any>;
+  userId?: string;
+  sessionId?: string;
+  timestamp: number;
+  page?: string;
   referrer?: string;
-  timestamp: string;
-  duration?: number;
 }
 
-// PWA types
-export interface PWAInstallPrompt {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+export interface UserMetrics {
+  totalEvents: number;
+  eventsThisMonth: number;
+  tribesJoined: number;
+  achievementsUnlocked: number;
+  totalPoints: number;
+  level: number;
+  engagementScore: number;
+  lastActive: string;
 }
 
-export interface ServiceWorkerMessage {
-  type: string;
-  payload?: any;
+export interface EventMetrics {
+  views: number;
+  likes: number;
+  shares: number;
+  comments: number;
+  rsvps: number;
+  attendance: number;
+  engagementRate: number;
+  conversionRate: number;
 }
 
-// Theme types
-export interface Theme {
-  name: string;
-  colors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    surface: string;
-    text: string;
-    textSecondary: string;
-    border: string;
-    error: string;
-    warning: string;
-    success: string;
-    info: string;
+// ===== REAL-TIME TYPES =====
+export interface WebSocketMessage {
+  type: 'trending_update' | 'notification' | 'event_update' | 'user_online' | 'metrics_update';
+  data: any;
+  timestamp: number;
+  userId?: string;
+}
+
+export interface RealTimeMetrics {
+  activeUsers: number;
+  eventsToday: number;
+  newSignups: number;
+  engagementRate: number;
+  trendingEvents: string[];
+  lastUpdated: string;
+}
+
+// ===== RECOMMENDATION TYPES =====
+export interface RecommendationReason {
+  type: 'interest' | 'location' | 'social' | 'popularity' | 'trending';
+  description: string;
+  confidence: number;
+}
+
+export interface RecommendedEvent extends Event {
+  recommendationScore: number;
+  reasons: RecommendationReason[];
+  matchedInterests: string[];
+  socialConnections: {
+    friendsAttending: number;
+    friendsInTribe: number;
   };
-  spacing: {
-    xs: string;
-    sm: string;
-    md: string;
-    lg: string;
-    xl: string;
-    xxl: string;
-  };
-  borderRadius: {
-    sm: string;
-    md: string;
-    lg: string;
-    xl: string;
-  };
-  shadows: {
-    sm: string;
-    md: string;
-    lg: string;
-    xl: string;
-  };
 }
 
-// Settings types
-export interface AppSettings {
-  theme: Theme;
-  language: string;
-  timezone: string;
-  notifications: NotificationSettings;
-  privacy: PrivacySettings;
-  accessibility: AccessibilitySettings;
+// ===== THEME TYPES =====
+export interface ThemeConfig {
+  mode: 'light' | 'dark' | 'auto';
+  primaryColor: string;
+  accentColor: string;
+  borderRadius: number;
+  fontFamily: string;
+  animations: boolean;
 }
 
-export interface NotificationSettings {
-  push: boolean;
-  email: boolean;
-  sms: boolean;
-  inApp: boolean;
-  quietHours: {
-    enabled: boolean;
-    start: string;
-    end: string;
-  };
-  types: string[];
-}
-
-export interface PrivacySettings {
-  profileVisibility: 'public' | 'friends' | 'private';
-  locationSharing: boolean;
-  activityStatus: boolean;
-  searchable: boolean;
-  contactInfo: boolean;
-}
-
-export interface AccessibilitySettings {
-  fontSize: 'small' | 'medium' | 'large';
-  highContrast: boolean;
-  reduceMotion: boolean;
-  screenReader: boolean;
-  keyboardNavigation: boolean;
-}
+// ===== EXPORT ALL =====
+export type {
+  // Re-export commonly used types
+  SearchFilters as Filters,
+  ApiResponse as Response,
+  PaginatedResponse as PaginatedResult
+};
