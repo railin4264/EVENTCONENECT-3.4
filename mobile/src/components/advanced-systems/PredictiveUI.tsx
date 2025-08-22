@@ -249,7 +249,7 @@ export const AdvancedCustomization: React.FC<{
   onClose: () => void;
   onSave: (settings: any) => void;
 }> = ({ isVisible, onClose, onSave }) => {
-  const { currentTheme } = useRef(new Animated.Value(0)).current;
+  const { currentTheme } = useDynamicTheme();
   const [settings, setSettings] = useState({
     layout: 'grid',
     colors: 'auto',
@@ -258,7 +258,7 @@ export const AdvancedCustomization: React.FC<{
     animations: 'high'
   });
 
-  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
+  const slideAnim = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -278,7 +278,7 @@ export const AdvancedCustomization: React.FC<{
     } else {
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: screenHeight,
+          toValue: Dimensions.get('window').height,
           duration: 300,
           useNativeDriver: true,
         }),
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
-    maxHeight: screenHeight * 0.8,
+    maxHeight: Dimensions.get('window').height * 0.8,
   },
   modalTitle: {
     fontSize: 24,

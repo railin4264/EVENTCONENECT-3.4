@@ -11,8 +11,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 interface DynamicIllustrationProps {
   type: 'person' | 'scene' | 'icon';
   context?: string;
@@ -32,7 +30,6 @@ export const DynamicIllustration: React.FC<DynamicIllustrationProps> = ({
   style = {}
 }) => {
   const { currentTheme } = useDynamicTheme();
-  const [isPressed, setIsPressed] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -135,7 +132,6 @@ export const DynamicIllustration: React.FC<DynamicIllustrationProps> = ({
 
   const handlePressIn = () => {
     if (interactive) {
-      setIsPressed(true);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       
       Animated.timing(scaleAnim, {
@@ -148,8 +144,6 @@ export const DynamicIllustration: React.FC<DynamicIllustrationProps> = ({
 
   const handlePressOut = () => {
     if (interactive) {
-      setIsPressed(false);
-      
       Animated.timing(scaleAnim, {
         toValue: 1,
         duration: 100,
@@ -227,7 +221,6 @@ export const DynamicIllustration: React.FC<DynamicIllustrationProps> = ({
                   backgroundColor: currentTheme.colors.secondary,
                   left: `${20 + (index * 15)}%`,
                   top: `${30 + (index * 10)}%`,
-                  animationDelay: `${index * 0.2}s`,
                 },
               ]}
             />

@@ -17,6 +17,7 @@ import { GamificationSystem } from '../components/gamification/GamificationSyste
 import { useNotifications } from '../components/notifications/ImmersiveNotifications';
 import { DynamicIllustration } from '../components/advanced-systems/DynamicIllustrations';
 import { PredictiveSuggestions, AdvancedCustomization } from '../components/advanced-systems/PredictiveUI';
+import { SocialFeed } from '../components/feed/SocialFeed';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -25,7 +26,7 @@ export const AdvancedDemoScreen: React.FC = () => {
   const { addNotification } = useNotifications();
   const [showPredictive, setShowPredictive] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
-  const [currentSection, setCurrentSection] = useState('particles');
+  const [currentSection, setCurrentSection] = useState('feed');
 
   // Cambiar tema automáticamente
   useEffect(() => {
@@ -96,6 +97,14 @@ export const AdvancedDemoScreen: React.FC = () => {
 
   const renderSection = () => {
     switch (currentSection) {
+      case 'feed':
+        return (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Feed Social</Text>
+            <SocialFeed />
+          </View>
+        );
+
       case 'particles':
         return (
           <View style={styles.sectionContainer}>
@@ -196,6 +205,7 @@ export const AdvancedDemoScreen: React.FC = () => {
         contentContainerStyle={styles.sectionNavigationContent}
       >
         {[
+          { key: 'feed', label: 'Feed Social', icon: '📱' },
           { key: 'particles', label: 'Partículas', icon: '✨' },
           { key: 'transitions', label: 'Transiciones', icon: '🔄' },
           { key: 'gamification', label: 'Gamificación', icon: '🏆' },

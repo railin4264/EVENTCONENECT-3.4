@@ -1,102 +1,112 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  TouchableOpacity,
-  Text,
   StyleSheet,
+  TouchableOpacity,
   Dimensions,
-  Platform,
-  Animated,
-  PanGestureHandler,
-  State,
-  GestureHandlerRootView
+  Animated
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useDynamicTheme } from '../../contexts/DynamicThemeContext';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 interface MorphingCardProps {
   children: React.ReactNode;
   style?: any;
-  variant?: 'default' | 'expand' | 'transform' | 'breathing';
-  onExpand?: () => void;
-  expanded?: boolean;
+  onPress?: () => void;
 }
 
+interface FluidButtonProps {
+  children: React.ReactNode;
+  variant?: 'expand' | 'morph';
+  style?: any;
+  onPress?: () => void;
+}
+
+interface BreathingElementProps {
+  children: React.ReactNode;
+  style?: any;
+}
+
+interface WaterFlowNavigationProps {
+  items: Array<{ id: string; label: string; icon: string }>;
+  activeIndex: number;
+  onItemPress: (index: number) => void;
+  style?: any;
+}
+
+// Componente de tarjeta morfing
 export const MorphingCard: React.FC<MorphingCardProps> = ({
   children,
   style = {},
-  variant = 'default',
-  onExpand,
-  expanded = false
+  onPress
 }) => {
   const { currentTheme } = useDynamicTheme();
-  const [isHovered, setIsHovered] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(expanded);
-  
-  // Valores de animación
-  const scaleValue = useRef(new Animated.Value(1)).current;
-  const rotateXValue = useRef(new Animated.Value(0)).current;
-  const rotateYValue = useRef(new Animated.Value(0)).current;
-  const shadowValue = useRef(new Animated.Value(0)).current;
-  const breathingValue = useRef(new Animated.Value(0)).current;
+  const [isPressed, setIsPressed] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const shineAnim = useRef(new Animated.Value(0)).current;
+  const breathingAnim = useRef(new Animated.Value(1)).current;
 
-  // Animación de respiración
+  // Animación de respiración continua
   useEffect(() => {
-    if (variant === 'breathing') {
-      const breathingAnimation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(breathingValue, {
-            toValue: 1,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(breathingValue, {
-            toValue: 0,
-            duration: 3000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      breathingAnimation.start();
-    }
-  }, [variant, breathingValue]);
+    const breathingAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathingAnim, {
+          toValue: 1.05,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathingAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    breathingAnimation.start();
 
-  // Efectos de hover
+    return () => breathingAnimation.stop();
+  }, [breathingAnim]);
+
   const handlePressIn = () => {
-    setIsHovered(true);
+    setIsPressed(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     Animated.parallel([
-      Animated.spring(scaleValue, {
-        toValue: 1.05,
+      Animated.timing(scaleAnim, {
+        toValue: 0.95,
+        duration: 150,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
       }),
-      Animated.timing(shadowValue, {
+      Animated.timing(rotateAnim, {
         toValue: 1,
         duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shineAnim, {
+        toValue: 1,
+        duration: 300,
         useNativeDriver: false,
       }),
     ]).start();
-
-    // Feedback háptico
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
   };
 
   const handlePressOut = () => {
-    setIsHovered(false);
+    setIsPressed(false);
+    
     Animated.parallel([
-      Animated.spring(scaleValue, {
+      Animated.timing(scaleAnim, {
         toValue: 1,
+        duration: 200,
         useNativeDriver: true,
-        tension: 100,
-        friction: 8,
       }),
-      Animated.timing(shadowValue, {
+      Animated.timing(rotateAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shineAnim, {
         toValue: 0,
         duration: 200,
         useNativeDriver: false,
@@ -105,306 +115,221 @@ export const MorphingCard: React.FC<MorphingCardProps> = ({
   };
 
   const handlePress = () => {
-    if (variant === 'expand' && onExpand) {
-      setIsExpanded(!isExpanded);
-      onExpand();
-      
-      // Feedback háptico
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
+    if (onPress) {
+      onPress();
     }
   };
 
-  // Calcular valores de transformación
-  const scale = breathingValue.interpolate({
+  const rotation = rotateAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.02],
+    outputRange: ['0deg', '5deg'],
   });
 
-  const finalScale = Animated.multiply(scaleValue, scale);
-
-  const shadowOpacity = shadowValue.interpolate({
+  const shineOpacity = shineAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.1, 0.3],
-  });
-
-  const shadowRadius = shadowValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [5, 15],
+    outputRange: [0, 0.3],
   });
 
   return (
-    <Animated.View
-      style={[
-        styles.morphingCard,
-        {
-          transform: [
-            { scale: finalScale },
-            { rotateX: rotateXValue },
-            { rotateY: rotateYValue },
-          ],
-          shadowOpacity,
-          shadowRadius,
-        },
-        style,
-      ]}
+    <TouchableOpacity
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      activeOpacity={0.9}
+      style={[styles.morphingCard, style]}
     >
-      <TouchableOpacity
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={handlePress}
-        activeOpacity={0.9}
-        style={styles.touchable}
+      <Animated.View
+        style={[
+          styles.cardContainer,
+          {
+            transform: [
+              { scale: Animated.multiply(scaleAnim, breathingAnim) },
+              { rotate: rotation },
+            ],
+          },
+        ]}
       >
+        {/* Efecto de brillo */}
+        <Animated.View
+          style={[
+            styles.shineEffect,
+            {
+              opacity: shineOpacity,
+            },
+          ]}
+        />
+
+        {/* Contenido de la tarjeta */}
         <LinearGradient
           colors={currentTheme.gradients.primary}
-          style={styles.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+          style={styles.cardGradient}
         >
-          {/* Efecto de brillo */}
-          {isHovered && (
-            <Animated.View
-              style={[
-                styles.shine,
-                {
-                  opacity: shadowValue,
-                  transform: [
-                    {
-                      translateX: shadowValue.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-100, 100],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          )}
-          
-          {/* Contenido */}
-          <View style={styles.content}>
-            {children}
-          </View>
+          {children}
         </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
+      </Animated.View>
+    </TouchableOpacity>
   );
 };
 
-interface FluidButtonProps {
-  children: React.ReactNode;
-  onPress?: () => void;
-  variant?: 'default' | 'expand' | 'morph';
-  style?: any;
-  expandedContent?: React.ReactNode;
-}
-
+// Componente de botón fluido
 export const FluidButton: React.FC<FluidButtonProps> = ({
   children,
-  onPress,
-  variant = 'default',
+  variant = 'expand',
   style = {},
-  expandedContent
+  onPress
 }) => {
   const { currentTheme } = useDynamicTheme();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isPressed, setIsPressed] = useState(false);
-  
-  // Valores de animación
-  const scaleValue = useRef(new Animated.Value(1)).current;
-  const borderRadiusValue = useRef(new Animated.Value(12)).current;
-  const widthValue = useRef(new Animated.Value(200)).current;
-  const heightValue = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const rippleAnim = useRef(new Animated.Value(0)).current;
+  const expandAnim = useRef(new Animated.Value(0)).current;
 
   const handlePressIn = () => {
     setIsPressed(true);
-    Animated.spring(scaleValue, {
-      toValue: 0.95,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rippleAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+    ]).start();
 
-    // Feedback háptico
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (variant === 'expand') {
+      Animated.timing(expandAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }).start();
     }
   };
 
   const handlePressOut = () => {
     setIsPressed(false);
-    Animated.spring(scaleValue, {
-      toValue: 1,
-      useNativeDriver: true,
-      tension: 100,
-      friction: 8,
-    }).start();
+    
+    Animated.parallel([
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(rippleAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }),
+    ]).start();
+
+    if (variant === 'expand') {
+      Animated.timing(expandAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+    }
   };
 
   const handlePress = () => {
-    if (variant === 'expand') {
-      setIsExpanded(!isExpanded);
-      
-      // Animación de expansión
-      Animated.parallel([
-        Animated.timing(widthValue, {
-          toValue: isExpanded ? 200 : 300,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-        Animated.timing(heightValue, {
-          toValue: isExpanded ? 50 : 200,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-        Animated.timing(borderRadiusValue, {
-          toValue: isExpanded ? 12 : 20,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    }
-
-    if (variant === 'morph') {
-      // Animación de morphing
-      Animated.sequence([
-        Animated.timing(borderRadiusValue, {
-          toValue: 25,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-        Animated.timing(borderRadiusValue, {
-          toValue: 12,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    }
-
-    onPress?.();
-    
-    // Feedback háptico
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (onPress) {
+      onPress();
     }
   };
 
+  const rippleScale = rippleAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 2],
+  });
+
+  const expandScale = expandAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.1],
+  });
+
   return (
-    <Animated.View
-      style={[
-        styles.fluidButton,
-        {
-          transform: [{ scale: scaleValue }],
-          width: widthValue,
-          height: heightValue,
-          borderRadius: borderRadiusValue,
-        },
-        style,
-      ]}
+    <TouchableOpacity
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      activeOpacity={0.8}
+      style={[styles.fluidButton, style]}
     >
-      <TouchableOpacity
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        onPress={handlePress}
-        activeOpacity={0.9}
-        style={styles.buttonTouchable}
+      <Animated.View
+        style={[
+          styles.buttonContainer,
+          {
+            transform: [
+              { scale: Animated.multiply(scaleAnim, expandScale) },
+            ],
+          },
+        ]}
       >
+        {/* Efecto de ripple */}
+        <Animated.View
+          style={[
+            styles.rippleEffect,
+            {
+              transform: [{ scale: rippleScale }],
+              opacity: rippleAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.6, 0],
+              }),
+            },
+          ]}
+        />
+
+        {/* Contenido del botón */}
         <LinearGradient
-          colors={currentTheme.gradients.primary}
+          colors={currentTheme.gradients.secondary}
           style={styles.buttonGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
         >
-          {/* Efecto de ondas */}
-          {isPressed && (
-            <Animated.View
-              style={[
-                styles.ripple,
-                {
-                  transform: [
-                    {
-                      scale: scaleValue.interpolate({
-                        inputRange: [0.95, 1],
-                        outputRange: [0, 1],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          )}
-          
-          {/* Contenido */}
-          <View style={styles.buttonContent}>
-            {!isExpanded ? children : expandedContent}
-          </View>
+          {children}
         </LinearGradient>
-      </TouchableOpacity>
-    </Animated.View>
+      </Animated.View>
+    </TouchableOpacity>
   );
 };
 
-interface BreathingElementProps {
-  children: React.ReactNode;
-  style?: any;
-  intensity?: number;
-  duration?: number;
-}
-
+// Componente de elemento respirando
 export const BreathingElement: React.FC<BreathingElementProps> = ({
   children,
-  style = {},
-  intensity = 0.02,
-  duration = 3000
+  style = {}
 }) => {
-  const scaleValue = useRef(new Animated.Value(1)).current;
-  const opacityValue = useRef(new Animated.Value(1)).current;
+  const breathingAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const breathingAnimation = Animated.loop(
       Animated.sequence([
-        Animated.parallel([
-          Animated.timing(scaleValue, {
-            toValue: 1 + intensity,
-            duration: duration / 2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacityValue, {
-            toValue: 0.8,
-            duration: duration / 2,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.parallel([
-          Animated.timing(scaleValue, {
-            toValue: 1,
-            duration: duration / 2,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacityValue, {
-            toValue: 1,
-            duration: duration / 2,
-            useNativeDriver: true,
-          }),
-        ]),
+        Animated.timing(breathingAnim, {
+          toValue: 1.05,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathingAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
       ])
     );
-    
     breathingAnimation.start();
-    
+
     return () => breathingAnimation.stop();
-  }, [scaleValue, opacityValue, intensity, duration]);
+  }, [breathingAnim]);
 
   return (
     <Animated.View
       style={[
-        style,
+        styles.breathingElement,
         {
-          transform: [{ scale: scaleValue }],
-          opacity: opacityValue,
+          transform: [{ scale: breathingAnim }],
         },
+        style,
       ]}
     >
       {children}
@@ -412,61 +337,65 @@ export const BreathingElement: React.FC<BreathingElementProps> = ({
   );
 };
 
-interface WaterFlowNavigationProps {
-  children: React.ReactNode;
-  style?: any;
-}
-
+// Componente de navegación con flujo de agua
 export const WaterFlowNavigation: React.FC<WaterFlowNavigationProps> = ({
-  children,
+  items,
+  activeIndex,
+  onItemPress,
   style = {}
 }) => {
   const { currentTheme } = useDynamicTheme();
-  const [activeIndex, setActiveIndex] = useState(0);
-  const indicatorPosition = useRef(new Animated.Value(0)).current;
+  const flowAnim = useRef(new Animated.Value(0)).current;
 
-  const handleItemPress = (index: number) => {
-    setActiveIndex(index);
-    
-    // Animación fluida del indicador
-    Animated.spring(indicatorPosition, {
-      toValue: index * (100 / React.Children.count(children)),
+  useEffect(() => {
+    Animated.timing(flowAnim, {
+      toValue: activeIndex,
+      duration: 500,
       useNativeDriver: false,
-      tension: 100,
-      friction: 8,
     }).start();
+  }, [activeIndex, flowAnim]);
 
-    // Feedback háptico
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-  };
+  const flowPosition = flowAnim.interpolate({
+    inputRange: [0, items.length - 1],
+    outputRange: [0, 100],
+  });
 
   return (
     <View style={[styles.waterFlowContainer, style]}>
-      {/* Indicador fluido */}
+      {/* Indicador de flujo */}
       <Animated.View
         style={[
           styles.flowIndicator,
           {
-            left: indicatorPosition.interpolate({
-              inputRange: [0, 100],
-              outputRange: ['0%', '100%'],
-            }),
+            left: `${flowPosition}%`,
           },
         ]}
-      />
-      
+      >
+        <LinearGradient
+          colors={currentTheme.gradients.primary}
+          style={styles.flowGradient}
+        />
+      </Animated.View>
+
       {/* Elementos de navegación */}
       <View style={styles.navigationItems}>
-        {React.Children.map(children, (child, index) => (
+        {items.map((item, index) => (
           <TouchableOpacity
-            key={index}
-            style={styles.navigationItem}
-            onPress={() => handleItemPress(index)}
+            key={item.id}
+            style={[
+              styles.navigationItem,
+              index === activeIndex && styles.navigationItemActive,
+            ]}
+            onPress={() => onItemPress(index)}
             activeOpacity={0.7}
           >
-            {child}
+            <Text style={styles.navigationIcon}>{item.icon}</Text>
+            <Text style={[
+              styles.navigationLabel,
+              index === activeIndex && styles.navigationLabelActive,
+            ]}>
+              {item.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -476,87 +405,106 @@ export const WaterFlowNavigation: React.FC<WaterFlowNavigationProps> = ({
 
 const styles = StyleSheet.create({
   morphingCard: {
-    backgroundColor: 'transparent',
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  touchable: {
-    flex: 1,
-  },
-  gradient: {
-    flex: 1,
-    padding: 20,
+  cardContainer: {
     position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  shine: {
+  shineEffect: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    transform: [{ skewX: '-20deg' }],
+    backgroundColor: '#fff',
+    borderRadius: 20,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  cardGradient: {
+    padding: 20,
+    borderRadius: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   fluidButton: {
-    overflow: 'hidden',
-    borderRadius: 12,
-  },
-  buttonTouchable: {
-    flex: 1,
-  },
-  buttonGradient: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    justifyContent: 'center',
   },
-  ripple: {
+  buttonContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rippleEffect: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 12,
+    borderRadius: 25,
   },
-  buttonContent: {
-    flex: 1,
-    justifyContent: 'center',
+  buttonGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 25,
+    minWidth: 120,
     alignItems: 'center',
-    padding: 16,
+  },
+  breathingElement: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   waterFlowContainer: {
     position: 'relative',
-    height: 60,
+    height: 80,
   },
   flowIndicator: {
     position: 'absolute',
     bottom: 0,
-    width: '25%',
-    height: 3,
-    backgroundColor: '#06b6d4',
+    width: 60,
+    height: 4,
+    borderRadius: 2,
+  },
+  flowGradient: {
+    width: '100%',
+    height: '100%',
     borderRadius: 2,
   },
   navigationItems: {
     flexDirection: 'row',
-    flex: 1,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    height: '100%',
   },
   navigationItem: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  navigationItemActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  navigationIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  navigationLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
+  },
+  navigationLabelActive: {
+    color: '#fff',
+    fontWeight: '600',
   },
 });
+
+export default MorphingCard;
