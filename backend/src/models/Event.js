@@ -261,6 +261,10 @@ const eventSchema = new mongoose.Schema(
       enum: ['draft', 'published', 'cancelled', 'completed', 'postponed'],
       default: 'draft',
     },
+    cancellationReason: {
+      type: String,
+      maxlength: [500, 'La razón de cancelación no puede exceder 500 caracteres'],
+    },
     visibility: {
       type: String,
       enum: ['public', 'private', 'tribe_only', 'invite_only'],

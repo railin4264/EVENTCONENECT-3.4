@@ -44,6 +44,18 @@ if (process.env.NODE_ENV === 'test') {
     const testUserId = req.get('x-test-user-id');
     if (testUserId) {
       req.user = { id: testUserId };
+      return next();
+    }
+    const auth = req.get('authorization');
+    if (auth && auth.startsWith('Bearer ')) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = auth.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = { id: decoded.userId || decoded.id || decoded.sub };
+      } catch (_) {
+        // ignore; leave req.user undefined
+      }
     }
     next();
   });

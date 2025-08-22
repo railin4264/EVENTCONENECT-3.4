@@ -36,6 +36,12 @@ class PostController {
         }
       }
 
+      // Mapear event → relatedEvent si viene del cliente
+      if (postData.event && !postData.relatedEvent) {
+        postData.relatedEvent = postData.event;
+        delete postData.event;
+      }
+
       // Handle media uploads if any
       if (req.files && req.files.length > 0) {
         const uploadResults = await cloudinary.uploadPostMedia(
