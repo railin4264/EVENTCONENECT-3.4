@@ -17,16 +17,22 @@ class PostController {
       postData.author = userId;
       // Status lo maneja el modelo (default 'published')
 
-      // Si no es encuesta, eliminar poll del payload para evitar validaciones
+      // Saneos de payload
       if (postData.type && postData.type !== 'poll') {
         delete postData.poll;
       }
-
-      // Limpiar location si no vienen coordenadas válidas
       if (postData.location) {
         const coords = postData.location.coordinates;
-        if (!Array.isArray(coords) || coords.length !== 2) {
+        const hasValidCoords = Array.isArray(coords) && coords.length === 2;
+        if (!hasValidCoords) {
           delete postData.location;
+        } else {
+          // Normalizar a [lon, lat] números
+          postData.location.type = 'Point';
+          postData.location.coordinates = [
+            Number(postData.location.coordinates[0]),
+            Number(postData.location.coordinates[1]),
+          ];
         }
       }
 
@@ -56,6 +62,15 @@ class PostController {
 
       // Create post
       const post = new Post(postData);
+
+      // Asegurar que no se persista location sin coordinates válidas
+      if (
+        !post.location ||
+        !Array.isArray(post.location.coordinates) ||
+        post.location.coordinates.length !== 2
+      ) {
+        post.location = undefined;
+      }
       await post.save();
 
       // Populate author information
