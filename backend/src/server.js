@@ -63,10 +63,16 @@ socket.initialize(server, { io });
 // Connect external services (skip in tests)
 if (process.env.NODE_ENV !== 'test') {
   // Connect to MongoDB
-  database.connectDB();
+  database.connectDB().catch(err => {
+    console.warn('⚠️ MongoDB no disponible:', err.message);
+    console.log('🔄 Aplicación iniciando sin MongoDB');
+  });
 
   // Connect to Redis
-  redisConfig.connect();
+  redisConfig.connect().catch(err => {
+    console.warn('⚠️ Redis no disponible:', err.message);
+    console.log('🔄 Aplicación iniciando sin Redis');
+  });
 }
 
 // Security middleware
@@ -90,7 +96,8 @@ app.use('/api/', limiter);
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000, // 15 minutes
   delayAfter: 50, // allow 50 requests per 15 minutes, then...
-  delayMs: 500, // begin adding 500ms of delay per request above 50
+  delayMs: () => 500, // Fixed function format for v2
+  validate: { delayMs: false }, // Disable warning
 });
 app.use('/api/', speedLimiter);
 
