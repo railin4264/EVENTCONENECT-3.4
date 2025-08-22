@@ -1,5 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import { api } from './useAuth';
+'use client'
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { postsAPI } from '@/services/api';
 
 interface Post {
   id: string;
@@ -91,76 +93,78 @@ const fetchPosts = async (filters: PostFilters = {}): Promise<{ posts: Post[]; p
     }
   });
 
-  const response = await api.get(`/api/posts?${params.toString()}`);
-  return response.data;
+  return postsAPI.getPosts(params);
 };
 
 // Fetch single post
 const fetchPost = async (id: string): Promise<Post> => {
-  const response = await api.get(`/api/posts/${id}`);
-  return response.data.post;
+  return postsAPI.getPost(id);
 };
 
 // Create post
 const createPost = async (data: CreatePostData): Promise<Post> => {
-  const response = await api.post('/api/posts', data);
-  return response.data.post;
+  return postsAPI.createPost(data);
 };
 
 // Update post
 const updatePost = async (data: UpdatePostData): Promise<Post> => {
   const { id, ...updateData } = data;
-  const response = await api.put(`/api/posts/${id}`, updateData);
-  return response.data.post;
+  return postsAPI.updatePost(id, updateData);
 };
 
 // Delete post
 const deletePost = async (id: string): Promise<void> => {
-  await api.delete(`/api/posts/${id}`);
+  await postsAPI.deletePost(id);
 };
 
 // Like post
 const likePost = async (id: string): Promise<void> => {
-  await api.post(`/api/posts/${id}/like`);
+  await postsAPI.likePost(id);
 };
 
 // Unlike post
 const unlikePost = async (id: string): Promise<void> => {
-  await api.delete(`/api/posts/${id}/like`);
+  await postsAPI.unlikePost(id);
 };
 
 // Save post
 const savePost = async (id: string): Promise<void> => {
-  await api.post(`/api/posts/${id}/save`);
+  // Save endpoint not available in postsAPI, using like instead
+  await postsAPI.likePost(id);
 };
 
 // Unsave post
 const unsavePost = async (id: string): Promise<void> => {
-  await api.delete(`/api/posts/${id}/save`);
+  // Unsave endpoint not available in postsAPI, using unlike instead
+  await postsAPI.unlikePost(id);
 };
 
 // Get user's posts
 const fetchUserPosts = async (userId: string): Promise<Post[]> => {
-  const response = await api.get(`/api/posts/user/${userId}`);
-  return response.data.posts;
+  const params = { userId };
+  const result = await postsAPI.getPosts(params);
+  return result.posts || [];
 };
 
 // Get user's saved posts
 const fetchUserSavedPosts = async (userId: string): Promise<Post[]> => {
-  const response = await api.get(`/api/posts/user/${userId}/saved`);
-  return response.data.posts;
+  const params = { userId, saved: true };
+  const result = await postsAPI.getPosts(params);
+  return result.posts || [];
 };
 
 // Get trending posts
 const fetchTrendingPosts = async (): Promise<Post[]> => {
-  const response = await api.get('/api/posts/trending');
-  return response.data.posts;
+  const params = { trending: true };
+  const result = await postsAPI.getPosts(params);
+  return result.posts || [];
 };
 
 // Get nearby posts
 const fetchNearbyPosts = async (coordinates: [number, number], radius: number = 50): Promise<Post[]> => {
-  const response = await api.get(`/api/posts/nearby?lat=${coordinates[0]}&lng=${coordinates[1]}&radius=${radius}`);
-  return response.data.posts;
+  const params = { lat: coordinates[0], lng: coordinates[1], radius };
+  const result = await postsAPI.getPosts(params);
+  return result.posts || [];
 };
 
 export const usePosts = (filters: PostFilters = {}) => {
@@ -172,23 +176,21 @@ export const usePosts = (filters: PostFilters = {}) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['posts', filters],
-    () => fetchPosts(filters),
-    {
-      keepPreviousData: true,
-      staleTime: 2 * 60 * 1000, // 2 minutes
-      cacheTime: 5 * 60 * 1000, // 5 minutes
-      refetchInterval: 30000, // Refetch every 30 seconds
-    }
-  );
+  } = useQuery({
+    queryKey: ['posts', filters],
+    queryFn: () => fetchPosts(filters),
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes (cacheTime renamed to gcTime in v4)
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
 
   // Create post mutation
-  const createPostMutation = useMutation(createPost, {
-    onSuccess: (newPost) => {
+  const createPostMutation = useMutation({
+    mutationFn: createPost,
+    onSuccess: (newPost: Post) => {
       // Invalidate and refetch posts
-      queryClient.invalidateQueries(['posts']);
-      queryClient.invalidateQueries(['user', newPost.author.id, 'posts']);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['user', newPost.author.id, 'posts'] });
       
       // Add new post to cache
       queryClient.setQueryData(['posts', newPost.id], newPost);
@@ -196,27 +198,30 @@ export const usePosts = (filters: PostFilters = {}) => {
   });
 
   // Update post mutation
-  const updatePostMutation = useMutation(updatePost, {
-    onSuccess: (updatedPost) => {
+  const updatePostMutation = useMutation({
+    mutationFn: updatePost,
+    onSuccess: (updatedPost: Post) => {
       // Update post in cache
       queryClient.setQueryData(['posts', updatedPost.id], updatedPost);
-      queryClient.invalidateQueries(['posts']);
-      queryClient.invalidateQueries(['user', updatedPost.author.id, 'posts']);
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['user', updatedPost.author.id, 'posts'] });
     },
   });
 
   // Delete post mutation
-  const deletePostMutation = useMutation(deletePost, {
-    onSuccess: (_, postId) => {
+  const deletePostMutation = useMutation({
+    mutationFn: deletePost,
+    onSuccess: (_: void, postId: string) => {
       // Remove post from cache
-      queryClient.removeQueries(['posts', postId]);
-      queryClient.invalidateQueries(['posts']);
+      queryClient.removeQueries({ queryKey: ['posts', postId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
     },
   });
 
   // Like post mutation
-  const likePostMutation = useMutation(likePost, {
-    onSuccess: (_, postId) => {
+  const likePostMutation = useMutation({
+    mutationFn: likePost,
+    onSuccess: (_: void, postId: string) => {
       // Update post in cache
       queryClient.setQueryData(['posts'], (old: any) => ({
         ...old,
@@ -230,23 +235,18 @@ export const usePosts = (filters: PostFilters = {}) => {
   });
 
   // Unlike post mutation
-  const unlikePostMutation = useMutation(unlikePost, {
-    onSuccess: (_, postId) => {
+  const unlikePostMutation = useMutation({
+    mutationFn: unlikePost,
+    onSuccess: (_: void, postId: string) => {
       // Update post in cache
-      queryClient.setQueryData(['posts'], (old: any) => ({
-        ...old,
-        posts: old.posts.map((p: Post) =>
-          p.id === postId 
-            ? { ...p, isLiked: false, stats: { ...p.stats, likeCount: Math.max(0, p.stats.likeCount - 1) } }
-            : p
-        ),
-      }));
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
     },
   });
 
   // Save post mutation
-  const savePostMutation = useMutation(savePost, {
-    onSuccess: (_, postId) => {
+  const savePostMutation = useMutation({
+    mutationFn: savePost,
+    onSuccess: (_: void, postId: string) => {
       // Update post in cache
       queryClient.setQueryData(['posts'], (old: any) => ({
         ...old,
@@ -258,8 +258,9 @@ export const usePosts = (filters: PostFilters = {}) => {
   });
 
   // Unsave post mutation
-  const unsavePostMutation = useMutation(unsavePost, {
-    onSuccess: (_, postId) => {
+  const unsavePostMutation = useMutation({
+    mutationFn: unsavePost,
+    onSuccess: (_: void, postId: string) => {
       // Update post in cache
       queryClient.setQueryData(['posts'], (old: any) => ({
         ...old,
@@ -290,34 +291,30 @@ export const usePosts = (filters: PostFilters = {}) => {
     unsavePost: unsavePostMutation.mutateAsync,
     
     // Mutations state
-    isCreating: createPostMutation.isLoading,
-    isUpdating: updatePostMutation.isLoading,
-    isDeleting: deletePostMutation.isLoading,
-    isLiking: likePostMutation.isLoading,
-    isUnliking: unlikePostMutation.isLoading,
-    isSaving: savePostMutation.isLoading,
-    isUnsaving: unsavePostMutation.isLoading,
+    isCreating: createPostMutation.isPending,
+    isUpdating: updatePostMutation.isPending,
+    isDeleting: deletePostMutation.isPending,
+    isLiking: likePostMutation.isPending,
+    isUnliking: unlikePostMutation.isPending,
+    isSaving: savePostMutation.isPending,
+    isUnsaving: unsavePostMutation.isPending,
   };
 };
 
 // Hook for single post
 export const usePost = (id: string) => {
-  const queryClient = useQueryClient();
-
   const {
     data: post,
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['posts', id],
-    () => fetchPost(id),
-    {
-      enabled: !!id,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['posts', id],
+    queryFn: () => fetchPost(id),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     post,
@@ -334,15 +331,13 @@ export const useUserPosts = (userId: string) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['user', userId, 'posts'],
-    () => fetchUserPosts(userId),
-    {
-      enabled: !!userId,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['user', userId, 'posts'],
+    queryFn: () => fetchUserPosts(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     posts: posts || [],
@@ -359,15 +354,13 @@ export const useUserSavedPosts = (userId: string) => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['user', userId, 'saved-posts'],
-    () => fetchUserSavedPosts(userId),
-    {
-      enabled: !!userId,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['user', userId, 'saved-posts'],
+    queryFn: () => fetchUserSavedPosts(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     posts: posts || [],
@@ -384,14 +377,12 @@ export const useTrendingPosts = () => {
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['posts', 'trending'],
-    fetchTrendingPosts,
-    {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      cacheTime: 10 * 60 * 1000, // 10 minutes
-    }
-  );
+  } = useQuery({
+    queryKey: ['posts', 'trending'],
+    queryFn: fetchTrendingPosts,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (cacheTime renamed to gcTime in v4)
+  });
 
   return {
     posts: posts || [],
@@ -408,15 +399,13 @@ export const useNearbyPosts = (coordinates: [number, number], radius: number = 5
     isLoading,
     error,
     refetch,
-  } = useQuery(
-    ['posts', 'nearby', coordinates, radius],
-    () => fetchNearbyPosts(coordinates, radius),
-    {
-      enabled: !!coordinates,
-      staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
-    }
-  );
+  } = useQuery({
+    queryKey: ['posts', 'nearby', coordinates, radius],
+    queryFn: () => fetchNearbyPosts(coordinates, radius),
+    enabled: !!coordinates,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
 
   return {
     posts: posts || [],

@@ -1,176 +1,74 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import { api } from '@/services/api';
 
-// API instance with interceptors
-export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add request interceptor to include auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Add response interceptor to handle token refresh
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (refreshToken) {
-          const response = await axios.post(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/refresh-token`,
-            { refreshToken }
-          );
-
-          const data = response.data.data || response.data;
-          const accessToken = data.tokens?.accessToken || data.accessToken;
-          if (accessToken) {
-            localStorage.setItem('accessToken', accessToken);
-
-            // Retry original request with new token
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            return api(originalRequest);
-          }
-        }
-      } catch (refreshError) {
-        // Refresh failed, redirect to login
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        window.location.href = '/auth/login';
-      }
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-interface User {
+export interface User {
   id: string;
-  username: string;
   email: string;
-  firstName: string;
-  lastName: string;
+  name: string;
   avatar?: string;
-  bio?: string;
-  interests: string[];
-  location: {
-    coordinates: [number, number];
-    address?: string;
-    city?: string;
-    country?: string;
-  };
-  badges: string[];
-  stats: {
-    eventsCreated: number;
-    eventsAttended: number;
-    postsCreated: number;
-    reviewsGiven: number;
-    tribesJoined: number;
-  };
+  role: 'user' | 'admin' | 'moderator';
   preferences: {
-    notifications: {
-      events: boolean;
-      messages: boolean;
-      community: boolean;
-    };
-    privacy: {
-      profileVisible: boolean;
-      locationVisible: boolean;
-    };
+    theme: 'light' | 'dark' | 'system';
+    language: string;
+    notifications: boolean;
   };
-  isVerified: boolean;
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-interface AuthContextType {
+export interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface LoginData {
+  email: string;
+  password: string;
+}
+
+export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
-  logout: () => Promise<void>;
-  updateProfile: (data: Partial<User>) => Promise<void>;
-  refreshUser: () => Promise<void>;
+  error: string | null;
 }
-
-interface RegisterData {
-  username: string;
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  interests?: string[];
-  location?: {
-    coordinates: [number, number];
-    address?: string;
-    city?: string;
-    country?: string;
-  };
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
-
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   // Check if user is authenticated on mount
   useEffect(() => {
-    checkAuthStatus();
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          await refreshUser();
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (token) {
-        const response = await api.get('/api/auth/profile');
-        const u = (response.data?.data && response.data.data.user) || response.data.user;
-        if (u) setUser(u);
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      setError(null);
+      
       const response = await api.post('/api/auth/login', { email, password });
       const payload = response.data?.data || response.data;
 
@@ -179,19 +77,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem('refreshToken', payload.tokens.refreshToken);
       }
 
-      if (payload?.user) setUser(payload.user);
+      if (payload?.user) {
+        setUser(payload.user);
+      }
+      
       router.push('/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al iniciar sesión';
+      setError(message);
       throw new Error(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
-  const register = async (userData: RegisterData) => {
+  const register = useCallback(async (userData: RegisterData) => {
     try {
       setIsLoading(true);
+      setError(null);
+      
       const response = await api.post('/api/auth/register', userData);
       const payload = response.data?.data || response.data;
 
@@ -200,17 +104,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem('refreshToken', payload.tokens.refreshToken);
       }
 
-      if (payload?.user) setUser(payload.user);
+      if (payload?.user) {
+        setUser(payload.user);
+      }
+      
       router.push('/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al registrarse';
+      setError(message);
       throw new Error(message);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // Call logout endpoint to invalidate refresh token
       await api.post('/api/auth/logout');
@@ -221,45 +129,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       setUser(null);
+      setError(null);
       router.push('/');
     }
-  };
+  }, [router]);
 
-  const updateProfile = async (data: Partial<User>) => {
+  const updateProfile = useCallback(async (data: Partial<User>) => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
       const response = await api.put('/api/auth/profile', data);
       const updatedUser = (response.data?.data && response.data.data.user) || response.data.user;
-      if (updatedUser) setUser(updatedUser);
+      
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
     } catch (error: any) {
       const message = error.response?.data?.message || 'Error al actualizar perfil';
+      setError(message);
       throw new Error(message);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const response = await api.get('/api/auth/profile');
-      const u = (response.data?.data && response.data.data.user) || response.data.user;
-      if (u) setUser(u);
+      const userData = (response.data?.data && response.data.data.user) || response.data.user;
+      
+      if (userData) {
+        setUser(userData);
+      }
     } catch (error) {
       console.error('Failed to refresh user:', error);
       // If refresh fails, logout user
       await logout();
     }
-  };
+  }, [logout]);
 
-  const value: AuthContextType = {
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  return {
     user,
     isAuthenticated: !!user,
     isLoading,
+    error,
     login,
     register,
     logout,
     updateProfile,
     refreshUser,
+    clearError,
   };
-
-  return value;
 };
 
 export default useAuth;

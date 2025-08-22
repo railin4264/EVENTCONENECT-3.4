@@ -136,16 +136,18 @@ export function getInitials(name: string): string {
 
 export function getRandomColor(): string {
   const colors = [
-    'bg-red-500',
-    'bg-blue-500',
-    'bg-green-500',
-    'bg-yellow-500',
-    'bg-purple-500',
-    'bg-pink-500',
-    'bg-indigo-500',
-    'bg-teal-500',
+    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+    '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
   ];
-  return colors[Math.floor(Math.random() * colors.length)];
+  
+  const randomIndex = Math.floor(Math.random() * colors.length);
+  const color = colors[randomIndex];
+  
+  if (!color) {
+    return '#3B82F6'; // Fallback color
+  }
+  
+  return color;
 }
 
 export function copyToClipboard(text: string): Promise<void> {
