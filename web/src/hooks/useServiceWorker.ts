@@ -16,14 +16,15 @@ interface ServiceWorkerActions {
   skipWaiting: () => Promise<void>;
 }
 
-export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions => {
+export const useServiceWorker = (): ServiceWorkerState &
+  ServiceWorkerActions => {
   const [state, setState] = useState<ServiceWorkerState>({
     isSupported: false,
     isRegistered: false,
     isInstalled: false,
     isUpdated: false,
     registration: null,
-    error: null
+    error: null,
   });
 
   // Check if Service Worker is supported
@@ -45,13 +46,16 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
             isRegistered: true,
             registration,
             isInstalled: registration.active !== null,
-            isUpdated: registration.waiting !== null
+            isUpdated: registration.waiting !== null,
           }));
         }
       } catch (error) {
         setState(prev => ({
           ...prev,
-          error: error instanceof Error ? error.message : 'Error checking registration'
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Error checking registration',
         }));
       }
     };
@@ -72,11 +76,20 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
     };
 
     navigator.serviceWorker.addEventListener('updatefound', handleUpdateFound);
-    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+    navigator.serviceWorker.addEventListener(
+      'controllerchange',
+      handleControllerChange
+    );
 
     return () => {
-      navigator.serviceWorker.removeEventListener('updatefound', handleUpdateFound);
-      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      navigator.serviceWorker.removeEventListener(
+        'updatefound',
+        handleUpdateFound
+      );
+      navigator.serviceWorker.removeEventListener(
+        'controllerchange',
+        handleControllerChange
+      );
     };
   }, [state.isSupported]);
 
@@ -91,7 +104,7 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
 
       const registration = await navigator.serviceWorker.register('/sw.js', {
         scope: '/',
-        updateViaCache: 'none'
+        updateViaCache: 'none',
       });
 
       setState(prev => ({
@@ -99,12 +112,13 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
         isRegistered: true,
         registration,
         isInstalled: registration.active !== null,
-        isUpdated: registration.waiting !== null
+        isUpdated: registration.waiting !== null,
       }));
 
       console.log('✅ Service Worker registrado exitosamente:', registration);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       setState(prev => ({ ...prev, error: errorMessage }));
       console.error('❌ Error registrando Service Worker:', error);
       throw error;
@@ -119,19 +133,20 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
 
     try {
       const unregistered = await state.registration.unregister();
-      
+
       if (unregistered) {
         setState(prev => ({
           ...prev,
           isRegistered: false,
           isInstalled: false,
           isUpdated: false,
-          registration: null
+          registration: null,
         }));
         console.log('✅ Service Worker desregistrado exitosamente');
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       setState(prev => ({ ...prev, error: errorMessage }));
       console.error('❌ Error desregistrando Service Worker:', error);
       throw error;
@@ -148,7 +163,8 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
       await state.registration.update();
       console.log('🔄 Actualización de Service Worker solicitada');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       setState(prev => ({ ...prev, error: errorMessage }));
       console.error('❌ Error actualizando Service Worker:', error);
       throw error;
@@ -164,20 +180,27 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
     try {
       // Send skip waiting message
       state.registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      
+
       // Wait for the new service worker to take over
-      await new Promise<void>((resolve) => {
+      await new Promise<void>(resolve => {
         const handleControllerChange = () => {
-          navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+          navigator.serviceWorker.removeEventListener(
+            'controllerchange',
+            handleControllerChange
+          );
           resolve();
         };
-        navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+        navigator.serviceWorker.addEventListener(
+          'controllerchange',
+          handleControllerChange
+        );
       });
 
       setState(prev => ({ ...prev, isUpdated: false }));
       console.log('✅ Service Worker actualizado y activado');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Error desconocido';
       setState(prev => ({ ...prev, error: errorMessage }));
       console.error('❌ Error saltando espera del Service Worker:', error);
       throw error;
@@ -189,7 +212,7 @@ export const useServiceWorker = (): ServiceWorkerState & ServiceWorkerActions =>
     register,
     unregister,
     update,
-    skipWaiting
+    skipWaiting,
   };
 };
 
@@ -215,7 +238,10 @@ export const usePWAInstall = () => {
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener(
+        'beforeinstallprompt',
+        handleBeforeInstallPrompt
+      );
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
@@ -228,13 +254,13 @@ export const usePWAInstall = () => {
     try {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      
+
       if (outcome === 'accepted') {
         console.log('✅ Usuario aceptó la instalación');
       } else {
         console.log('❌ Usuario rechazó la instalación');
       }
-      
+
       setDeferredPrompt(null);
       setIsInstallable(false);
     } catch (error) {
@@ -245,7 +271,7 @@ export const usePWAInstall = () => {
 
   return {
     isInstallable,
-    install
+    install,
   };
 };
 
@@ -271,8 +297,11 @@ export const useOfflineStatus = () => {
 
 // Hook for push notifications
 export const usePushNotifications = () => {
-  const [permission, setPermission] = useState<NotificationPermission>('default');
-  const [subscription, setSubscription] = useState<PushSubscription | null>(null);
+  const [permission, setPermission] =
+    useState<NotificationPermission>('default');
+  const [subscription, setSubscription] = useState<PushSubscription | null>(
+    null
+  );
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -304,7 +333,7 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: vapidPublicKey
+        applicationServerKey: vapidPublicKey,
       });
 
       setSubscription(subscription);
@@ -334,6 +363,6 @@ export const usePushNotifications = () => {
     subscription,
     requestPermission,
     subscribe,
-    unsubscribe
+    unsubscribe,
   };
 };

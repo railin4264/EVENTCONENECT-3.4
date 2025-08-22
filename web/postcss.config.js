@@ -1,7 +1,7 @@
 module.exports = {
   plugins: {
-    'tailwindcss': {},
-    'autoprefixer': {},
+    tailwindcss: {},
+    autoprefixer: {},
     'postcss-import': {},
     'postcss-nesting': {},
     'postcss-custom-properties': {
@@ -17,7 +17,7 @@ module.exports = {
         'nesting-rules': false,
       },
     },
-    'cssnano': {
+    cssnano: {
       preset: [
         'default',
         {

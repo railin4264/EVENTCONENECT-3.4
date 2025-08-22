@@ -162,21 +162,6 @@
       ]
     }
   },
-  "permissions": [
-    "geolocation",
-    "notifications",
-    "camera",
-    "microphone",
-    "background-sync"
-  ],
-  "features": [
-    "Cross Platform",
-    "fast",
-    "simple",
-    "social",
-    "events",
-    "geolocation",
-    "notifications",
-    "offline"
-  ]
-} 
+  "permissions": ["geolocation", "notifications", "camera", "microphone", "background-sync"],
+  "features": ["Cross Platform", "fast", "simple", "social", "events", "geolocation", "notifications", "offline"]
+}

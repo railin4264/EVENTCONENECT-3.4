@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { postsAPI } from '@/services/api';
@@ -77,9 +77,11 @@ interface UpdatePostData extends Partial<CreatePostData> {
 }
 
 // Fetch posts with filters
-const fetchPosts = async (filters: PostFilters = {}): Promise<{ posts: Post[]; pagination: any }> => {
+const fetchPosts = async (
+  filters: PostFilters = {}
+): Promise<{ posts: Post[]; pagination: any }> => {
   const params = new URLSearchParams();
-  
+
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       if (key === 'location' && typeof value === 'object') {
@@ -161,7 +163,10 @@ const fetchTrendingPosts = async (): Promise<Post[]> => {
 };
 
 // Get nearby posts
-const fetchNearbyPosts = async (coordinates: [number, number], radius: number = 50): Promise<Post[]> => {
+const fetchNearbyPosts = async (
+  coordinates: [number, number],
+  radius: number = 50
+): Promise<Post[]> => {
   const params = { lat: coordinates[0], lng: coordinates[1], radius };
   const result = await postsAPI.getPosts(params);
   return result.posts || [];
@@ -190,8 +195,10 @@ export const usePosts = (filters: PostFilters = {}) => {
     onSuccess: (newPost: Post) => {
       // Invalidate and refetch posts
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['user', newPost.author.id, 'posts'] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ['user', newPost.author.id, 'posts'],
+      });
+
       // Add new post to cache
       queryClient.setQueryData(['posts', newPost.id], newPost);
     },
@@ -204,7 +211,9 @@ export const usePosts = (filters: PostFilters = {}) => {
       // Update post in cache
       queryClient.setQueryData(['posts', updatedPost.id], updatedPost);
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['user', updatedPost.author.id, 'posts'] });
+      queryClient.invalidateQueries({
+        queryKey: ['user', updatedPost.author.id, 'posts'],
+      });
     },
   });
 
@@ -226,8 +235,12 @@ export const usePosts = (filters: PostFilters = {}) => {
       queryClient.setQueryData(['posts'], (old: any) => ({
         ...old,
         posts: old.posts.map((p: Post) =>
-          p.id === postId 
-            ? { ...p, isLiked: true, stats: { ...p.stats, likeCount: p.stats.likeCount + 1 } }
+          p.id === postId
+            ? {
+                ...p,
+                isLiked: true,
+                stats: { ...p.stats, likeCount: p.stats.likeCount + 1 },
+              }
             : p
         ),
       }));
@@ -275,11 +288,11 @@ export const usePosts = (filters: PostFilters = {}) => {
     // Data
     posts: postsData?.posts || [],
     pagination: postsData?.pagination,
-    
+
     // State
     isLoading,
     error,
-    
+
     // Actions
     refetch,
     createPost: createPostMutation.mutateAsync,
@@ -289,7 +302,7 @@ export const usePosts = (filters: PostFilters = {}) => {
     unlikePost: unlikePostMutation.mutateAsync,
     savePost: savePostMutation.mutateAsync,
     unsavePost: unsavePostMutation.mutateAsync,
-    
+
     // Mutations state
     isCreating: createPostMutation.isPending,
     isUpdating: updatePostMutation.isPending,
@@ -393,7 +406,10 @@ export const useTrendingPosts = () => {
 };
 
 // Hook for nearby posts
-export const useNearbyPosts = (coordinates: [number, number], radius: number = 50) => {
+export const useNearbyPosts = (
+  coordinates: [number, number],
+  radius: number = 50
+) => {
   const {
     data: posts,
     isLoading,

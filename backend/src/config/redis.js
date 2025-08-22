@@ -25,11 +25,13 @@ class RedisClient {
             console.warn('⚠️ Redis no disponible, continuando sin cache');
             return undefined; // Don't retry on connection refused
           }
-          if (options.total_retry_time > 1000 * 30) { // Reduce retry time
+          if (options.total_retry_time > 1000 * 30) {
+            // Reduce retry time
             console.warn('⚠️ Redis timeout, continuando sin cache');
             return undefined;
           }
-          if (options.attempt > 3) { // Reduce max retries
+          if (options.attempt > 3) {
+            // Reduce max retries
             return undefined;
           }
           return Math.min(options.attempt * 100, 1000);
@@ -82,7 +84,8 @@ class RedisClient {
         return null;
       }
 
-      if (this.connectionRetries < 2) { // Reduce retries
+      if (this.connectionRetries < 2) {
+        // Reduce retries
         console.log(
           `🔄 Reintentando conexión (${this.connectionRetries + 1}/2)...`
         );

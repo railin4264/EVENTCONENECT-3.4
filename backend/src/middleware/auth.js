@@ -41,7 +41,8 @@ const protect = async (req, res, next) => {
       }
 
       // Get user from database
-      const user = await User.findById(decoded.id).select('-password');
+      const userId = decoded.userId || decoded.id || decoded.sub;
+      const user = await User.findById(userId).select('-password');
       if (!user) {
         return res.status(401).json({
           success: false,
@@ -113,7 +114,8 @@ const optionalAuth = async (req, res, next) => {
         const isBlacklisted = await redisClient.get(`blacklist:${token}`);
         if (!isBlacklisted) {
           // Get user from database
-          const user = await User.findById(decoded.id).select('-password');
+          const userId = decoded.userId || decoded.id || decoded.sub;
+          const user = await User.findById(userId).select('-password');
           if (user && user.isActive) {
             req.user = user;
           }

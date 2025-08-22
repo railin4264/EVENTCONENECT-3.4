@@ -1,6 +1,5 @@
 const request = require('supertest');
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const app = require('../../src/server');
 const { User, Event, Post, Review } = require('../../src/models');
@@ -31,47 +30,53 @@ describe('Event Flow Integration Tests', () => {
     await Post.deleteMany({});
     await Review.deleteMany({});
 
-    // Create host user
-    const hashedPassword = await bcrypt.hash('password123', 12);
+    // Create host user (usar contraseña en texto plano; el modelo la hashea en pre-save)
     hostUser = new User({
       username: 'eventhost',
       email: 'host@example.com',
-      password: hashedPassword,
+      password: 'password123',
       firstName: 'Event',
       lastName: 'Host',
+      dateOfBirth: new Date('1990-01-01'),
       isVerified: true,
       rating: 4.5,
       interests: ['technology', 'business'],
       location: {
         type: 'Point',
         coordinates: [-74.006, 40.7128],
-        address: 'New York, NY, USA',
-        city: 'New York',
-        state: 'NY',
-        country: 'USA'
-      }
+        address: {
+          street: 'N/A',
+          city: 'New York',
+          state: 'NY',
+          country: 'USA',
+          zipCode: '10001',
+        },
+      },
     });
     await hostUser.save();
 
-    // Create attendee user
-    const attendeeHashedPassword = await bcrypt.hash('password123', 12);
+    // Create attendee user (usar contraseña en texto plano)
     attendeeUser = new User({
       username: 'eventattendee',
       email: 'attendee@example.com',
-      password: attendeeHashedPassword,
+      password: 'password123',
       firstName: 'Event',
       lastName: 'Attendee',
+      dateOfBirth: new Date('1992-05-10'),
       isVerified: true,
       rating: 4.2,
-      interests: ['technology', 'networking'],
+      interests: ['technology', 'business'],
       location: {
         type: 'Point',
         coordinates: [-74.006, 40.7128],
-        address: 'New York, NY, USA',
-        city: 'New York',
-        state: 'NY',
-        country: 'USA'
-      }
+        address: {
+          street: 'N/A',
+          city: 'New York',
+          state: 'NY',
+          country: 'USA',
+          zipCode: '10001',
+        },
+      },
     });
     await attendeeUser.save();
 
@@ -80,7 +85,7 @@ describe('Event Flow Integration Tests', () => {
       .post('/api/auth/login')
       .send({
         email: 'host@example.com',
-        password: 'password123'
+        password: 'password123',
       });
     hostToken = hostLoginResponse.body.data.tokens.accessToken;
 
@@ -89,7 +94,7 @@ describe('Event Flow Integration Tests', () => {
       .post('/api/auth/login')
       .send({
         email: 'attendee@example.com',
-        password: 'password123'
+        password: 'password123',
       });
     attendeeToken = attendeeLoginResponse.body.data.tokens.accessToken;
   });
@@ -99,20 +104,22 @@ describe('Event Flow Integration Tests', () => {
       // 1. Create Event
       const eventData = {
         title: 'Tech Meetup 2024',
-        description: 'A great tech networking event',
+        description: 'A great tech community event',
         category: 'technology',
-        subcategory: 'networking',
-        tags: ['tech', 'networking', 'startup'],
+        subcategory: 'business',
+        tags: ['tech', 'business', 'startup'],
         startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 1 week from now
         endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000), // 3 hours later
         location: {
           type: 'Point',
           coordinates: [-74.006, 40.7128],
-          address: '123 Tech Street, New York, NY 10001',
-          city: 'New York',
-          state: 'NY',
-          country: 'USA',
-          venue: 'Tech Hub NYC'
+          address: {
+            street: 'N/A',
+            city: 'New York',
+            state: 'NY',
+            country: 'USA',
+            zipCode: '10001',
+          },
         },
         capacity: 100,
         pricing: {
@@ -150,10 +157,11 @@ describe('Event Flow Integration Tests', () => {
 
       // 3. Attendee creates a post about the event
       const postData = {
-        content: 'Excited to attend this tech meetup! Looking forward to networking with fellow developers.',
-        type: 'text',
-        tags: ['excited', 'networking', 'tech'],
-        event: testEvent._id
+        content:
+          'Excited to attend this tech meetup! Looking forward to connecting with fellow developers.',
+          type: 'text',
+        tags: ['excited', 'community', 'tech'],
+        event: testEvent._id,
       };
 
       const createPostResponse = await request(app)
@@ -189,13 +197,14 @@ describe('Event Flow Integration Tests', () => {
         event: testEvent._id,
         host: hostUser._id,
         rating: 5,
-        comment: 'Amazing event! The host was very organized and the networking opportunities were great.',
+        comment:
+          'Amazing event! The host was very organized and the opportunities were great.',
         categories: [
           { name: 'organization', score: 5 },
           { name: 'content', score: 5 },
-          { name: 'networking', score: 5 }
+          { name: 'value', score: 5 },
         ],
-        tags: ['organized', 'valuable', 'recommended']
+        tags: ['organized', 'valuable', 'recommended'],
       };
 
       const createReviewResponse = await request(app)

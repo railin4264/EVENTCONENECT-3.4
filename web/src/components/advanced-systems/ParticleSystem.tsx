@@ -22,45 +22,48 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
   count = 50,
   theme = 'default',
   intensity = 'medium',
-  className = ''
+  className = '',
 }) => {
   const [particles, setParticles] = useState<Particle[]>([]);
 
   const themeColors = {
     default: ['#06b6d4', '#3b82f6', '#8b5cf6'],
     neon: ['#00ffff', '#ff00ff', '#ffff00'],
-    elegant: ['#f8fafc', '#e2e8f0', '#cbd5e1']
+    elegant: ['#f8fafc', '#e2e8f0', '#cbd5e1'],
   };
 
   const intensitySettings = {
     low: { count: Math.floor(count * 0.5), speed: 0.5 },
     medium: { count: count, speed: 1 },
-    high: { count: Math.floor(count * 1.5), speed: 1.5 }
+    high: { count: Math.floor(count * 1.5), speed: 1.5 },
   };
 
   useEffect(() => {
     const settings = intensitySettings[intensity];
     const colors = themeColors[theme];
-    
-    const newParticles: Particle[] = Array.from({ length: settings.count }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      opacity: Math.random() * 0.5 + 0.1,
-      speed: Math.random() * settings.speed + 0.1,
-      color: colors[Math.floor(Math.random() * colors.length)]
-    }));
+
+    const newParticles: Particle[] = Array.from(
+      { length: settings.count },
+      (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        size: Math.random() * 3 + 1,
+        opacity: Math.random() * 0.5 + 0.1,
+        speed: Math.random() * settings.speed + 0.1,
+        color: colors[Math.floor(Math.random() * colors.length)],
+      })
+    );
 
     setParticles(newParticles);
   }, [count, theme, intensity]);
 
   return (
     <div className={`absolute inset-0 overflow-hidden ${className}`}>
-      {particles.map((particle) => (
+      {particles.map(particle => (
         <motion.div
           key={particle.id}
-          className="absolute rounded-full"
+          className='absolute rounded-full'
           style={{
             left: `${particle.x}%`,
             top: `${particle.y}%`,
@@ -72,12 +75,16 @@ export const ParticleSystem: React.FC<ParticleSystemProps> = ({
           animate={{
             y: [0, -20, 0],
             x: [0, 10, 0],
-            opacity: [particle.opacity, particle.opacity * 0.5, particle.opacity],
+            opacity: [
+              particle.opacity,
+              particle.opacity * 0.5,
+              particle.opacity,
+            ],
           }}
           transition={{
             duration: 3 / particle.speed,
             repeat: Infinity,
-            ease: "easeInOut",
+            ease: 'easeInOut',
             delay: Math.random() * 2,
           }}
         />

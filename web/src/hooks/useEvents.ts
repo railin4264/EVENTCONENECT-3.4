@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { eventsAPI } from '@/services/api';
@@ -190,9 +190,11 @@ interface UpdateEventData {
 }
 
 // Fetch events with filters
-const fetchEvents = async (filters: EventFilters = {}): Promise<{ events: Event[]; pagination: any }> => {
+const fetchEvents = async (
+  filters: EventFilters = {}
+): Promise<{ events: Event[]; pagination: any }> => {
   const params: any = {};
-  
+
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       if (key === 'location' && typeof value === 'object') {
@@ -248,14 +250,20 @@ const leaveEvent = async (eventId: string): Promise<Event> => {
 };
 
 // Get user's events
-const fetchUserEvents = async (userId: string, type: 'all' | 'created' | 'attending' | 'past' = 'all'): Promise<Event[]> => {
+const fetchUserEvents = async (
+  userId: string,
+  type: 'all' | 'created' | 'attending' | 'past' = 'all'
+): Promise<Event[]> => {
   const params = { userId, type };
   const result = await eventsAPI.getEvents(params);
   return result.events || [];
 };
 
 // Get nearby events
-const fetchNearbyEvents = async (coordinates: [number, number], radius: number = 50): Promise<Event[]> => {
+const fetchNearbyEvents = async (
+  coordinates: [number, number],
+  radius: number = 50
+): Promise<Event[]> => {
   const params = { lat: coordinates[0], lng: coordinates[1], radius };
   const result = await eventsAPI.getEvents(params);
   return result.events || [];
@@ -290,8 +298,10 @@ export const useEvents = (filters: EventFilters = {}) => {
     onSuccess: (newEvent: Event) => {
       // Invalidate and refetch events
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['user', newEvent.host.id, 'events'] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ['user', newEvent.host.id, 'events'],
+      });
+
       // Add new event to cache
       queryClient.setQueryData(['events', newEvent.id], newEvent);
     },
@@ -304,7 +314,9 @@ export const useEvents = (filters: EventFilters = {}) => {
       // Update event in cache
       queryClient.setQueryData(['events', updatedEvent.id], updatedEvent);
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      queryClient.invalidateQueries({ queryKey: ['user', updatedEvent.host.id, 'events'] });
+      queryClient.invalidateQueries({
+        queryKey: ['user', updatedEvent.host.id, 'events'],
+      });
     },
   });
 
@@ -344,11 +356,11 @@ export const useEvents = (filters: EventFilters = {}) => {
     // Data
     events: eventsData?.events || [],
     pagination: eventsData?.pagination,
-    
+
     // State
     isLoading,
     error,
-    
+
     // Actions
     refetch,
     createEvent: createEventMutation.mutateAsync,
@@ -356,7 +368,7 @@ export const useEvents = (filters: EventFilters = {}) => {
     deleteEvent: deleteEventMutation.mutateAsync,
     joinEvent: joinEventMutation.mutateAsync,
     leaveEvent: leaveEventMutation.mutateAsync,
-    
+
     // Mutations state
     isCreating: createEventMutation.isPending,
     isUpdating: updateEventMutation.isPending,
@@ -390,7 +402,10 @@ export const useEvent = (id: string) => {
 };
 
 // Hook for user events
-export const useUserEvents = (userId: string, type: 'all' | 'created' | 'attending' | 'past' = 'all') => {
+export const useUserEvents = (
+  userId: string,
+  type: 'all' | 'created' | 'attending' | 'past' = 'all'
+) => {
   const {
     data: events,
     isLoading,
@@ -413,7 +428,10 @@ export const useUserEvents = (userId: string, type: 'all' | 'created' | 'attendi
 };
 
 // Hook for nearby events
-export const useNearbyEvents = (coordinates: [number, number], radius: number = 50) => {
+export const useNearbyEvents = (
+  coordinates: [number, number],
+  radius: number = 50
+) => {
   const {
     data: events,
     isLoading,

@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
@@ -11,8 +11,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'EventConnect - Conecta con tu Tribu',
-  description: 'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida. La plataforma social más avanzada para conectar con eventos y tribus.',
-  keywords: 'eventos, comunidades, tribus, social, networking, eventos cerca de mí, grupos sociales',
+  description:
+    'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida. La plataforma social más avanzada para conectar con eventos y tribus.',
+  keywords:
+    'eventos, comunidades, tribus, social, networking, eventos cerca de mí, grupos sociales',
   authors: [{ name: 'EventConnect Team' }],
   creator: 'EventConnect',
   publisher: 'EventConnect',
@@ -27,7 +29,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: 'EventConnect - Conecta con tu Tribu',
-    description: 'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida.',
+    description:
+      'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida.',
     url: 'https://eventconnect.app',
     siteName: 'EventConnect',
     images: [
@@ -44,7 +47,8 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'EventConnect - Conecta con tu Tribu',
-    description: 'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida.',
+    description:
+      'Descubre eventos increíbles, únete a comunidades apasionadas y crea conexiones que duran toda la vida.',
     images: ['/og-image.jpg'],
     creator: '@eventconnect',
     site: '@eventconnect',
@@ -84,59 +88,69 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={inter.variable} suppressHydrationWarning>
+    <html lang='es' className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Preconnect to external domains for performance */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
+        <link rel='preconnect' href='https://fonts.googleapis.com' />
+        <link
+          rel='preconnect'
+          href='https://fonts.gstatic.com'
+          crossOrigin='anonymous'
+        />
+
         {/* Favicon and app icons */}
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        
+        <link rel='icon' href='/favicon.ico' sizes='any' />
+        <link rel='icon' href='/favicon.svg' type='image/svg+xml' />
+        <link rel='apple-touch-icon' href='/apple-touch-icon.png' />
+        <link rel='manifest' href='/manifest.json' />
+
         {/* Meta tags for PWA */}
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <meta name="theme-color" content="#06b6d4" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="EventConnect" />
-        
+        <meta
+          name='viewport'
+          content='width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+        />
+        <meta name='theme-color' content='#06b6d4' />
+        <meta name='apple-mobile-web-app-capable' content='yes' />
+        <meta name='apple-mobile-web-app-status-bar-style' content='default' />
+        <meta name='apple-mobile-web-app-title' content='EventConnect' />
+
         {/* Preload critical resources */}
-        <link rel="preload" href="/api/health" as="fetch" crossOrigin="anonymous" />
-        
+        <link
+          rel='preload'
+          href='/api/health'
+          as='fetch'
+          crossOrigin='anonymous'
+        />
+
         {/* Structured data for SEO */}
         <script
-          type="application/ld+json"
+          type='application/ld+json'
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebApplication",
-              "name": "EventConnect",
-              "description": "Plataforma social para eventos y comunidades",
-              "url": "https://eventconnect.app",
-              "applicationCategory": "SocialNetworkingApplication",
-              "operatingSystem": "Web",
-              "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD"
-              }
-            })
+              '@context': 'https://schema.org',
+              '@type': 'WebApplication',
+              name: 'EventConnect',
+              description: 'Plataforma social para eventos y comunidades',
+              url: 'https://eventconnect.app',
+              applicationCategory: 'SocialNetworkingApplication',
+              operatingSystem: 'Web',
+              offers: {
+                '@type': 'Offer',
+                price: '0',
+                priceCurrency: 'USD',
+              },
+            }),
           }}
         />
       </head>
       <body className={`${inter.variable} antialiased`}>
         <Providers>
           {/* Main content */}
-          <main className="min-h-screen">
-            {children}
-          </main>
-          
+          <main className='min-h-screen'>{children}</main>
+
           {/* Global UI elements */}
-          <div id="portal-root" />
-          
+          <div id='portal-root' />
+
           {/* Performance monitoring */}
           <script
             dangerouslySetInnerHTML={{
@@ -157,7 +171,7 @@ export default function RootLayout({
                     .then(registration => console.log('SW registered'))
                     .catch(error => console.log('SW registration failed'));
                 }
-              `
+              `,
             }}
           />
         </Providers>

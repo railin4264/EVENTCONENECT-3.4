@@ -132,17 +132,17 @@ export const PageTransition: React.FC<{
   variants?: Variants;
   className?: string;
   mode?: 'wait' | 'sync' | 'popLayout';
-}> = ({ 
-  children, 
-  type = 'fade', 
+}> = ({
+  children,
+  type = 'fade',
   direction = 'right',
   variants,
   className,
-  mode = 'wait'
+  mode = 'wait',
 }) => {
   const getVariants = () => {
     if (variants) return variants;
-    
+
     switch (type) {
       case 'slide':
         return slideVariants;
@@ -162,9 +162,9 @@ export const PageTransition: React.FC<{
   return (
     <motion.div
       variants={customVariants}
-      initial="initial"
-      animate="in"
-      exit="out"
+      initial='initial'
+      animate='in'
+      exit='out'
       custom={type === 'slide' ? direction : undefined}
       className={className}
     >
@@ -199,23 +199,19 @@ export const RouteTransition: React.FC<{
   }, [router]);
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode='wait'>
       {isLoading ? (
         <motion.div
-          key="loading"
+          key='loading'
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+          className='min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'
         >
-          <div className="text-center">
-            <LoadingSpinner size="xl" variant="neon" className="mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Cargando...
-            </h2>
-            <p className="text-gray-300">
-              Preparando tu experiencia
-            </p>
+          <div className='text-center'>
+            <LoadingSpinner size='xl' variant='neon' className='mb-6' />
+            <h2 className='text-2xl font-bold text-white mb-2'>Cargando...</h2>
+            <p className='text-gray-300'>Preparando tu experiencia</p>
           </div>
         </motion.div>
       ) : (
@@ -264,8 +260,8 @@ export const StaggeredTransition: React.FC<{
   return (
     <motion.div
       variants={containerVariants}
-      initial="hidden"
-      animate="show"
+      initial='hidden'
+      animate='show'
       className={className}
     >
       {React.Children.map(children, (child, index) => (
@@ -284,12 +280,12 @@ export const IntersectionTransition: React.FC<{
   triggerOnce?: boolean;
   className?: string;
   animation?: 'fade' | 'slide' | 'scale' | 'slideUp';
-}> = ({ 
-  children, 
-  threshold = 0.1, 
+}> = ({
+  children,
+  threshold = 0.1,
   triggerOnce = true,
   className,
-  animation = 'fade'
+  animation = 'fade',
 }) => {
   const [isInView, setIsInView] = React.useState(false);
 
@@ -322,8 +318,8 @@ export const IntersectionTransition: React.FC<{
 
   return (
     <motion.div
-      initial="hidden"
-      animate={isInView ? "visible" : "hidden"}
+      initial='hidden'
+      animate={isInView ? 'visible' : 'hidden'}
       variants={variants}
       transition={{
         duration: 0.6,
@@ -354,7 +350,7 @@ export const HoverTransition: React.FC<{
         rotate,
         y,
         transition: {
-          type: "spring",
+          type: 'spring',
           stiffness: 300,
           damping: 20,
         },
@@ -377,7 +373,7 @@ export const TapTransition: React.FC<{
       whileTap={{
         scale,
         transition: {
-          type: "spring",
+          type: 'spring',
           stiffness: 400,
           damping: 10,
         },
@@ -417,25 +413,28 @@ export const LoadingTransition: React.FC<{
   };
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode='wait'>
       {isLoading ? (
         <motion.div
-          key="loading"
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
+          key='loading'
+          initial='hidden'
+          animate='visible'
+          exit='hidden'
           variants={getVariants()}
           transition={{ duration: 0.3 }}
-          className={cn('flex items-center justify-center min-h-[200px]', className)}
+          className={cn(
+            'flex items-center justify-center min-h-[200px]',
+            className
+          )}
         >
-          <LoadingSpinner size="lg" variant="neon" />
+          <LoadingSpinner size='lg' variant='neon' />
         </motion.div>
       ) : (
         <motion.div
-          key="content"
-          initial="hidden"
-          animate="visible"
-          exit="hidden"
+          key='content'
+          initial='hidden'
+          animate='visible'
+          exit='hidden'
           variants={getVariants()}
           transition={{ duration: 0.3 }}
         >
@@ -455,7 +454,7 @@ export const ProgressTransition: React.FC<{
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ 
+      animate={{
         opacity: progress > 0 ? 1 : 0,
         scale: progress > 0 ? 1 : 0.9,
       }}

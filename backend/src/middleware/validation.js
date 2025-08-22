@@ -476,15 +476,9 @@ const validatePostCreation = [
     .isLength({ min: 1, max: 20 })
     .withMessage('Cada tag debe tener entre 1 y 20 caracteres'),
 
-  body('event')
-    .optional()
-    .isMongoId()
-    .withMessage('ID de evento inválido'),
+  body('event').optional().isMongoId().withMessage('ID de evento inválido'),
 
-  body('tribe')
-    .optional()
-    .isMongoId()
-    .withMessage('ID de tribu inválido'),
+  body('tribe').optional().isMongoId().withMessage('ID de tribu inválido'),
 
   body('location')
     .optional()
@@ -557,7 +551,9 @@ const validateCommentCreation = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 1000 })
-    .withMessage('El contenido del comentario debe tener entre 1 y 1000 caracteres'),
+    .withMessage(
+      'El contenido del comentario debe tener entre 1 y 1000 caracteres'
+    ),
 
   body('parentComment')
     .optional()
@@ -572,7 +568,9 @@ const validateCommentUpdate = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 1000 })
-    .withMessage('El contenido del comentario debe tener entre 1 y 1000 caracteres'),
+    .withMessage(
+      'El contenido del comentario debe tener entre 1 y 1000 caracteres'
+    ),
 
   handleValidationErrors,
 ];
@@ -608,9 +606,7 @@ const validateChatMessage = [
 
 // Review creation validation rules
 const validateReviewCreation = [
-  body('eventId')
-    .isMongoId()
-    .withMessage('ID de evento inválido'),
+  body('eventId').isMongoId().withMessage('ID de evento inválido'),
 
   body('rating')
     .isInt({ min: 1, max: 5 })
@@ -707,7 +703,9 @@ const validateReplyCreation = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 500 })
-    .withMessage('El contenido de la respuesta debe tener entre 1 y 500 caracteres'),
+    .withMessage(
+      'El contenido de la respuesta debe tener entre 1 y 500 caracteres'
+    ),
 
   body('parentReply')
     .optional()
@@ -722,7 +720,9 @@ const validateReplyUpdate = [
   body('content')
     .trim()
     .isLength({ min: 1, max: 500 })
-    .withMessage('El contenido de la respuesta debe tener entre 1 y 500 caracteres'),
+    .withMessage(
+      'El contenido de la respuesta debe tener entre 1 y 500 caracteres'
+    ),
 
   handleValidationErrors,
 ];

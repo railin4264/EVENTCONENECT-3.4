@@ -198,7 +198,7 @@ export interface Notification {
   createdAt: string;
 }
 
-export type NotificationType = 
+export type NotificationType =
   | 'event_invite'
   | 'event_reminder'
   | 'event_update'
@@ -282,7 +282,17 @@ export interface ApiError {
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'password' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'date' | 'time' | 'file';
+  type:
+    | 'text'
+    | 'email'
+    | 'password'
+    | 'textarea'
+    | 'select'
+    | 'checkbox'
+    | 'radio'
+    | 'date'
+    | 'time'
+    | 'file';
   placeholder?: string;
   required?: boolean;
   validation?: ValidationRule[];
@@ -291,7 +301,14 @@ export interface FormField {
 }
 
 export interface ValidationRule {
-  type: 'required' | 'minLength' | 'maxLength' | 'pattern' | 'email' | 'url' | 'custom';
+  type:
+    | 'required'
+    | 'minLength'
+    | 'maxLength'
+    | 'pattern'
+    | 'email'
+    | 'url'
+    | 'custom';
   value?: any;
   message: string;
 }

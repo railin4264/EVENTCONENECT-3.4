@@ -52,7 +52,9 @@ const connectDB = async () => {
 
     return conn;
   } catch (err) {
-    console.warn(`⚠️ Error al conectar a MongoDB: ${err.message}. Continuando sin conexión a MongoDB`);
+    console.warn(
+      `⚠️ Error al conectar a MongoDB: ${err.message}. Continuando sin conexión a MongoDB`
+    );
     return null;
   }
 };

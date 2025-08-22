@@ -3,7 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sun, Moon, Zap, Palette, Monitor } from 'lucide-react';
 
 // ===== THEME TYPES =====
-export type Theme = 'neon-urban' | 'neon-urban-light' | 'cyberpunk' | 'minimalist';
+export type Theme =
+  | 'neon-urban'
+  | 'neon-urban-light'
+  | 'cyberpunk'
+  | 'minimalist';
 
 export interface ThemeConfig {
   id: Theme;
@@ -33,7 +37,7 @@ export const themes: Record<Theme, ThemeConfig> = {
     id: 'neon-urban',
     name: 'Neon Urban',
     description: 'Cyberpunk meets Urban Culture',
-    icon: <Zap className="w-5 h-5" />,
+    icon: <Zap className='w-5 h-5' />,
     colors: {
       primary: '#00d4ff',
       secondary: '#a855f7',
@@ -66,7 +70,8 @@ export const themes: Record<Theme, ThemeConfig> = {
       '--border-primary': 'rgba(255, 255, 255, 0.1)',
       '--border-secondary': 'rgba(255, 255, 255, 0.05)',
       '--gradient-primary': 'linear-gradient(135deg, #00d4ff 0%, #a855f7 100%)',
-      '--gradient-secondary': 'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
+      '--gradient-secondary':
+        'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
       '--gradient-accent': 'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
       '--shadow-neon': '0 0 20px rgba(0, 212, 255, 0.3)',
       '--shadow-purple': '0 0 20px rgba(168, 85, 247, 0.3)',
@@ -77,7 +82,7 @@ export const themes: Record<Theme, ThemeConfig> = {
     id: 'neon-urban-light',
     name: 'Neon Urban Light',
     description: 'Bright and vibrant neon theme',
-    icon: <Sun className="w-5 h-5" />,
+    icon: <Sun className='w-5 h-5' />,
     colors: {
       primary: '#00d4ff',
       secondary: '#a855f7',
@@ -110,18 +115,19 @@ export const themes: Record<Theme, ThemeConfig> = {
       '--border-primary': 'rgba(0, 0, 0, 0.1)',
       '--border-secondary': 'rgba(0, 0, 0, 0.05)',
       '--gradient-primary': 'linear-gradient(135deg, #00d4ff 0%, #a855f7 100%)',
-      '--gradient-secondary': 'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
+      '--gradient-secondary':
+        'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
       '--gradient-accent': 'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
       '--shadow-neon': '0 0 20px rgba(0, 212, 255, 0.2)',
       '--shadow-purple': '0 0 20px rgba(168, 85, 247, 0.2)',
       '--shadow-cyan': '0 0 20px rgba(6, 182, 212, 0.2)',
     },
   },
-  'cyberpunk': {
+  cyberpunk: {
     id: 'cyberpunk',
     name: 'Cyberpunk',
     description: 'Intense neon and dark aesthetics',
-    icon: <Zap className="w-5 h-5" />,
+    icon: <Zap className='w-5 h-5' />,
     colors: {
       primary: '#ff0080',
       secondary: '#00ffff',
@@ -154,18 +160,19 @@ export const themes: Record<Theme, ThemeConfig> = {
       '--border-primary': 'rgba(255, 0, 128, 0.3)',
       '--border-secondary': 'rgba(0, 255, 255, 0.2)',
       '--gradient-primary': 'linear-gradient(135deg, #ff0080 0%, #00ffff 100%)',
-      '--gradient-secondary': 'linear-gradient(135deg, #ffff00 0%, #00ff00 100%)',
+      '--gradient-secondary':
+        'linear-gradient(135deg, #ffff00 0%, #00ff00 100%)',
       '--gradient-accent': 'linear-gradient(135deg, #ff8000 0%, #ff0080 100%)',
       '--shadow-neon': '0 0 30px rgba(255, 0, 128, 0.5)',
       '--shadow-purple': '0 0 30px rgba(0, 255, 255, 0.5)',
       '--shadow-cyan': '0 0 30px rgba(255, 255, 0, 0.5)',
     },
   },
-  'minimalist': {
+  minimalist: {
     id: 'minimalist',
     name: 'Minimalist',
     description: 'Clean and simple design',
-    icon: <Monitor className="w-5 h-5" />,
+    icon: <Monitor className='w-5 h-5' />,
     colors: {
       primary: '#3b82f6',
       secondary: '#64748b',
@@ -198,7 +205,8 @@ export const themes: Record<Theme, ThemeConfig> = {
       '--border-primary': 'rgba(0, 0, 0, 0.1)',
       '--border-secondary': 'rgba(0, 0, 0, 0.05)',
       '--gradient-primary': 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-      '--gradient-secondary': 'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
+      '--gradient-secondary':
+        'linear-gradient(135deg, #06b6d4 0%, #10b981 100%)',
       '--gradient-accent': 'linear-gradient(135deg, #f97316 0%, #ec4899 100%)',
       '--shadow-neon': '0 0 10px rgba(59, 130, 246, 0.2)',
       '--shadow-purple': '0 0 10px rgba(139, 92, 246, 0.2)',
@@ -230,24 +238,29 @@ export const ThemeProvider: React.FC<{
   useEffect(() => {
     const root = document.documentElement;
     const themeConfig = themes[currentTheme];
-    
+
     // Remove previous theme class
-    root.classList.remove('theme-neon-urban', 'theme-neon-urban-light', 'theme-cyberpunk', 'theme-minimalist');
-    
+    root.classList.remove(
+      'theme-neon-urban',
+      'theme-neon-urban-light',
+      'theme-cyberpunk',
+      'theme-minimalist'
+    );
+
     // Add current theme class
     root.classList.add(`theme-${currentTheme}`);
-    
+
     // Apply CSS variables
     Object.entries(themeConfig.cssVariables).forEach(([key, value]) => {
       root.style.setProperty(key, value);
     });
-    
+
     // Update meta theme-color
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute('content', themeConfig.colors.background);
     }
-    
+
     // Save to localStorage
     localStorage.setItem('eventconnect-theme', currentTheme);
   }, [currentTheme]);
@@ -290,9 +303,7 @@ export const ThemeProvider: React.FC<{
   };
 
   return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 };
 
@@ -318,11 +329,11 @@ export const ThemeSwitcher: React.FC<{
       {/* Current Theme Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-200"
+        className='flex items-center space-x-2 px-4 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-200'
       >
         {availableThemes[currentTheme].icon}
         {showLabels && (
-          <span className="text-white font-medium">
+          <span className='text-white font-medium'>
             {availableThemes[currentTheme].name}
           </span>
         )}
@@ -330,8 +341,18 @@ export const ThemeSwitcher: React.FC<{
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
         >
-          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <svg
+            className='w-4 h-4 text-white'
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'
+          >
+            <path
+              strokeLinecap='round'
+              strokeLinejoin='round'
+              strokeWidth={2}
+              d='M19 9l-7 7-7-7'
+            />
           </svg>
         </motion.div>
       </button>
@@ -344,10 +365,10 @@ export const ThemeSwitcher: React.FC<{
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-full mt-2 right-0 w-64 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden z-50"
+            className='absolute top-full mt-2 right-0 w-64 bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden z-50'
           >
-            <div className="p-2">
-              {Object.values(availableThemes).map((theme) => (
+            <div className='p-2'>
+              {Object.values(availableThemes).map(theme => (
                 <button
                   key={theme.id}
                   onClick={() => {
@@ -360,19 +381,15 @@ export const ThemeSwitcher: React.FC<{
                       : 'hover:bg-white/10'
                   }`}
                 >
-                  <div className="flex-shrink-0">
-                    {theme.icon}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium text-white">
-                      {theme.name}
-                    </div>
-                    <div className="text-sm text-gray-300">
+                  <div className='flex-shrink-0'>{theme.icon}</div>
+                  <div className='flex-1'>
+                    <div className='font-medium text-white'>{theme.name}</div>
+                    <div className='text-sm text-gray-300'>
                       {theme.description}
                     </div>
                   </div>
                   {currentTheme === theme.id && (
-                    <div className="flex-shrink-0 w-2 h-2 bg-cyan-400 rounded-full" />
+                    <div className='flex-shrink-0 w-2 h-2 bg-cyan-400 rounded-full' />
                   )}
                 </button>
               ))}
@@ -383,10 +400,7 @@ export const ThemeSwitcher: React.FC<{
 
       {/* Backdrop */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setIsOpen(false)}
-        />
+        <div className='fixed inset-0 z-40' onClick={() => setIsOpen(false)} />
       )}
     </div>
   );

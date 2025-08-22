@@ -1,6 +1,12 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -45,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Verify token with backend
         const response = await fetch('/api/auth/me', {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (response.ok) {
@@ -70,13 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
@@ -85,13 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { user: userData, token } = await response.json();
-      
+
       // Save token
       localStorage.setItem('token', token);
-      
+
       // Set user
       setUser(userData);
-      
+
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
@@ -105,13 +111,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (userData: any) => {
     try {
       setIsLoading(true);
-      
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData)
+        body: JSON.stringify(userData),
       });
 
       if (!response.ok) {
@@ -120,13 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { user: newUser, token } = await response.json();
-      
+
       // Save token
       localStorage.setItem('token', token);
-      
+
       // Set user
       setUser(newUser);
-      
+
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error) {
@@ -140,10 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     // Remove token
     localStorage.removeItem('token');
-    
+
     // Clear user
     setUser(null);
-    
+
     // Redirect to home
     router.push('/');
   };
@@ -161,14 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
-    updateUser
+    updateUser,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

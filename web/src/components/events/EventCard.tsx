@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { 
+import {
   CalendarDaysIcon,
   MapPinIcon,
   UsersIcon,
@@ -12,7 +12,7 @@ import {
   ShareIcon,
   BookmarkIcon,
   ClockIcon,
-  TagIcon
+  TagIcon,
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -30,11 +30,11 @@ interface EventCardProps {
   className?: string;
 }
 
-const EventCard = ({ 
-  event, 
-  variant = 'default', 
+const EventCard = ({
+  event,
+  variant = 'default',
   showActions = true,
-  className 
+  className,
 }: EventCardProps) => {
   const { user, isAuthenticated } = useAuth();
   const { joinEvent, leaveEvent } = useEvents();
@@ -51,7 +51,7 @@ const EventCard = ({
 
   const handleJoinEvent = async () => {
     if (!isAuthenticated) return;
-    
+
     setIsJoining(true);
     try {
       if (isAttending) {
@@ -89,7 +89,9 @@ const EventCard = ({
       }
     } else {
       // Fallback: copy to clipboard
-      navigator.clipboard.writeText(`${window.location.origin}/events/${event.id}`);
+      navigator.clipboard.writeText(
+        `${window.location.origin}/events/${event.id}`
+      );
     }
   };
 
@@ -138,12 +140,14 @@ const EventCard = ({
     coord2: [number, number]
   ): number => {
     const R = 6371; // km
-    const dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
-    const dLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+    const dLat = ((coord2[0] - coord1[0]) * Math.PI) / 180;
+    const dLon = ((coord2[1] - coord1[1]) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(coord1[0] * Math.PI / 180) * Math.cos(coord2[0] * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos((coord1[0] * Math.PI) / 180) *
+        Math.cos((coord2[0] * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -158,8 +162,14 @@ const EventCard = ({
         event.location.coordinates.length === 2
       ) {
         // GeoJSON is [lng, lat], normalize to [lat, lng]
-        const userCoord: [number, number] = [userLocation.latitude, userLocation.longitude];
-        const eventCoord: [number, number] = [event.location.coordinates[1], event.location.coordinates[0]];
+        const userCoord: [number, number] = [
+          userLocation.latitude,
+          userLocation.longitude,
+        ];
+        const eventCoord: [number, number] = [
+          event.location.coordinates[1],
+          event.location.coordinates[0],
+        ];
         const d = calculateDistanceKm(userCoord, eventCoord);
         return Math.round(d * 10) / 10;
       }
@@ -178,25 +188,25 @@ const EventCard = ({
             className
           )}
         >
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <CalendarDaysIcon className="w-6 h-6 text-primary-600" />
+          <div className='flex items-center space-x-3'>
+            <div className='w-12 h-12 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center flex-shrink-0'>
+              <CalendarDaysIcon className='w-6 h-6 text-primary-600' />
             </div>
-            
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium text-gray-900 dark:text-white truncate">
+
+            <div className='flex-1 min-w-0'>
+              <h3 className='font-medium text-gray-900 dark:text-white truncate'>
                 {event.title}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {formatDistanceToNow(new Date(event.dateTime.start), { 
-                  addSuffix: true, 
-                  locale: es 
+              <p className='text-sm text-gray-500 dark:text-gray-400 truncate'>
+                {formatDistanceToNow(new Date(event.dateTime.start), {
+                  addSuffix: true,
+                  locale: es,
                 })}
               </p>
             </div>
 
-            <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-              <MapPinIcon className="w-4 h-4" />
+            <div className='flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400'>
+              <MapPinIcon className='w-4 h-4' />
               <span>{event.location.city}</span>
             </div>
           </div>
@@ -215,50 +225,58 @@ const EventCard = ({
       )}
     >
       {/* Event Image */}
-      <div className="relative h-48 bg-gradient-to-br from-primary-100 to-secondary-100">
+      <div className='relative h-48 bg-gradient-to-br from-primary-100 to-secondary-100'>
         {event.media?.images?.[0] ? (
           <img
             src={event.media.images[0]}
             alt={event.title}
-            className="w-full h-full object-cover"
+            className='w-full h-full object-cover'
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <CalendarDaysIcon className="w-16 h-16 text-primary-400" />
+          <div className='w-full h-full flex items-center justify-center'>
+            <CalendarDaysIcon className='w-16 h-16 text-primary-400' />
           </div>
         )}
 
         {/* Event Status Badge */}
-        <div className="absolute top-3 left-3">
-          <span className={cn(
-            'px-2 py-1 text-xs font-medium rounded-full',
-            getStatusColor(getEventStatus())
-          )}>
+        <div className='absolute top-3 left-3'>
+          <span
+            className={cn(
+              'px-2 py-1 text-xs font-medium rounded-full',
+              getStatusColor(getEventStatus())
+            )}
+          >
             {getStatusText(getEventStatus())}
           </span>
         </div>
 
         {/* Price Badge */}
         {!event.pricing.isFree && (
-          <div className="absolute top-3 right-3">
-            <span className="px-3 py-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-white rounded-full shadow-sm">
+          <div className='absolute top-3 right-3'>
+            <span className='px-3 py-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-900 dark:text-white rounded-full shadow-sm'>
               ${event.pricing.amount}
             </span>
           </div>
         )}
 
         {/* Host Rating + Distance */}
-        <div className="absolute bottom-3 left-3 flex gap-2">
-          <div className="flex items-center space-x-1 bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-sm" aria-label="Calificación del anfitrión">
-            <StarIcon className="w-4 h-4 text-yellow-500" />
-            <span className="text-sm font-medium text-gray-900 dark:text-white">
+        <div className='absolute bottom-3 left-3 flex gap-2'>
+          <div
+            className='flex items-center space-x-1 bg-white dark:bg-gray-800 px-2 py-1 rounded-full shadow-sm'
+            aria-label='Calificación del anfitrión'
+          >
+            <StarIcon className='w-4 h-4 text-yellow-500' />
+            <span className='text-sm font-medium text-gray-900 dark:text-white'>
               {event.host.rating.toFixed(1)}
             </span>
           </div>
           {distanceKm !== null && (
-            <div className="flex items-center space-x-1 bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-full shadow-sm" aria-label="Distancia al evento">
-              <MapPinIcon className="w-4 h-4 text-primary-600" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
+            <div
+              className='flex items-center space-x-1 bg-white/90 dark:bg-gray-800/90 px-2 py-1 rounded-full shadow-sm'
+              aria-label='Distancia al evento'
+            >
+              <MapPinIcon className='w-4 h-4 text-primary-600' />
+              <span className='text-sm font-medium text-gray-900 dark:text-white'>
                 {distanceKm} km
               </span>
             </div>
@@ -267,64 +285,70 @@ const EventCard = ({
       </div>
 
       {/* Event Content */}
-      <div className="p-6">
+      <div className='p-6'>
         {/* Event Header */}
-        <div className="mb-4">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+        <div className='mb-4'>
+          <h3 className='text-xl font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2'>
             {event.title}
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 line-clamp-2">
+          <p className='text-gray-600 dark:text-gray-400 line-clamp-2'>
             {event.description}
           </p>
         </div>
 
         {/* Event Details */}
-        <div className="space-y-3 mb-4">
+        <div className='space-y-3 mb-4'>
           {/* Date & Time */}
-          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-            <CalendarDaysIcon className="w-4 h-4" />
+          <div className='flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400'>
+            <CalendarDaysIcon className='w-4 h-4' />
             <span>
-              {format(new Date(event.dateTime.start), 'EEEE, d MMMM yyyy', { locale: es })}
+              {format(new Date(event.dateTime.start), 'EEEE, d MMMM yyyy', {
+                locale: es,
+              })}
             </span>
           </div>
 
-          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-            <ClockIcon className="w-4 h-4" />
+          <div className='flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400'>
+            <ClockIcon className='w-4 h-4' />
             <span>
-              {format(new Date(event.dateTime.start), 'HH:mm')} - {format(new Date(event.dateTime.end), 'HH:mm')}
+              {format(new Date(event.dateTime.start), 'HH:mm')} -{' '}
+              {format(new Date(event.dateTime.end), 'HH:mm')}
             </span>
           </div>
 
           {/* Location */}
-          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-            <MapPinIcon className="w-4 h-4" />
-            <span>{event.location.address}, {event.location.city}</span>
+          <div className='flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400'>
+            <MapPinIcon className='w-4 h-4' />
+            <span>
+              {event.location.address}, {event.location.city}
+            </span>
           </div>
 
           {/* Capacity */}
-          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-            <UsersIcon className="w-4 h-4" />
+          <div className='flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400'>
+            <UsersIcon className='w-4 h-4' />
             <span>
               {event.capacity.current}/{event.capacity.max} asistentes
-              {event.capacity.waitlist > 0 && ` (${event.capacity.waitlist} en lista de espera)`}
+              {event.capacity.waitlist > 0 &&
+                ` (${event.capacity.waitlist} en lista de espera)`}
             </span>
           </div>
 
           {/* Tags */}
           {event.tags && event.tags.length > 0 && (
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
-              <TagIcon className="w-4 h-4" />
-              <div className="flex flex-wrap gap-1">
+            <div className='flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400'>
+              <TagIcon className='w-4 h-4' />
+              <div className='flex flex-wrap gap-1'>
                 {event.tags.slice(0, 3).map((tag: string) => (
                   <span
                     key={tag}
-                    className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs"
+                    className='px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs'
                   >
                     {tag}
                   </span>
                 ))}
                 {event.tags.length > 3 && (
-                  <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs">
+                  <span className='px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full text-xs'>
                     +{event.tags.length - 3}
                   </span>
                 )}
@@ -334,29 +358,31 @@ const EventCard = ({
         </div>
 
         {/* Host Info */}
-        <div className="flex items-center space-x-3 mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <div className='flex items-center space-x-3 mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg'>
           {event.host.avatar ? (
             <img
               src={event.host.avatar}
               alt={event.host.firstName}
-              className="w-10 h-10 rounded-full object-cover"
+              className='w-10 h-10 rounded-full object-cover'
             />
           ) : (
-            <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium text-primary-600">
-                {event.host.firstName[0]}{event.host.lastName[0]}
+            <div className='w-10 h-10 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center'>
+              <span className='text-sm font-medium text-primary-600'>
+                {event.host.firstName[0]}
+                {event.host.lastName[0]}
               </span>
             </div>
           )}
-          
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
+
+          <div className='flex-1'>
+            <p className='text-sm font-medium text-gray-900 dark:text-white'>
               {event.host.firstName} {event.host.lastName}
             </p>
-            <div className="flex items-center space-x-1">
-              <StarIcon className="w-3 h-3 text-yellow-500" />
-              <span className="text-xs text-gray-600 dark:text-gray-400">
-                {event.host.rating.toFixed(1)} ({event.host.reviewCount} reseñas)
+            <div className='flex items-center space-x-1'>
+              <StarIcon className='w-3 h-3 text-yellow-500' />
+              <span className='text-xs text-gray-600 dark:text-gray-400'>
+                {event.host.rating.toFixed(1)} ({event.host.reviewCount}{' '}
+                reseñas)
               </span>
             </div>
           </div>
@@ -364,8 +390,8 @@ const EventCard = ({
 
         {/* Actions */}
         {showActions && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center space-x-2'>
               {/* Join/Leave Button */}
               {!isHost && (
                 <button
@@ -385,14 +411,14 @@ const EventCard = ({
               {/* View Details Button */}
               <Link
                 href={`/events/${event.id}`}
-                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className='px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors'
               >
                 Ver Detalles
               </Link>
             </div>
 
             {/* Action Icons */}
-            <div className="flex items-center space-x-2">
+            <div className='flex items-center space-x-2'>
               <button
                 onClick={handleLike}
                 className={cn(
@@ -404,9 +430,9 @@ const EventCard = ({
                 aria-label={isLiked ? 'Quitar me gusta' : 'Dar me gusta'}
               >
                 {isLiked ? (
-                  <HeartSolidIcon className="w-5 h-5" />
+                  <HeartSolidIcon className='w-5 h-5' />
                 ) : (
-                  <HeartIcon className="w-5 h-5" />
+                  <HeartIcon className='w-5 h-5' />
                 )}
               </button>
 
@@ -418,17 +444,19 @@ const EventCard = ({
                     ? 'text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                     : 'text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20'
                 )}
-                aria-label={has(event.id) ? 'Quitar de guardados' : 'Guardar evento'}
+                aria-label={
+                  has(event.id) ? 'Quitar de guardados' : 'Guardar evento'
+                }
               >
-                <BookmarkIcon className="w-5 h-5" />
+                <BookmarkIcon className='w-5 h-5' />
               </button>
 
               <button
                 onClick={handleShare}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                aria-label="Compartir evento"
+                className='p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors'
+                aria-label='Compartir evento'
               >
-                <ShareIcon className="w-5 h-5" />
+                <ShareIcon className='w-5 h-5' />
               </button>
             </div>
           </div>

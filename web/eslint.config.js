@@ -16,18 +16,21 @@ module.exports = [
     },
     plugins: {
       '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
-      'react': require('eslint-plugin-react'),
+      react: require('eslint-plugin-react'),
       'react-hooks': require('eslint-plugin-react-hooks'),
       'jsx-a11y': require('eslint-plugin-jsx-a11y'),
-      'import': require('eslint-plugin-import'),
-      'prettier': require('eslint-plugin-prettier'),
+      import: require('eslint-plugin-import'),
+      prettier: require('eslint-plugin-prettier'),
     },
     rules: {
       // Prettier
       'prettier/prettier': 'error',
 
       // TypeScript
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_' },
+      ],
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',

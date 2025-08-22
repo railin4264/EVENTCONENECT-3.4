@@ -1,6 +1,12 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ThemeConfig {
@@ -34,7 +40,9 @@ interface DynamicThemeContextType {
   getThemeForEvent: (eventType: string) => ThemeConfig;
 }
 
-const DynamicThemeContext = createContext<DynamicThemeContextType | undefined>(undefined);
+const DynamicThemeContext = createContext<DynamicThemeContextType | undefined>(
+  undefined
+);
 
 const themes: Record<string, ThemeConfig> = {
   // Temas por hora del día
@@ -47,11 +55,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)',
       surface: 'rgba(255, 255, 255, 0.9)',
       text: '#0f172a',
-      textSecondary: '#475569'
+      textSecondary: '#475569',
     },
     particles: { theme: 'nature', intensity: 0.8, count: 800 },
     animations: { speed: 1.2, intensity: 0.8 },
-    mood: 'energético'
+    mood: 'energético',
   },
   afternoon: {
     name: 'Tarde Vibrante',
@@ -62,11 +70,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
       surface: 'rgba(255, 255, 255, 0.95)',
       text: '#1e293b',
-      textSecondary: '#64748b'
+      textSecondary: '#64748b',
     },
     particles: { theme: 'energy', intensity: 1.2, count: 1000 },
     animations: { speed: 1.5, intensity: 1.0 },
-    mood: 'activo'
+    mood: 'activo',
   },
   evening: {
     name: 'Atardecer Mágico',
@@ -77,11 +85,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%)',
       surface: 'rgba(255, 255, 255, 0.9)',
       text: '#1e293b',
-      textSecondary: '#64748b'
+      textSecondary: '#64748b',
     },
     particles: { theme: 'cosmic', intensity: 1.0, count: 900 },
     animations: { speed: 1.3, intensity: 0.9 },
-    mood: 'romántico'
+    mood: 'romántico',
   },
   night: {
     name: 'Noche Profunda',
@@ -92,13 +100,13 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
       surface: 'rgba(30, 41, 59, 0.95)',
       text: '#f8fafc',
-      textSecondary: '#cbd5e1'
+      textSecondary: '#cbd5e1',
     },
     particles: { theme: 'cosmic', intensity: 0.6, count: 600 },
     animations: { speed: 0.8, intensity: 0.6 },
-    mood: 'tranquilo'
+    mood: 'tranquilo',
   },
-  
+
   // Temas por tipo de evento
   music: {
     name: 'Ritmo Musical',
@@ -109,11 +117,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 100%)',
       surface: 'rgba(255, 255, 255, 0.9)',
       text: '#1e293b',
-      textSecondary: '#64748b'
+      textSecondary: '#64748b',
     },
     particles: { theme: 'energy', intensity: 1.5, count: 1200 },
     animations: { speed: 2.0, intensity: 1.2 },
-    mood: 'festivo'
+    mood: 'festivo',
   },
   tech: {
     name: 'Innovación Tech',
@@ -124,11 +132,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #f0f9ff 0%, #f0fdf4 100%)',
       surface: 'rgba(255, 255, 255, 0.95)',
       text: '#0f172a',
-      textSecondary: '#475569'
+      textSecondary: '#475569',
     },
     particles: { theme: 'tech', intensity: 1.0, count: 1000 },
     animations: { speed: 1.8, intensity: 1.0 },
-    mood: 'futurista'
+    mood: 'futurista',
   },
   art: {
     name: 'Expresión Artística',
@@ -139,11 +147,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #fdf4ff 0%, #fff7ed 100%)',
       surface: 'rgba(255, 255, 255, 0.9)',
       text: '#1e293b',
-      textSecondary: '#64748b'
+      textSecondary: '#64748b',
     },
     particles: { theme: 'cosmic', intensity: 0.8, count: 800 },
     animations: { speed: 1.1, intensity: 0.8 },
-    mood: 'creativo'
+    mood: 'creativo',
   },
   nature: {
     name: 'Conecta con la Naturaleza',
@@ -154,11 +162,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
       surface: 'rgba(255, 255, 255, 0.9)',
       text: '#064e3b',
-      textSecondary: '#065f46'
+      textSecondary: '#065f46',
     },
     particles: { theme: 'nature', intensity: 0.6, count: 600 },
     animations: { speed: 0.9, intensity: 0.6 },
-    mood: 'sereno'
+    mood: 'sereno',
   },
   sports: {
     name: 'Energía Deportiva',
@@ -169,11 +177,11 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #fff7ed 0%, #fef2f2 100%)',
       surface: 'rgba(255, 255, 255, 0.95)',
       text: '#7c2d12',
-      textSecondary: '#9a3412'
+      textSecondary: '#9a3412',
     },
     particles: { theme: 'energy', intensity: 1.3, count: 1100 },
     animations: { speed: 1.6, intensity: 1.1 },
-    mood: 'competitivo'
+    mood: 'competitivo',
   },
   romantic: {
     name: 'Romance y Amor',
@@ -184,15 +192,17 @@ const themes: Record<string, ThemeConfig> = {
       background: 'linear-gradient(135deg, #fdf2f8 0%, #fff7ed 100%)',
       surface: 'rgba(255, 255, 255, 0.9)',
       text: '#831843',
-      textSecondary: '#9d174d'
+      textSecondary: '#9d174d',
     },
     particles: { theme: 'cosmic', intensity: 0.7, count: 700 },
     animations: { speed: 1.0, intensity: 0.7 },
-    mood: 'romántico'
-  }
+    mood: 'romántico',
+  },
 };
 
-export const DynamicThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const DynamicThemeProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(themes.morning);
   const [eventType, setEventTypeState] = useState<string>('');
   const [userMood, setUserMoodState] = useState<string>('');
@@ -220,12 +230,12 @@ export const DynamicThemeProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     const updateTheme = () => {
       let baseTheme = getTimeBasedTheme();
-      
+
       // Priorizar tipo de evento si está establecido
       if (eventType && themes[eventType]) {
         baseTheme = eventType;
       }
-      
+
       // Ajustar según el estado de ánimo del usuario
       if (userMood) {
         // Lógica para ajustar tema según el mood
@@ -233,15 +243,15 @@ export const DynamicThemeProvider: React.FC<{ children: ReactNode }> = ({ childr
           baseTheme = 'evening'; // Hacer la noche más vibrante
         }
       }
-      
+
       setCurrentTheme(themes[baseTheme] || themes.morning);
     };
 
     updateTheme();
-    
+
     // Actualizar cada hora
     const interval = setInterval(updateTheme, 3600000);
-    
+
     return () => clearInterval(interval);
   }, [eventType, userMood, location]);
 
@@ -268,26 +278,28 @@ export const DynamicThemeProvider: React.FC<{ children: ReactNode }> = ({ childr
         setEventType,
         setUserMood,
         setLocation,
-        getThemeForEvent
+        getThemeForEvent,
       }}
     >
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode='wait'>
         <motion.div
           key={currentTheme.name}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          style={{
-            '--primary-color': currentTheme.colors.primary,
-            '--secondary-color': currentTheme.colors.secondary,
-            '--accent-color': currentTheme.colors.accent,
-            '--background': currentTheme.colors.background,
-            '--surface-color': currentTheme.colors.surface,
-            '--text-color': currentTheme.colors.text,
-            '--text-secondary': currentTheme.colors.textSecondary,
-          } as React.CSSProperties}
-          className="min-h-screen transition-all duration-500"
+          style={
+            {
+              '--primary-color': currentTheme.colors.primary,
+              '--secondary-color': currentTheme.colors.secondary,
+              '--accent-color': currentTheme.colors.accent,
+              '--background': currentTheme.colors.background,
+              '--surface-color': currentTheme.colors.surface,
+              '--text-color': currentTheme.colors.text,
+              '--text-secondary': currentTheme.colors.textSecondary,
+            } as React.CSSProperties
+          }
+          className='min-h-screen transition-all duration-500'
         >
           {children}
         </motion.div>
@@ -299,7 +311,9 @@ export const DynamicThemeProvider: React.FC<{ children: ReactNode }> = ({ childr
 export const useDynamicTheme = (): DynamicThemeContextType => {
   const context = useContext(DynamicThemeContext);
   if (context === undefined) {
-    throw new Error('useDynamicTheme must be used within a DynamicThemeProvider');
+    throw new Error(
+      'useDynamicTheme must be used within a DynamicThemeProvider'
+    );
   }
   return context;
 };
