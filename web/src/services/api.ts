@@ -1,7 +1,12 @@
-import axios, { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, {
+  AxiosInstance,
+  InternalAxiosRequestConfig,
+  AxiosResponse,
+} from 'axios';
 
 // Environment variables
-const API_BASE_URL = process.env['NEXT_PUBLIC_API_URL'] || 'http://localhost:5000';
+const API_BASE_URL =
+  process.env['NEXT_PUBLIC_API_URL'] || 'http://localhost:5000';
 const API_TIMEOUT = parseInt(process.env['NEXT_PUBLIC_API_TIMEOUT'] || '10000');
 
 // Create axios instance
@@ -20,13 +25,13 @@ api.interceptors.request.use(
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     // Add request metadata
     (config as any).metadata = { startTime: new Date() };
-    
+
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
   }
 );
@@ -40,10 +45,10 @@ api.interceptors.response.use(
       const responseTime = new Date().getTime() - startTime.getTime();
       console.log(`API Response Time: ${responseTime}ms`);
     }
-    
+
     return response;
   },
-  async (error) => {
+  async error => {
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -84,16 +89,16 @@ const apiService = {
   // Generic request methods
   get: <T = any>(url: string, config?: any): Promise<T> =>
     api.get(url, config).then(response => response.data),
-  
+
   post: <T = any>(url: string, data?: any, config?: any): Promise<T> =>
     api.post(url, data, config).then(response => response.data),
-  
+
   put: <T = any>(url: string, data?: any, config?: any): Promise<T> =>
     api.put(url, data, config).then(response => response.data),
-  
+
   delete: <T = any>(url: string, config?: any): Promise<T> =>
     api.delete(url, config).then(response => response.data),
-  
+
   patch: <T = any>(url: string, data?: any, config?: any): Promise<T> =>
     api.patch(url, data, config).then(response => response.data),
 };
@@ -102,139 +107,116 @@ const apiService = {
 const authAPI = {
   login: (credentials: { email: string; password: string }) =>
     apiService.post('/api/auth/login', credentials),
-  
-  register: (userData: any) =>
-    apiService.post('/api/auth/register', userData),
-  
-  logout: () =>
-    apiService.post('/api/auth/logout'),
-  
+
+  register: (userData: any) => apiService.post('/api/auth/register', userData),
+
+  logout: () => apiService.post('/api/auth/logout'),
+
   refreshToken: (refreshToken: string) =>
     apiService.post('/api/auth/refresh-token', { refreshToken }),
-  
-  getProfile: () =>
-    apiService.get('/api/auth/profile'),
-  
-  updateProfile: (data: any) =>
-    apiService.put('/api/auth/profile', data),
-  
+
+  getProfile: () => apiService.get('/api/auth/profile'),
+
+  updateProfile: (data: any) => apiService.put('/api/auth/profile', data),
+
   changePassword: (data: any) =>
     apiService.put('/api/auth/change-password', data),
-  
+
   forgotPassword: (email: string) =>
     apiService.post('/api/auth/forgot-password', { email }),
-  
+
   resetPassword: (data: any) =>
     apiService.post('/api/auth/reset-password', data),
 };
 
 // Events API
 const eventsAPI = {
-  getEvents: (params?: any) =>
-    apiService.get('/api/events', { params }),
-  
-  getEvent: (id: string) =>
-    apiService.get(`/api/events/${id}`),
-  
-  createEvent: (data: any) =>
-    apiService.post('/api/events', data),
-  
+  getEvents: (params?: any) => apiService.get('/api/events', { params }),
+
+  getEvent: (id: string) => apiService.get(`/api/events/${id}`),
+
+  createEvent: (data: any) => apiService.post('/api/events', data),
+
   updateEvent: (id: string, data: any) =>
     apiService.put(`/api/events/${id}`, data),
-  
-  deleteEvent: (id: string) =>
-    apiService.delete(`/api/events/${id}`),
-  
-  joinEvent: (id: string) =>
-    apiService.post(`/api/events/${id}/join`),
-  
-  leaveEvent: (id: string) =>
-    apiService.post(`/api/events/${id}/leave`),
-  
+
+  deleteEvent: (id: string) => apiService.delete(`/api/events/${id}`),
+
+  joinEvent: (id: string) => apiService.post(`/api/events/${id}/join`),
+
+  leaveEvent: (id: string) => apiService.post(`/api/events/${id}/leave`),
+
   getEventParticipants: (id: string) =>
     apiService.get(`/api/events/${id}/participants`),
-  
+
   searchEvents: (query: string, filters?: any) =>
     apiService.get('/api/events/search', { params: { q: query, ...filters } }),
 };
 
 // Tribes API
 const tribesAPI = {
-  getTribes: (params?: any) =>
-    apiService.get('/api/tribes', { params }),
-  
-  getTribe: (id: string) =>
-    apiService.get(`/api/tribes/${id}`),
-  
-  createTribe: (data: any) =>
-    apiService.post('/api/tribes', data),
-  
+  getTribes: (params?: any) => apiService.get('/api/tribes', { params }),
+
+  getTribe: (id: string) => apiService.get(`/api/tribes/${id}`),
+
+  createTribe: (data: any) => apiService.post('/api/tribes', data),
+
   updateTribe: (id: string, data: any) =>
     apiService.put(`/api/tribes/${id}`, data),
-  
-  deleteTribe: (id: string) =>
-    apiService.delete(`/api/tribes/${id}`),
-  
-  joinTribe: (id: string) =>
-    apiService.post(`/api/tribes/${id}/join`),
-  
-  leaveTribe: (id: string) =>
-    apiService.post(`/api/tribes/${id}/leave`),
-  
-  getTribeMembers: (id: string) =>
-    apiService.get(`/api/tribes/${id}/members`),
-  
+
+  deleteTribe: (id: string) => apiService.delete(`/api/tribes/${id}`),
+
+  joinTribe: (id: string) => apiService.post(`/api/tribes/${id}/join`),
+
+  leaveTribe: (id: string) => apiService.post(`/api/tribes/${id}/leave`),
+
+  getTribeMembers: (id: string) => apiService.get(`/api/tribes/${id}/members`),
+
   searchTribes: (query: string, filters?: any) =>
     apiService.get('/api/tribes/search', { params: { q: query, ...filters } }),
 };
 
 // Posts API
 const postsAPI = {
-  getPosts: (params?: any) =>
-    apiService.get('/api/posts', { params }),
-  
-  getPost: (id: string) =>
-    apiService.get(`/api/posts/${id}`),
-  
-  createPost: (data: any) =>
-    apiService.post('/api/posts', data),
-  
+  getPosts: (params?: any) => apiService.get('/api/posts', { params }),
+
+  getPost: (id: string) => apiService.get(`/api/posts/${id}`),
+
+  createPost: (data: any) => apiService.post('/api/posts', data),
+
   updatePost: (id: string, data: any) =>
     apiService.put(`/api/posts/${id}`, data),
-  
-  deletePost: (id: string) =>
-    apiService.delete(`/api/posts/${id}`),
-  
-  likePost: (id: string) =>
-    apiService.post(`/api/posts/${id}/like`),
-  
-  unlikePost: (id: string) =>
-    apiService.delete(`/api/posts/${id}/like`),
-  
+
+  deletePost: (id: string) => apiService.delete(`/api/posts/${id}`),
+
+  likePost: (id: string) => apiService.post(`/api/posts/${id}/like`),
+
+  unlikePost: (id: string) => apiService.delete(`/api/posts/${id}/like`),
+
   commentPost: (id: string, data: any) =>
     apiService.post(`/api/posts/${id}/comments`, data),
-  
-  getPostComments: (id: string) =>
-    apiService.get(`/api/posts/${id}/comments`),
+
+  getPostComments: (id: string) => apiService.get(`/api/posts/${id}/comments`),
 };
 
 // Chat API
 const chatAPI = {
-  getConversations: () =>
-    apiService.get('/api/chat/conversations'),
-  
+  getConversations: () => apiService.get('/api/chat/conversations'),
+
   getConversation: (id: string) =>
     apiService.get(`/api/chat/conversations/${id}`),
-  
+
   sendMessage: (conversationId: string, data: any) =>
     apiService.post(`/api/chat/conversations/${conversationId}/messages`, data),
-  
+
   getMessages: (conversationId: string, params?: any) =>
-    apiService.get(`/api/chat/conversations/${conversationId}/messages`, { params }),
-  
+    apiService.get(`/api/chat/conversations/${conversationId}/messages`, {
+      params,
+    }),
+
   createConversation: (data: any) =>
     apiService.post('/api/chat/conversations', data),
-  
+
   markAsRead: (conversationId: string) =>
     apiService.put(`/api/chat/conversations/${conversationId}/read`),
 };
@@ -243,16 +225,14 @@ const chatAPI = {
 const notificationsAPI = {
   getNotifications: (params?: any) =>
     apiService.get('/api/notifications', { params }),
-  
-  markAsRead: (id: string) =>
-    apiService.put(`/api/notifications/${id}/read`),
-  
-  markAllAsRead: () =>
-    apiService.put('/api/notifications/read-all'),
-  
+
+  markAsRead: (id: string) => apiService.put(`/api/notifications/${id}/read`),
+
+  markAllAsRead: () => apiService.put('/api/notifications/read-all'),
+
   deleteNotification: (id: string) =>
     apiService.delete(`/api/notifications/${id}`),
-  
+
   updatePreferences: (data: any) =>
     apiService.put('/api/notifications/preferences', data),
 };
@@ -261,13 +241,13 @@ const notificationsAPI = {
 const searchAPI = {
   search: (query: string, type?: string, filters?: any) =>
     apiService.get('/api/search', { params: { q: query, type, ...filters } }),
-  
+
   searchEvents: (query: string, filters?: any) =>
     apiService.get('/api/search/events', { params: { q: query, ...filters } }),
-  
+
   searchUsers: (query: string, filters?: any) =>
     apiService.get('/api/search/users', { params: { q: query, ...filters } }),
-  
+
   searchTribes: (query: string, filters?: any) =>
     apiService.get('/api/search/tribes', { params: { q: query, ...filters } }),
 };
@@ -275,35 +255,31 @@ const searchAPI = {
 // Location API
 const locationAPI = {
   getNearbyEvents: (coordinates: [number, number], radius?: number) =>
-    apiService.get('/api/location/nearby-events', { 
-      params: { lat: coordinates[0], lng: coordinates[1], radius } 
+    apiService.get('/api/location/nearby-events', {
+      params: { lat: coordinates[0], lng: coordinates[1], radius },
     }),
-  
+
   getNearbyUsers: (coordinates: [number, number], radius?: number) =>
-    apiService.get('/api/location/nearby-users', { 
-      params: { lat: coordinates[0], lng: coordinates[1], radius } 
+    apiService.get('/api/location/nearby-users', {
+      params: { lat: coordinates[0], lng: coordinates[1], radius },
     }),
-  
-  updateLocation: (data: any) =>
-    apiService.put('/api/location/update', data),
-  
-  getLocationHistory: () =>
-    apiService.get('/api/location/history'),
+
+  updateLocation: (data: any) => apiService.put('/api/location/update', data),
+
+  getLocationHistory: () => apiService.get('/api/location/history'),
 };
 
 // Analytics API
 const analyticsAPI = {
   getEventStats: (eventId: string) =>
     apiService.get(`/api/analytics/events/${eventId}/stats`),
-  
-  getUserStats: () =>
-    apiService.get('/api/analytics/user/stats'),
-  
+
+  getUserStats: () => apiService.get('/api/analytics/user/stats'),
+
   getTribeStats: (tribeId: string) =>
     apiService.get(`/api/analytics/tribes/${tribeId}/stats`),
-  
-  getPlatformStats: () =>
-    apiService.get('/api/analytics/platform/stats'),
+
+  getPlatformStats: () => apiService.get('/api/analytics/platform/stats'),
 };
 
 // Export everything

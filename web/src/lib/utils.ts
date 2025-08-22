@@ -128,7 +128,7 @@ export function formatDistance(distance: number): string {
 export function getInitials(name: string): string {
   return name
     .split(' ')
-    .map((word) => word.charAt(0))
+    .map(word => word.charAt(0))
     .join('')
     .toUpperCase()
     .slice(0, 2);
@@ -136,17 +136,25 @@ export function getInitials(name: string): string {
 
 export function getRandomColor(): string {
   const colors = [
-    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-    '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1'
+    '#3B82F6',
+    '#EF4444',
+    '#10B981',
+    '#F59E0B',
+    '#8B5CF6',
+    '#EC4899',
+    '#06B6D4',
+    '#84CC16',
+    '#F97316',
+    '#6366F1',
   ];
-  
+
   const randomIndex = Math.floor(Math.random() * colors.length);
   const color = colors[randomIndex];
-  
+
   if (!color) {
     return '#3B82F6'; // Fallback color
   }
-  
+
   return color;
 }
 
@@ -181,7 +189,7 @@ export function downloadFile(url: string, filename: string): void {
 }
 
 export function getFileExtension(filename: string): string {
-  return filename.slice((filename.lastIndexOf('.') - 1 >>> 0) + 2);
+  return filename.slice(((filename.lastIndexOf('.') - 1) >>> 0) + 2);
 }
 
 export function formatFileSize(bytes: number): string {
@@ -214,7 +222,7 @@ export function getDeviceType(): 'mobile' | 'tablet' | 'desktop' {
 }
 
 export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export function retry<T>(
@@ -222,7 +230,7 @@ export function retry<T>(
   retries: number = 3,
   delay: number = 1000
 ): Promise<T> {
-  return fn().catch((error) => {
+  return fn().catch(error => {
     if (retries > 0) {
       return sleep(delay).then(() => retry(fn, retries - 1, delay));
     }
@@ -230,16 +238,16 @@ export function retry<T>(
   });
 }
 
-export function groupBy<T>(
-  array: T[],
-  key: keyof T
-): { [key: string]: T[] } {
-  return array.reduce((groups, item) => {
-    const group = String(item[key]);
-    groups[group] = groups[group] || [];
-    groups[group].push(item);
-    return groups;
-  }, {} as { [key: string]: T[] });
+export function groupBy<T>(array: T[], key: keyof T): { [key: string]: T[] } {
+  return array.reduce(
+    (groups, item) => {
+      const group = String(item[key]);
+      groups[group] = groups[group] || [];
+      groups[group].push(item);
+      return groups;
+    },
+    {} as { [key: string]: T[] }
+  );
 }
 
 export function sortBy<T>(
@@ -250,7 +258,7 @@ export function sortBy<T>(
   return [...array].sort((a, b) => {
     const aVal = a[key];
     const bVal = b[key];
-    
+
     if (aVal < bVal) return direction === 'asc' ? -1 : 1;
     if (aVal > bVal) return direction === 'asc' ? 1 : -1;
     return 0;

@@ -21,9 +21,9 @@ export const LoadingSpinner: React.FC<{
       transition: {
         duration: 1,
         repeat: Infinity,
-        ease: "linear"
-      }
-    }
+        ease: 'linear',
+      },
+    },
   };
 
   const getVariantStyles = () => {
@@ -48,7 +48,7 @@ export const LoadingSpinner: React.FC<{
         className
       )}
       variants={spinnerVariants}
-      animate="spin"
+      animate='spin'
     />
   );
 };
@@ -82,23 +82,19 @@ export const LoadingDots: React.FC<{
       transition: {
         duration: 0.6,
         repeat: Infinity,
-        ease: "easeInOut"
-      }
-    }
+        ease: 'easeInOut',
+      },
+    },
   };
 
   return (
     <div className={cn('flex space-x-1', className)}>
-      {[0, 1, 2].map((index) => (
+      {[0, 1, 2].map(index => (
         <motion.div
           key={index}
-          className={cn(
-            'rounded-full',
-            sizeClasses[size],
-            getVariantStyles()
-          )}
+          className={cn('rounded-full', sizeClasses[size], getVariantStyles())}
           variants={dotVariants}
-          animate="animate"
+          animate='animate'
           transition={{ delay: index * 0.1 }}
         />
       ))}
@@ -131,11 +127,13 @@ export const LoadingBar: React.FC<{
   };
 
   return (
-    <div className={cn(
-      'w-full bg-white/10 rounded-full overflow-hidden',
-      sizeClasses[size],
-      className
-    )}>
+    <div
+      className={cn(
+        'w-full bg-white/10 rounded-full overflow-hidden',
+        sizeClasses[size],
+        className
+      )}
+    >
       <motion.div
         className={cn(
           'h-full rounded-full transition-all duration-300',
@@ -143,7 +141,7 @@ export const LoadingBar: React.FC<{
         )}
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
       />
     </div>
   );
@@ -203,72 +201,74 @@ export const SkeletonCard: React.FC<{
       case 'event':
         return (
           <>
-            <Skeleton className="w-full h-48 rounded-t-xl" />
-            <div className="p-4 space-y-3">
-              <Skeleton className="h-6 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-              <div className="flex space-x-2">
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-4 w-20" />
+            <Skeleton className='w-full h-48 rounded-t-xl' />
+            <div className='p-4 space-y-3'>
+              <Skeleton className='h-6 w-3/4' />
+              <Skeleton className='h-4 w-full' />
+              <Skeleton className='h-4 w-2/3' />
+              <div className='flex space-x-2'>
+                <Skeleton className='h-4 w-16' />
+                <Skeleton className='h-4 w-20' />
               </div>
-              <div className="flex justify-between items-center">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-8 w-20" />
+              <div className='flex justify-between items-center'>
+                <Skeleton className='h-8 w-24' />
+                <Skeleton className='h-8 w-20' />
               </div>
             </div>
           </>
         );
-      
+
       case 'user':
         return (
-          <div className="p-4 space-y-3">
-            <div className="flex items-center space-x-3">
-              <Skeleton className="w-12 h-12 rounded-full" />
-              <div className="space-y-2 flex-1">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/2" />
+          <div className='p-4 space-y-3'>
+            <div className='flex items-center space-x-3'>
+              <Skeleton className='w-12 h-12 rounded-full' />
+              <div className='space-y-2 flex-1'>
+                <Skeleton className='h-4 w-2/3' />
+                <Skeleton className='h-3 w-1/2' />
               </div>
             </div>
-            <Skeleton className="h-4 w-full" />
-            <div className="flex space-x-2">
-              <Skeleton className="h-8 w-20" />
-              <Skeleton className="h-8 w-24" />
+            <Skeleton className='h-4 w-full' />
+            <div className='flex space-x-2'>
+              <Skeleton className='h-8 w-20' />
+              <Skeleton className='h-8 w-24' />
             </div>
           </div>
         );
-      
+
       case 'article':
         return (
-          <div className="p-4 space-y-3">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-4 w-4/5" />
-            <div className="flex justify-between items-center pt-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-16" />
+          <div className='p-4 space-y-3'>
+            <Skeleton className='h-6 w-3/4' />
+            <Skeleton className='h-4 w-full' />
+            <Skeleton className='h-4 w-5/6' />
+            <Skeleton className='h-4 w-4/5' />
+            <div className='flex justify-between items-center pt-2'>
+              <Skeleton className='h-4 w-24' />
+              <Skeleton className='h-4 w-16' />
             </div>
           </div>
         );
-      
+
       default:
         return (
-          <div className="p-4 space-y-3">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-8 w-24" />
+          <div className='p-4 space-y-3'>
+            <Skeleton className='h-6 w-3/4' />
+            <Skeleton className='h-4 w-full' />
+            <Skeleton className='h-4 w-2/3' />
+            <Skeleton className='h-8 w-24' />
           </div>
         );
     }
   };
 
   return (
-    <div className={cn(
-      'bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden',
-      className
-    )}>
+    <div
+      className={cn(
+        'bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden',
+        className
+      )}
+    >
       {getVariantContent()}
     </div>
   );
@@ -317,16 +317,18 @@ export const LoadingOverlay: React.FC<{
   if (!isLoading) return <>{children}</>;
 
   return (
-    <div className="relative">
+    <div className='relative'>
       {children}
-      <div className={cn(
-        'absolute inset-0 flex items-center justify-center z-10',
-        getVariantStyles(),
-        className
-      )}>
-        <div className="text-center">
-          <LoadingSpinner size="lg" variant="neon" className="mb-4" />
-          <p className="text-white/80 text-sm">Cargando...</p>
+      <div
+        className={cn(
+          'absolute inset-0 flex items-center justify-center z-10',
+          getVariantStyles(),
+          className
+        )}
+      >
+        <div className='text-center'>
+          <LoadingSpinner size='lg' variant='neon' className='mb-4' />
+          <p className='text-white/80 text-sm'>Cargando...</p>
         </div>
       </div>
     </div>
@@ -346,7 +348,8 @@ export const LoadingButton: React.FC<{
         'relative inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         variant === 'neon' && 'bg-cyan-500 text-white hover:bg-cyan-600',
-        variant === 'gradient' && 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600',
+        variant === 'gradient' &&
+          'bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:from-cyan-600 hover:to-purple-600',
         variant === 'default' && 'bg-white/10 text-white hover:bg-white/20',
         className
       )}
@@ -354,15 +357,15 @@ export const LoadingButton: React.FC<{
     >
       {loading && (
         <motion.div
-          className="absolute inset-0 flex items-center justify-center"
+          className='absolute inset-0 flex items-center justify-center'
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          <LoadingSpinner size="sm" variant="neon" />
+          <LoadingSpinner size='sm' variant='neon' />
         </motion.div>
       )}
-      
+
       <motion.div
         animate={{ opacity: loading ? 0 : 1 }}
         transition={{ duration: 0.2 }}
@@ -385,14 +388,14 @@ export const InfiniteLoading: React.FC<{
   return (
     <div className={cn('text-center py-8', className)}>
       {isLoading ? (
-        <div className="flex items-center justify-center space-x-3">
-          <LoadingSpinner size="md" variant="neon" />
-          <span className="text-white/80">Cargando más...</span>
+        <div className='flex items-center justify-center space-x-3'>
+          <LoadingSpinner size='md' variant='neon' />
+          <span className='text-white/80'>Cargando más...</span>
         </div>
       ) : (
         <button
           onClick={onLoadMore}
-          className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30"
+          className='px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 border border-white/20 hover:border-white/30'
         >
           Cargar Más
         </button>
@@ -406,29 +409,29 @@ export const PageLoading: React.FC<{
   className?: string;
 }> = ({ className }) => {
   return (
-    <div className={cn(
-      'min-h-screen flex items-center justify-center',
-      'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900',
-      className
-    )}>
-      <div className="text-center">
+    <div
+      className={cn(
+        'min-h-screen flex items-center justify-center',
+        'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900',
+        className
+      )}
+    >
+      <div className='text-center'>
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 mx-auto mb-6"
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          className='w-16 h-16 mx-auto mb-6'
         >
-          <div className="w-full h-full border-4 border-cyan-400/30 border-t-cyan-400 rounded-full" />
+          <div className='w-full h-full border-4 border-cyan-400/30 border-t-cyan-400 rounded-full' />
         </motion.div>
-        
-        <h2 className="text-2xl font-bold text-white mb-2">
+
+        <h2 className='text-2xl font-bold text-white mb-2'>
           Cargando EventConnect
         </h2>
-        <p className="text-gray-300">
-          Preparando tu experiencia...
-        </p>
-        
-        <div className="mt-8">
-          <LoadingDots size="lg" variant="neon" />
+        <p className='text-gray-300'>Preparando tu experiencia...</p>
+
+        <div className='mt-8'>
+          <LoadingDots size='lg' variant='neon' />
         </div>
       </div>
     </div>

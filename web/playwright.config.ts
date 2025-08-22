@@ -17,7 +17,7 @@ export default defineConfig({
   reporter: [
     ['html'],
     ['json', { outputFile: 'test-results/results.json' }],
-    ['junit', { outputFile: 'test-results/results.xml' }]
+    ['junit', { outputFile: 'test-results/results.xml' }],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
@@ -26,25 +26,25 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    
+
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Record video on failure */
     video: 'retain-on-failure',
-    
+
     /* Global test timeout */
     actionTimeout: 10000,
-    
+
     /* Navigation timeout */
     navigationTimeout: 30000,
-    
+
     /* Viewport size */
     viewport: { width: 1280, height: 720 },
-    
+
     /* Ignore HTTPS errors */
     ignoreHTTPSErrors: true,
-    
+
     /* Extra HTTP headers */
     extraHTTPHeaders: {
       'Accept-Language': 'en-US,en;q=0.9',
@@ -96,49 +96,49 @@ export default defineConfig({
     reuseExistingServer: !process.env['CI'],
     timeout: 120 * 1000,
   },
-  
+
   /* Global setup and teardown */
   globalSetup: require.resolve('./src/tests/e2e/global-setup'),
   globalTeardown: require.resolve('./src/tests/e2e/global-teardown'),
-  
+
   /* Global test timeout */
   globalTimeout: 600000,
-  
+
   /* Maximum number of test failures */
   maxFailures: process.env['CI'] ? 10 : 0,
-  
+
   /* Test output directory */
   outputDir: 'test-results/',
-  
+
   /* Timeout for each test */
   timeout: 30000,
-  
+
   /* Expect timeout */
   expect: {
     timeout: 10000,
   },
-  
+
   /* Report slow tests */
   reportSlowTests: {
     max: 5,
     threshold: 15000,
   },
-  
+
   /* Preserve test output */
   preserveOutput: 'failures-only',
-  
+
   /* Update snapshots */
   updateSnapshots: 'missing',
-  
+
   /* Snapshot path */
   snapshotPathTemplate: '{testDir}/__snapshots__/{testName}-{projectName}{ext}',
-  
+
   /* Test ignore patterns */
   testIgnore: [
     '**/node_modules/**',
     '**/dist/**',
     '**/.next/**',
     '**/out/**',
-    '**/coverage/**'
+    '**/coverage/**',
   ],
 });

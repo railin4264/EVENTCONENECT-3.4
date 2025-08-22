@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Bars3Icon, 
-  XMarkIcon, 
+import {
+  Bars3Icon,
+  XMarkIcon,
   MagnifyingGlassIcon,
   BellIcon,
   UserCircleIcon,
@@ -19,7 +19,7 @@ import {
   UsersIcon,
   MapPinIcon,
   ChatBubbleLeftIcon,
-  HeartIcon
+  HeartIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -35,7 +35,7 @@ const Navbar = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { unreadCount } = useUnreadNotificationsCount();
-  
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -108,21 +108,21 @@ const Navbar = () => {
             : 'bg-white dark:bg-gray-900'
         )}
       >
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className='container mx-auto px-4 sm:px-6 lg:px-8'>
+          <div className='flex items-center justify-between h-16'>
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">E</span>
+            <Link href='/' className='flex items-center space-x-2'>
+              <div className='w-8 h-8 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-lg flex items-center justify-center'>
+                <span className='text-white font-bold text-lg'>E</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">
+              <span className='text-xl font-bold text-gray-900 dark:text-white'>
                 EventConnect
               </span>
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-1">
-              {navigation.map((item) => {
+            <div className='hidden md:flex items-center space-x-1'>
+              {navigation.map(item => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
@@ -135,7 +135,7 @@ const Navbar = () => {
                         : 'text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                     )}
                   >
-                    <item.icon className="w-4 h-4" />
+                    <item.icon className='w-4 h-4' />
                     <span>{item.name}</span>
                   </Link>
                 );
@@ -143,43 +143,43 @@ const Navbar = () => {
             </div>
 
             {/* Right Side Actions */}
-            <div className="flex items-center space-x-2">
+            <div className='flex items-center space-x-2'>
               {/* Search Button */}
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                title="Buscar"
+                className='p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                title='Buscar'
               >
-                <MagnifyingGlassIcon className="w-5 h-5" />
+                <MagnifyingGlassIcon className='w-5 h-5' />
               </button>
 
               {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
-                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                title="Cambiar tema"
+                className='p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                title='Cambiar tema'
               >
                 {theme === 'light' ? (
-                  <SunIcon className="w-5 h-5" />
+                  <SunIcon className='w-5 h-5' />
                 ) : theme === 'dark' ? (
-                  <MoonIcon className="w-5 h-5" />
+                  <MoonIcon className='w-5 h-5' />
                 ) : (
-                  <ComputerDesktopIcon className="w-5 h-5" />
+                  <ComputerDesktopIcon className='w-5 h-5' />
                 )}
               </button>
 
               {isAuthenticated ? (
                 <>
                   {/* Notifications */}
-                  <div className="relative dropdown-container">
+                  <div className='relative dropdown-container'>
                     <button
                       onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                      className="relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                      title="Notificaciones"
+                      className='relative p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                      title='Notificaciones'
                     >
-                      <BellIcon className="w-5 h-5" />
+                      <BellIcon className='w-5 h-5' />
                       {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                        <span className='absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center'>
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
@@ -187,39 +187,45 @@ const Navbar = () => {
 
                     <AnimatePresence>
                       {isNotificationOpen && (
-                        <NotificationDropdown onClose={() => setIsNotificationOpen(false)} />
+                        <NotificationDropdown
+                          onClose={() => setIsNotificationOpen(false)}
+                        />
                       )}
                     </AnimatePresence>
                   </div>
 
                   {/* User Menu */}
-                  <div className="relative dropdown-container">
+                  <div className='relative dropdown-container'>
                     <button
                       onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                      className="flex items-center space-x-2 p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                      title="Menú de usuario"
+                      className='flex items-center space-x-2 p-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
+                      title='Menú de usuario'
                     >
                       {user?.avatar ? (
                         <img
                           src={user.avatar}
                           alt={user.firstName}
-                          className="w-8 h-8 rounded-full object-cover"
+                          className='w-8 h-8 rounded-full object-cover'
                         />
                       ) : (
-                        <div className="w-8 h-8 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-medium text-primary-600">
-                            {user?.firstName?.[0]}{user?.lastName?.[0]}
+                        <div className='w-8 h-8 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center'>
+                          <span className='text-sm font-medium text-primary-600'>
+                            {user?.firstName?.[0]}
+                            {user?.lastName?.[0]}
                           </span>
                         </div>
                       )}
-                      <span className="hidden lg:block text-sm font-medium">
+                      <span className='hidden lg:block text-sm font-medium'>
                         {user?.firstName}
                       </span>
                     </button>
 
                     <AnimatePresence>
                       {isUserMenuOpen && (
-                        <UserDropdown user={user} onClose={() => setIsUserMenuOpen(false)} />
+                        <UserDropdown
+                          user={user}
+                          onClose={() => setIsUserMenuOpen(false)}
+                        />
                       )}
                     </AnimatePresence>
                   </div>
@@ -228,16 +234,16 @@ const Navbar = () => {
                 <>
                   {/* Login Button */}
                   <Link
-                    href="/auth/login"
-                    className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-medium"
+                    href='/auth/login'
+                    className='px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors font-medium'
                   >
                     Iniciar Sesión
                   </Link>
 
                   {/* Register Button */}
                   <Link
-                    href="/auth/register"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+                    href='/auth/register'
+                    className='px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium'
                   >
                     Registrarse
                   </Link>
@@ -247,12 +253,12 @@ const Navbar = () => {
               {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="md:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                className='md:hidden p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
               >
                 {isMobileMenuOpen ? (
-                  <XMarkIcon className="w-5 h-5" />
+                  <XMarkIcon className='w-5 h-5' />
                 ) : (
-                  <Bars3Icon className="w-5 h-5" />
+                  <Bars3Icon className='w-5 h-5' />
                 )}
               </button>
             </div>
@@ -266,10 +272,10 @@ const Navbar = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              className='md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900'
             >
-              <div className="px-4 py-4 space-y-2">
-                {navigation.map((item) => {
+              <div className='px-4 py-4 space-y-2'>
+                {navigation.map(item => {
                   const isActive = pathname === item.href;
                   return (
                     <Link
@@ -282,7 +288,7 @@ const Navbar = () => {
                           : 'text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                       )}
                     >
-                      <item.icon className="w-5 h-5" />
+                      <item.icon className='w-5 h-5' />
                       <span>{item.name}</span>
                     </Link>
                   );
@@ -290,28 +296,28 @@ const Navbar = () => {
 
                 {isAuthenticated && (
                   <>
-                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+                    <div className='border-t border-gray-200 dark:border-gray-700 pt-4 mt-4'>
                       <Link
-                        href="/profile"
-                        className="flex items-center space-x-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        href='/profile'
+                        className='flex items-center space-x-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
                       >
-                        <UserCircleIcon className="w-5 h-5" />
+                        <UserCircleIcon className='w-5 h-5' />
                         <span>Mi Perfil</span>
                       </Link>
-                      
+
                       <Link
-                        href="/settings"
-                        className="flex items-center space-x-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                        href='/settings'
+                        className='flex items-center space-x-3 px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors'
                       >
-                        <Cog6ToothIcon className="w-5 h-5" />
+                        <Cog6ToothIcon className='w-5 h-5' />
                         <span>Configuración</span>
                       </Link>
-                      
+
                       <button
                         onClick={handleLogout}
-                        className="flex items-center space-x-3 w-full px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        className='flex items-center space-x-3 w-full px-3 py-2 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors'
                       >
-                        <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                        <ArrowRightOnRectangleIcon className='w-5 h-5' />
                         <span>Cerrar Sesión</span>
                       </button>
                     </div>
@@ -330,7 +336,7 @@ const Navbar = () => {
       />
 
       {/* Spacer for fixed navbar */}
-      <div className="h-16" />
+      <div className='h-16' />
     </>
   );
 };

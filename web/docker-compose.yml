@@ -6,7 +6,7 @@ services:
       context: .
       target: development
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:5000
@@ -26,7 +26,7 @@ services:
       context: .
       dockerfile: Dockerfile.storybook
     ports:
-      - "6006:6006"
+      - '6006:6006'
     volumes:
       - .:/app
       - /app/node_modules

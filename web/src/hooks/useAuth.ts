@@ -64,59 +64,66 @@ export const useAuth = () => {
     checkAuth();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await api.post('/api/auth/login', { email, password });
-      const payload = response.data?.data || response.data;
+  const login = useCallback(
+    async (email: string, password: string) => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      if (payload?.tokens) {
-        localStorage.setItem('accessToken', payload.tokens.accessToken);
-        localStorage.setItem('refreshToken', payload.tokens.refreshToken);
+        const response = await api.post('/api/auth/login', { email, password });
+        const payload = response.data?.data || response.data;
+
+        if (payload?.tokens) {
+          localStorage.setItem('accessToken', payload.tokens.accessToken);
+          localStorage.setItem('refreshToken', payload.tokens.refreshToken);
+        }
+
+        if (payload?.user) {
+          setUser(payload.user);
+        }
+
+        router.push('/dashboard');
+      } catch (error: any) {
+        const message =
+          error.response?.data?.message || 'Error al iniciar sesión';
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsLoading(false);
       }
+    },
+    [router]
+  );
 
-      if (payload?.user) {
-        setUser(payload.user);
+  const register = useCallback(
+    async (userData: RegisterData) => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await api.post('/api/auth/register', userData);
+        const payload = response.data?.data || response.data;
+
+        if (payload?.tokens) {
+          localStorage.setItem('accessToken', payload.tokens.accessToken);
+          localStorage.setItem('refreshToken', payload.tokens.refreshToken);
+        }
+
+        if (payload?.user) {
+          setUser(payload.user);
+        }
+
+        router.push('/dashboard');
+      } catch (error: any) {
+        const message = error.response?.data?.message || 'Error al registrarse';
+        setError(message);
+        throw new Error(message);
+      } finally {
+        setIsLoading(false);
       }
-      
-      router.push('/dashboard');
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Error al iniciar sesión';
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router]);
-
-  const register = useCallback(async (userData: RegisterData) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await api.post('/api/auth/register', userData);
-      const payload = response.data?.data || response.data;
-
-      if (payload?.tokens) {
-        localStorage.setItem('accessToken', payload.tokens.accessToken);
-        localStorage.setItem('refreshToken', payload.tokens.refreshToken);
-      }
-
-      if (payload?.user) {
-        setUser(payload.user);
-      }
-      
-      router.push('/dashboard');
-    } catch (error: any) {
-      const message = error.response?.data?.message || 'Error al registrarse';
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [router]);
+    },
+    [router]
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -138,15 +145,17 @@ export const useAuth = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const response = await api.put('/api/auth/profile', data);
-      const updatedUser = (response.data?.data && response.data.data.user) || response.data.user;
-      
+      const updatedUser =
+        (response.data?.data && response.data.data.user) || response.data.user;
+
       if (updatedUser) {
         setUser(updatedUser);
       }
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Error al actualizar perfil';
+      const message =
+        error.response?.data?.message || 'Error al actualizar perfil';
       setError(message);
       throw new Error(message);
     } finally {
@@ -157,8 +166,9 @@ export const useAuth = () => {
   const refreshUser = useCallback(async () => {
     try {
       const response = await api.get('/api/auth/profile');
-      const userData = (response.data?.data && response.data.data.user) || response.data.user;
-      
+      const userData =
+        (response.data?.data && response.data.data.user) || response.data.user;
+
       if (userData) {
         setUser(userData);
       }

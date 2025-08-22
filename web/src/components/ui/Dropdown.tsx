@@ -37,43 +37,43 @@ export interface DropdownGroupProps {
 
 // ===== ANIMATION VARIANTS =====
 const dropdownVariants: Variants = {
-  initial: { 
-    opacity: 0, 
+  initial: {
+    opacity: 0,
     y: -10,
-    scale: 0.95
+    scale: 0.95,
   },
-  animate: { 
-    opacity: 1, 
+  animate: {
+    opacity: 1,
     y: 0,
     scale: 1,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
-      damping: 30
-    }
+      damping: 30,
+    },
   },
-  exit: { 
-    opacity: 0, 
+  exit: {
+    opacity: 0,
     y: -10,
     scale: 0.95,
     transition: {
-      duration: 0.2
-    }
-  }
+      duration: 0.2,
+    },
+  },
 };
 
 const optionVariants: Variants = {
   initial: { opacity: 0, x: -20 },
-  animate: { 
-    opacity: 1, 
+  animate: {
+    opacity: 1,
     x: 0,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
-      damping: 30
-    }
+      damping: 30,
+    },
   },
-  exit: { opacity: 0, x: -20 }
+  exit: { opacity: 0, x: -20 },
 };
 
 // ===== MAIN DROPDOWN COMPONENT =====
@@ -91,17 +91,22 @@ export const Dropdown: React.FC<DropdownProps> = ({
   className,
   label,
   error,
-  success
+  success,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedValues, setSelectedValues] = useState<string[]>(value ? [value] : []);
+  const [selectedValues, setSelectedValues] = useState<string[]>(
+    value ? [value] : []
+  );
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // ===== CLOSE DROPDOWN ON OUTSIDE CLICK =====
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
         setSearchQuery('');
       }
@@ -112,21 +117,25 @@ export const Dropdown: React.FC<DropdownProps> = ({
   }, []);
 
   // ===== FILTER OPTIONS BASED ON SEARCH =====
-  const filteredOptions = searchable && searchQuery
-    ? options.filter(option => 
-        option.label.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : options;
+  const filteredOptions =
+    searchable && searchQuery
+      ? options.filter(option =>
+          option.label.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : options;
 
   // ===== GROUP OPTIONS =====
-  const groupedOptions = filteredOptions.reduce((groups, option) => {
-    const group = option.group || 'default';
-    if (!groups[group]) {
-      groups[group] = [];
-    }
-    groups[group].push(option);
-    return groups;
-  }, {} as Record<string, DropdownOption[]>);
+  const groupedOptions = filteredOptions.reduce(
+    (groups, option) => {
+      const group = option.group || 'default';
+      if (!groups[group]) {
+        groups[group] = [];
+      }
+      groups[group].push(option);
+      return groups;
+    },
+    {} as Record<string, DropdownOption[]>
+  );
 
   // ===== HANDLE OPTION SELECTION =====
   const handleOptionSelect = (optionValue: string) => {
@@ -134,7 +143,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       const newValues = selectedValues.includes(optionValue)
         ? selectedValues.filter(v => v !== optionValue)
         : [...selectedValues, optionValue];
-      
+
       setSelectedValues(newValues);
       onChange(newValues.join(','));
     } else {
@@ -170,21 +179,24 @@ export const Dropdown: React.FC<DropdownProps> = ({
     sm: 'px-3 py-2 text-sm',
     md: 'px-4 py-2.5 text-base',
     lg: 'px-5 py-3 text-lg',
-    xl: 'px-6 py-4 text-xl'
+    xl: 'px-6 py-4 text-xl',
   };
 
   // ===== VARIANT STYLES =====
   const variantClasses = {
-    default: 'bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20',
-    glass: 'backdrop-blur-xl bg-white/10 border border-white/20 hover:border-white/30',
+    default:
+      'bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20',
+    glass:
+      'backdrop-blur-xl bg-white/10 border border-white/20 hover:border-white/30',
     neon: 'bg-black/80 border border-cyan-400/50 hover:border-cyan-400',
-    gradient: 'bg-gradient-to-r from-cyan-500/20 to-purple-600/20 border border-cyan-400/30',
-    outline: 'bg-transparent border-2 border-cyan-400/50 hover:border-cyan-400'
+    gradient:
+      'bg-gradient-to-r from-cyan-500/20 to-purple-600/20 border border-cyan-400/30',
+    outline: 'bg-transparent border-2 border-cyan-400/50 hover:border-cyan-400',
   };
 
   // ===== RENDER OPTION =====
   const renderOption = (option: DropdownOption, index: number) => {
-    const isSelected = multiSelect 
+    const isSelected = multiSelect
       ? selectedValues.includes(option.value)
       : value === option.value;
 
@@ -192,9 +204,9 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <motion.div
         key={option.value}
         variants={optionVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
+        initial='initial'
+        animate='animate'
+        exit='exit'
         custom={index}
       >
         <button
@@ -207,17 +219,15 @@ export const Dropdown: React.FC<DropdownProps> = ({
             isSelected && 'bg-cyan-500/20 border border-cyan-400/50'
           )}
         >
-          <div className="flex items-center space-x-3">
+          <div className='flex items-center space-x-3'>
             {option.icon && (
-              <div className="flex-shrink-0 w-5 h-5 text-cyan-400">
+              <div className='flex-shrink-0 w-5 h-5 text-cyan-400'>
                 {option.icon}
               </div>
             )}
-            <span className="flex-1 text-white">
-              {option.label}
-            </span>
+            <span className='flex-1 text-white'>{option.label}</span>
             {isSelected && (
-              <Check className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+              <Check className='w-4 h-4 text-cyan-400 flex-shrink-0' />
             )}
           </div>
         </button>
@@ -229,7 +239,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
     <div className={cn('relative', className)} ref={dropdownRef}>
       {/* Label */}
       {label && (
-        <label className="block text-sm font-medium text-gray-300 mb-2">
+        <label className='block text-sm font-medium text-gray-300 mb-2'>
           {label}
         </label>
       )}
@@ -248,33 +258,35 @@ export const Dropdown: React.FC<DropdownProps> = ({
           success && 'border-green-400 focus:ring-green-500/50'
         )}
       >
-        <div className="flex items-center space-x-2 min-w-0">
-          <span className={cn(
-            'truncate',
-            getSelectedLabels() ? 'text-white' : 'text-gray-400'
-          )}>
+        <div className='flex items-center space-x-2 min-w-0'>
+          <span
+            className={cn(
+              'truncate',
+              getSelectedLabels() ? 'text-white' : 'text-gray-400'
+            )}
+          >
             {getSelectedLabels() || placeholder}
           </span>
         </div>
-        
-        <div className="flex items-center space-x-2 flex-shrink-0">
+
+        <div className='flex items-center space-x-2 flex-shrink-0'>
           {clearable && (value || selectedValues.length > 0) && (
             <button
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 handleClear();
               }}
-              className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center justify-center"
+              className='w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center justify-center'
             >
-              <X className="w-3 h-3 text-white" />
+              <X className='w-3 h-3 text-white' />
             </button>
           )}
-          
+
           <motion.div
             animate={{ rotate: isOpen ? 180 : 0 }}
             transition={{ duration: 0.2 }}
           >
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown className='w-4 h-4 text-gray-400' />
           </motion.div>
         </div>
       </button>
@@ -283,45 +295,51 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="absolute z-50 w-full mt-2"
+            className='absolute z-50 w-full mt-2'
             variants={dropdownVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            initial='initial'
+            animate='animate'
+            exit='exit'
           >
-            <div className="bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+            <div className='bg-slate-800/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl overflow-hidden'>
               {/* Search Input */}
               {searchable && (
-                <div className="p-3 border-b border-white/10">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <div className='p-3 border-b border-white/10'>
+                  <div className='relative'>
+                    <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
                     <input
-                      type="text"
-                      placeholder="Buscar opciones..."
+                      type='text'
+                      placeholder='Buscar opciones...'
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50 transition-all duration-300"
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className='w-full pl-10 pr-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50 transition-all duration-300'
                     />
                   </div>
                 </div>
               )}
 
               {/* Options List */}
-              <div className="max-h-60 overflow-y-auto">
-                {Object.entries(groupedOptions).map(([groupName, groupOptions]) => (
-                  <div key={groupName}>
-                    {groupName !== 'default' && (
-                      <div className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-white/5">
-                        {groupName}
-                      </div>
-                    )}
-                    {groupOptions.map((option, index) => renderOption(option, index))}
-                  </div>
-                ))}
-                
+              <div className='max-h-60 overflow-y-auto'>
+                {Object.entries(groupedOptions).map(
+                  ([groupName, groupOptions]) => (
+                    <div key={groupName}>
+                      {groupName !== 'default' && (
+                        <div className='px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider bg-white/5'>
+                          {groupName}
+                        </div>
+                      )}
+                      {groupOptions.map((option, index) =>
+                        renderOption(option, index)
+                      )}
+                    </div>
+                  )
+                )}
+
                 {filteredOptions.length === 0 && (
-                  <div className="px-4 py-8 text-center text-gray-400">
-                    {searchQuery ? 'No se encontraron opciones' : 'No hay opciones disponibles'}
+                  <div className='px-4 py-8 text-center text-gray-400'>
+                    {searchQuery
+                      ? 'No se encontraron opciones'
+                      : 'No hay opciones disponibles'}
                   </div>
                 )}
               </div>
@@ -332,15 +350,15 @@ export const Dropdown: React.FC<DropdownProps> = ({
 
       {/* Error/Success Messages */}
       {error && (
-        <p className="mt-2 text-sm text-red-400 flex items-center">
-          <AlertCircle className="w-4 h-4 mr-1" />
+        <p className='mt-2 text-sm text-red-400 flex items-center'>
+          <AlertCircle className='w-4 h-4 mr-1' />
           {error}
         </p>
       )}
-      
+
       {success && (
-        <p className="mt-2 text-sm text-green-400 flex items-center">
-          <Check className="w-4 h-4 mr-1" />
+        <p className='mt-2 text-sm text-green-400 flex items-center'>
+          <Check className='w-4 h-4 mr-1' />
           {success}
         </p>
       )}
@@ -352,31 +370,31 @@ export const Dropdown: React.FC<DropdownProps> = ({
 export const DropdownGroup: React.FC<DropdownGroupProps> = ({
   label,
   children,
-  className
+  className,
 }) => {
   return (
     <div className={cn('space-y-2', className)}>
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+      <div className='text-xs font-semibold text-gray-400 uppercase tracking-wider'>
         {label}
       </div>
-      <div className="space-y-1">
-        {children}
-      </div>
+      <div className='space-y-1'>{children}</div>
     </div>
   );
 };
 
 // ===== MULTI-SELECT DROPDOWN COMPONENT =====
-export const MultiSelectDropdown: React.FC<Omit<DropdownProps, 'multiSelect'> & {
-  values?: string[];
-  onChange: (values: string[]) => void;
-}> = ({ values = [], onChange, ...props }) => {
+export const MultiSelectDropdown: React.FC<
+  Omit<DropdownProps, 'multiSelect'> & {
+    values?: string[];
+    onChange: (values: string[]) => void;
+  }
+> = ({ values = [], onChange, ...props }) => {
   return (
     <Dropdown
       {...props}
       multiSelect={true}
       value={values.join(',')}
-      onChange={(value) => onChange(value ? value.split(',') : [])}
+      onChange={value => onChange(value ? value.split(',') : [])}
     />
   );
 };

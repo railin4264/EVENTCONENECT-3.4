@@ -23,26 +23,29 @@ class SocketService {
     }
 
     this.authToken = token;
-    
+
     const socketOptions = {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true,
       auth: {
-        token: `Bearer ${token}`
+        token: `Bearer ${token}`,
       },
       query: {
         client: 'web',
-        version: '1.0.0'
+        version: '1.0.0',
       },
-      ...options
+      ...options,
     };
 
-    this.socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000', socketOptions);
-    
+    this.socket = io(
+      process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000',
+      socketOptions
+    );
+
     this.setupEventListeners();
     this.setupReconnection();
-    
+
     console.log('🚀 Socket.IO client inicializado');
   }
 
@@ -56,20 +59,20 @@ class SocketService {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.emit('user_online');
-      
+
       // Procesar mensajes en cola
       this.processMessageQueue();
-      
+
       // Notificar cambio de estado
       this.notifyConnectionChange(true);
     });
 
     // Desconexión
-    this.socket.on('disconnect', (reason) => {
+    this.socket.on('disconnect', reason => {
       console.log('❌ Desconectado del servidor:', reason);
       this.isConnected = false;
       this.notifyConnectionChange(false);
-      
+
       if (reason === 'io server disconnect') {
         // Desconexión iniciada por el servidor
         this.reconnect();
@@ -77,34 +80,36 @@ class SocketService {
     });
 
     // Error de conexión
-    this.socket.on('connect_error', (error) => {
+    this.socket.on('connect_error', error => {
       console.error('❌ Error de conexión Socket.IO:', error);
       this.isConnected = false;
       this.notifyConnectionChange(false);
-      
+
       if (error.message === 'Authentication failed') {
-        toast.error('Error de autenticación. Por favor, inicia sesión nuevamente.');
+        toast.error(
+          'Error de autenticación. Por favor, inicia sesión nuevamente.'
+        );
         this.disconnect();
       }
     });
 
     // Reconexión
-    this.socket.on('reconnect', (attemptNumber) => {
+    this.socket.on('reconnect', attemptNumber => {
       console.log(`🔄 Reconectado después de ${attemptNumber} intentos`);
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.emit('user_online');
       this.notifyConnectionChange(true);
-      
+
       // Procesar mensajes en cola
       this.processMessageQueue();
     });
 
     // Error de reconexión
-    this.socket.on('reconnect_error', (error) => {
+    this.socket.on('reconnect_error', error => {
       console.error('❌ Error de reconexión:', error);
       this.reconnectAttempts++;
-      
+
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         toast.error('No se pudo reconectar. Verifica tu conexión a internet.');
         this.disconnect();
@@ -112,89 +117,89 @@ class SocketService {
     });
 
     // Mensajes del chat
-    this.socket.on('new_message', (message) => {
+    this.socket.on('new_message', message => {
       console.log('💬 Nuevo mensaje recibido:', message);
       this.handleNewMessage(message);
     });
 
-    this.socket.on('message_updated', (data) => {
+    this.socket.on('message_updated', data => {
       console.log('✏️ Mensaje actualizado:', data);
       this.handleMessageUpdate(data);
     });
 
-    this.socket.on('message_deleted', (data) => {
+    this.socket.on('message_deleted', data => {
       console.log('🗑️ Mensaje eliminado:', data);
       this.handleMessageDelete(data);
     });
 
     // Indicadores de escritura
-    this.socket.on('user_typing', (data) => {
+    this.socket.on('user_typing', data => {
       console.log('✍️ Usuario escribiendo:', data);
       this.handleUserTyping(data);
     });
 
-    this.socket.on('user_stopped_typing', (data) => {
+    this.socket.on('user_stopped_typing', data => {
       console.log('⏹️ Usuario dejó de escribir:', data);
       this.handleUserStoppedTyping(data);
     });
 
     // Estado de usuarios
-    this.socket.on('user_status_changed', (data) => {
+    this.socket.on('user_status_changed', data => {
       console.log('🔄 Estado de usuario cambiado:', data);
       this.handleUserStatusChange(data);
     });
 
-    this.socket.on('user_online', (data) => {
+    this.socket.on('user_online', data => {
       console.log('🟢 Usuario en línea:', data);
       this.handleUserOnline(data);
     });
 
-    this.socket.on('user_offline', (data) => {
+    this.socket.on('user_offline', data => {
       console.log('🔴 Usuario desconectado:', data);
       this.handleUserOffline(data);
     });
 
     // Notificaciones
-    this.socket.on('notification', (notification) => {
+    this.socket.on('notification', notification => {
       console.log('🔔 Notificación recibida:', notification);
       this.handleNotification(notification);
     });
 
     // Eventos del chat
-    this.socket.on('chat_created', (data) => {
+    this.socket.on('chat_created', data => {
       console.log('✨ Chat creado:', data);
       this.handleChatCreated(data);
     });
 
-    this.socket.on('user_joined_chat', (data) => {
+    this.socket.on('user_joined_chat', data => {
       console.log('👋 Usuario se unió al chat:', data);
       this.handleUserJoinedChat(data);
     });
 
-    this.socket.on('user_left_chat', (data) => {
+    this.socket.on('user_left_chat', data => {
       console.log('👋 Usuario salió del chat:', data);
       this.handleUserLeftChat(data);
     });
 
     // Errores
-    this.socket.on('error', (error) => {
+    this.socket.on('error', error => {
       console.error('❌ Error del servidor:', error);
       this.handleServerError(error);
     });
 
     // Respuestas a eventos
-    this.socket.on('chat_created_success', (data) => {
+    this.socket.on('chat_created_success', data => {
       console.log('✅ Chat creado exitosamente:', data);
       this.handleChatCreatedSuccess(data);
     });
 
-    this.socket.on('search_results', (data) => {
+    this.socket.on('search_results', data => {
       console.log('🔍 Resultados de búsqueda:', data);
       this.handleSearchResults(data);
     });
 
     // Mensajes en cola
-    this.socket.on('queued_message', (message) => {
+    this.socket.on('queued_message', message => {
       console.log('📬 Mensaje en cola recibido:', message);
       this.handleQueuedMessage(message);
     });
@@ -206,9 +211,12 @@ class SocketService {
 
     this.socket.on('disconnect', () => {
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
-        setTimeout(() => {
-          this.reconnect();
-        }, this.reconnectDelay * Math.pow(2, this.reconnectAttempts));
+        setTimeout(
+          () => {
+            this.reconnect();
+          },
+          this.reconnectDelay * Math.pow(2, this.reconnectAttempts)
+        );
       }
     });
   }
@@ -234,7 +242,9 @@ class SocketService {
   // Reconectar
   reconnect() {
     if (this.socket && this.reconnectAttempts < this.maxReconnectAttempts) {
-      console.log(`🔄 Intentando reconectar... (${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
+      console.log(
+        `🔄 Intentando reconectar... (${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`
+      );
       this.socket.connect();
     }
   }
@@ -255,22 +265,24 @@ class SocketService {
   processMessageQueue() {
     if (this.messageQueue.length === 0) return;
 
-    console.log(`📬 Procesando ${this.messageQueue.length} mensajes en cola...`);
-    
+    console.log(
+      `📬 Procesando ${this.messageQueue.length} mensajes en cola...`
+    );
+
     const now = Date.now();
     const maxAge = 5 * 60 * 1000; // 5 minutos
-    
+
     this.messageQueue = this.messageQueue.filter(item => {
       if (now - item.timestamp > maxAge) {
         console.log(`⏰ Mensaje en cola expirado: ${item.event}`);
         return false;
       }
-      
+
       if (this.isConnected) {
         this.emit(item.event, item.data);
         return false;
       }
-      
+
       return true;
     });
   }
@@ -292,19 +304,25 @@ class SocketService {
   }
 
   // Enviar mensaje
-  sendMessage(chatId, content, type = 'text', replyTo = null, attachments = []) {
+  sendMessage(
+    chatId,
+    content,
+    type = 'text',
+    replyTo = null,
+    attachments = []
+  ) {
     const messageData = {
       chatId,
       content,
       type,
       replyTo,
       attachments,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.emit('send_message', messageData);
     console.log(`💬 Mensaje enviado:`, messageData);
-    
+
     return messageData;
   }
 
@@ -339,18 +357,24 @@ class SocketService {
   }
 
   // Crear chat
-  createChat(type, participants, name = null, description = null, isPrivate = false) {
+  createChat(
+    type,
+    participants,
+    name = null,
+    description = null,
+    isPrivate = false
+  ) {
     const chatData = {
       type,
       participants,
       name,
       description,
-      isPrivate
+      isPrivate,
     };
 
     this.emit('create_chat', chatData);
     console.log(`✨ Creando chat:`, chatData);
-    
+
     return chatData;
   }
 
@@ -378,7 +402,7 @@ class SocketService {
   handleNewMessage(message) {
     // Notificar a los listeners
     this.notifyListeners('new_message', message);
-    
+
     // Mostrar notificación si no está en el chat actual
     if (this.currentChat !== message.chatId) {
       this.showMessageNotification(message);
@@ -409,7 +433,7 @@ class SocketService {
     } else {
       this.onlineUsers.delete(data.userId);
     }
-    
+
     this.notifyListeners('user_status_changed', data);
   }
 
@@ -425,7 +449,7 @@ class SocketService {
 
   handleNotification(notification) {
     this.notifyListeners('notification', notification);
-    
+
     // Mostrar toast
     if (notification.type === 'success') {
       toast.success(notification.message);
@@ -452,7 +476,7 @@ class SocketService {
 
   handleServerError(error) {
     this.notifyListeners('error', error);
-    
+
     if (error.message) {
       toast.error(`Error del servidor: ${error.message}`);
     }
@@ -473,16 +497,19 @@ class SocketService {
   // Mostrar notificación de mensaje
   showMessageNotification(message) {
     const { sender, content, chatId } = message;
-    
+
     // Crear notificación del navegador si está disponible
     if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification(`Nuevo mensaje de ${sender.firstName}`, {
-        body: content,
-        icon: sender.avatar || '/images/user-avatar.jpg',
-        tag: `chat-${chatId}`,
-        requireInteraction: false,
-        silent: false
-      });
+      const notification = new Notification(
+        `Nuevo mensaje de ${sender.firstName}`,
+        {
+          body: content,
+          icon: sender.avatar || '/images/user-avatar.jpg',
+          tag: `chat-${chatId}`,
+          requireInteraction: false,
+          silent: false,
+        }
+      );
 
       notification.onclick = () => {
         window.focus();
@@ -529,7 +556,7 @@ class SocketService {
     return {
       isConnected: this.isConnected,
       reconnectAttempts: this.reconnectAttempts,
-      maxReconnectAttempts: this.maxReconnectAttempts
+      maxReconnectAttempts: this.maxReconnectAttempts,
     };
   }
 
@@ -558,7 +585,7 @@ class SocketService {
     this.onlineUsers.clear();
     this.currentChat = null;
     this.authToken = null;
-    
+
     console.log('🧹 Socket.IO client limpiado');
   }
 }

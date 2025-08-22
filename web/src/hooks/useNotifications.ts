@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsAPI } from '@/services/api';
@@ -46,9 +46,11 @@ interface NotificationFilters {
 }
 
 // Fetch notifications with filters
-const fetchNotifications = async (filters: NotificationFilters = {}): Promise<{ notifications: Notification[]; pagination: any }> => {
+const fetchNotifications = async (
+  filters: NotificationFilters = {}
+): Promise<{ notifications: Notification[]; pagination: any }> => {
   const params = new URLSearchParams();
-  
+
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       params.append(key, value.toString());
@@ -80,7 +82,9 @@ const deleteNotification = async (id: string): Promise<void> => {
 };
 
 // Update notification preferences
-const updateNotificationPreferences = async (preferences: any): Promise<void> => {
+const updateNotificationPreferences = async (
+  preferences: any
+): Promise<void> => {
   await notificationsAPI.updatePreferences(preferences);
 };
 
@@ -120,7 +124,9 @@ export const useNotifications = (filters: NotificationFilters = {}) => {
       queryClient.setQueryData(['notifications'], (old: any) => ({
         ...old,
         notifications: old.notifications.map((n: Notification) =>
-          n.id === id ? { ...n, status: 'read', readAt: new Date().toISOString() } : n
+          n.id === id
+            ? { ...n, status: 'read', readAt: new Date().toISOString() }
+            : n
         ),
       }));
     },
@@ -150,7 +156,9 @@ export const useNotifications = (filters: NotificationFilters = {}) => {
       queryClient.setQueryData(['notifications'], (old: any) => ({
         ...old,
         notifications: old.notifications.map((n: Notification) =>
-          n.id === id ? { ...n, status: 'archived', archivedAt: new Date().toISOString() } : n
+          n.id === id
+            ? { ...n, status: 'archived', archivedAt: new Date().toISOString() }
+            : n
         ),
       }));
     },
@@ -163,7 +171,9 @@ export const useNotifications = (filters: NotificationFilters = {}) => {
       // Remove notification from cache
       queryClient.setQueryData(['notifications'], (old: any) => ({
         ...old,
-        notifications: old.notifications.filter((n: Notification) => n.id !== id),
+        notifications: old.notifications.filter(
+          (n: Notification) => n.id !== id
+        ),
       }));
     },
   });
@@ -181,11 +191,11 @@ export const useNotifications = (filters: NotificationFilters = {}) => {
     // Data
     notifications: notificationsData?.notifications || [],
     pagination: notificationsData?.pagination,
-    
+
     // State
     isLoading,
     error,
-    
+
     // Actions
     refetch,
     markAsRead: markAsReadMutation.mutateAsync,
@@ -193,7 +203,7 @@ export const useNotifications = (filters: NotificationFilters = {}) => {
     archiveNotification: archiveNotificationMutation.mutateAsync,
     deleteNotification: deleteNotificationMutation.mutateAsync,
     updatePreferences: updatePreferencesMutation.mutateAsync,
-    
+
     // Mutations state
     isMarkingAsRead: markAsReadMutation.isPending,
     isMarkingAllAsRead: markAllAsReadMutation.isPending,
@@ -228,9 +238,11 @@ export const useNotificationPreferences = () => {
 // Hook for unread notifications count
 export const useUnreadNotificationsCount = () => {
   const { notifications } = useNotifications();
-  
-  const unreadCount = notifications.filter((n: Notification) => n.status === 'unread').length;
-  
+
+  const unreadCount = notifications.filter(
+    (n: Notification) => n.status === 'unread'
+  ).length;
+
   return {
     unreadCount,
     hasUnread: unreadCount > 0,

@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tribesAPI } from '@/services/api';
@@ -101,9 +101,11 @@ interface UpdateTribeData extends Partial<CreateTribeData> {
 }
 
 // Fetch tribes with filters
-const fetchTribes = async (filters: TribeFilters = {}): Promise<{ tribes: Tribe[]; pagination: any }> => {
+const fetchTribes = async (
+  filters: TribeFilters = {}
+): Promise<{ tribes: Tribe[]; pagination: any }> => {
   const params = new URLSearchParams();
-  
+
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       if (key === 'location' && typeof value === 'object') {
@@ -150,7 +152,10 @@ const leaveTribe = async (tribeId: string): Promise<Tribe> => {
 };
 
 // Get user's tribes
-const fetchUserTribes = async (userId: string, type: 'all' | 'created' | 'joined' | 'moderating' = 'all'): Promise<Tribe[]> => {
+const fetchUserTribes = async (
+  userId: string,
+  type: 'all' | 'created' | 'joined' | 'moderating' = 'all'
+): Promise<Tribe[]> => {
   const params = { userId, type };
   const result = await tribesAPI.getTribes(params);
   return result.tribes || [];
@@ -178,8 +183,10 @@ export const useTribes = (filters: TribeFilters = {}) => {
     onSuccess: (newTribe: Tribe) => {
       // Invalidate and refetch tribes
       queryClient.invalidateQueries({ queryKey: ['tribes'] });
-      queryClient.invalidateQueries({ queryKey: ['user', newTribe.creator.id, 'tribes'] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ['user', newTribe.creator.id, 'tribes'],
+      });
+
       // Add new tribe to cache
       queryClient.setQueryData(['tribes', newTribe.id], newTribe);
     },
@@ -192,7 +199,9 @@ export const useTribes = (filters: TribeFilters = {}) => {
       // Update tribe in cache
       queryClient.setQueryData(['tribes', updatedTribe.id], updatedTribe);
       queryClient.invalidateQueries({ queryKey: ['tribes'] });
-      queryClient.invalidateQueries({ queryKey: ['user', updatedTribe.creator.id, 'tribes'] });
+      queryClient.invalidateQueries({
+        queryKey: ['user', updatedTribe.creator.id, 'tribes'],
+      });
     },
   });
 
@@ -232,11 +241,11 @@ export const useTribes = (filters: TribeFilters = {}) => {
     // Data
     tribes: tribesData?.tribes || [],
     pagination: tribesData?.pagination,
-    
+
     // State
     isLoading,
     error,
-    
+
     // Actions
     refetch,
     createTribe: createTribeMutation.mutateAsync,
@@ -244,7 +253,7 @@ export const useTribes = (filters: TribeFilters = {}) => {
     deleteTribe: deleteTribeMutation.mutateAsync,
     joinTribe: joinTribeMutation.mutateAsync,
     leaveTribe: leaveTribeMutation.mutateAsync,
-    
+
     // Mutations state
     isCreating: createTribeMutation.isPending,
     isUpdating: updateTribeMutation.isPending,
@@ -278,7 +287,10 @@ export const useTribe = (id: string) => {
 };
 
 // Hook for user tribes
-export const useUserTribes = (userId: string, type: 'all' | 'created' | 'joined' | 'moderating' = 'all') => {
+export const useUserTribes = (
+  userId: string,
+  type: 'all' | 'created' | 'joined' | 'moderating' = 'all'
+) => {
   const {
     data: tribes,
     isLoading,

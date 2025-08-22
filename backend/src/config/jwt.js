@@ -23,12 +23,17 @@ class JWTManager {
         throw new Error('Payload debe ser un objeto válido');
       }
 
+      const subject = String(payload.userId || payload.id || '');
+      if (!subject) {
+        throw new Error('Subject inválido');
+      }
+
       const token = jwt.sign(payload, this.secret, {
         expiresIn: this.accessExpiresIn,
         algorithm: this.algorithm,
         issuer: 'EventConnect',
         audience: 'EventConnect-Users',
-        subject: payload.userId || payload.id,
+        subject,
         jwtid: crypto.randomBytes(16).toString('hex'),
       });
 
@@ -46,12 +51,17 @@ class JWTManager {
         throw new Error('Payload debe ser un objeto válido');
       }
 
+      const subject = String(payload.userId || payload.id || '');
+      if (!subject) {
+        throw new Error('Subject inválido');
+      }
+
       const token = jwt.sign(payload, this.refreshSecret, {
         expiresIn: this.refreshExpiresIn,
         algorithm: this.algorithm,
         issuer: 'EventConnect',
         audience: 'EventConnect-Users',
-        subject: payload.userId || payload.id,
+        subject,
         jwtid: crypto.randomBytes(16).toString('hex'),
       });
 
@@ -245,6 +255,11 @@ class JWTManager {
           Date.now() + this.getExpirationTime(this.refreshExpiresIn) * 1000
         ).toISOString(),
       };
+
+      // Si Redis no está conectado (p. ej., en tests), retornar tokenId sin almacenar
+      if (!redisClient.isConnected || !redisClient.isConnected()) {
+        return tokenId;
+      }
 
       // Store in Redis with expiration
       const success = await redisClient.setEx(

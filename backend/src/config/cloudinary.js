@@ -90,7 +90,7 @@ class CloudinaryManager {
           width: 300,
           height: 200,
           bytes: file.size || 1024,
-          resource_type: 'image'
+          resource_type: 'image',
         };
       }
 

@@ -12,7 +12,7 @@ class EventService {
   async getPersonalizedRecommendations(userId, limit = 10) {
     try {
       const user = await User.findById(userId).select(
-        'interests location following',
+        'interests location following'
       );
       if (!user) {
         throw new AppError('Usuario no encontrado', 404);
@@ -78,7 +78,7 @@ class EventService {
       const recommendations = this.rankRecommendations(
         [...interestEvents, ...followedEvents, ...trendingEvents],
         userInterests,
-        userLocation,
+        userLocation
       );
 
       // Remove duplicates and limit results
@@ -87,7 +87,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener recomendaciones: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -123,7 +123,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener analytics del evento: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -170,7 +170,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener tribus universales: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -209,7 +209,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener eventos del pulso: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -226,7 +226,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener tribus del usuario: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -242,10 +242,7 @@ class EventService {
       await event.save();
       return event;
     } catch (error) {
-      throw new AppError(
-        `Error al crear evento: ${error.message}`,
-        500,
-      );
+      throw new AppError(`Error al crear evento: ${error.message}`, 500);
     }
   }
 
@@ -264,10 +261,7 @@ class EventService {
         timestamp: new Date(),
       };
     } catch (error) {
-      throw new AppError(
-        `Error al guardar mensaje: ${error.message}`,
-        500,
-      );
+      throw new AppError(`Error al guardar mensaje: ${error.message}`, 500);
     }
   }
 
@@ -282,13 +276,13 @@ class EventService {
       const user = await User.findByIdAndUpdate(
         userId,
         { location: locationData },
-        { new: true },
+        { new: true }
       );
       return user;
     } catch (error) {
       throw new AppError(
         `Error al actualizar ubicación: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -319,7 +313,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener usuarios cercanos: ${error.message}`,
-        500,
+        500
       );
     }
   }

@@ -60,19 +60,16 @@ interface AuthState {
 export const useAuthStore = create<AuthState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         user: null,
         isAuthenticated: false,
         isLoading: false,
         error: null,
         login: (user: User) =>
           set({ user, isAuthenticated: true, error: null }),
-        logout: () =>
-          set({ user: null, isAuthenticated: false, error: null }),
-        setLoading: (isLoading: boolean) =>
-          set({ isLoading }),
-        setError: (error: string | null) =>
-          set({ error }),
+        logout: () => set({ user: null, isAuthenticated: false, error: null }),
+        setLoading: (isLoading: boolean) => set({ isLoading }),
+        setError: (error: string | null) => set({ error }),
       }),
       {
         name: 'auth-storage',
@@ -106,7 +103,7 @@ interface EventsState {
 export const useEventsStore = create<EventsState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         events: [],
         currentEvent: null,
         isLoading: false,
@@ -116,24 +113,22 @@ export const useEventsStore = create<EventsState>()(
           date: '',
           location: '',
         },
-        setEvents: (events: Event[]) =>
-          set({ events }),
+        setEvents: (events: Event[]) => set({ events }),
         addEvent: (event: Event) =>
-          set((state) => ({ events: [event, ...state.events] })),
+          set(state => ({ events: [event, ...state.events] })),
         updateEvent: (id: string, event: Partial<Event>) =>
-          set((state) => ({
-            events: state.events.map((e) =>
+          set(state => ({
+            events: state.events.map(e =>
               e.id === id ? { ...e, ...event } : e
             ),
           })),
         deleteEvent: (id: string) =>
-          set((state) => ({
-            events: state.events.filter((e) => e.id !== id),
+          set(state => ({
+            events: state.events.filter(e => e.id !== id),
           })),
-        setCurrentEvent: (currentEvent: Event | null) =>
-          set({ currentEvent }),
+        setCurrentEvent: (currentEvent: Event | null) => set({ currentEvent }),
         setFilters: (filters: Partial<EventsState['filters']>) =>
-          set((state) => ({
+          set(state => ({
             filters: { ...state.filters, ...filters },
           })),
         clearFilters: () =>
@@ -144,10 +139,8 @@ export const useEventsStore = create<EventsState>()(
               location: '',
             },
           }),
-        setLoading: (isLoading: boolean) =>
-          set({ isLoading }),
-        setError: (error: string | null) =>
-          set({ error }),
+        setLoading: (isLoading: boolean) => set({ isLoading }),
+        setError: (error: string | null) => set({ error }),
       }),
       {
         name: 'events-storage',
@@ -181,7 +174,7 @@ interface TribesState {
 export const useTribesStore = create<TribesState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         tribes: [],
         currentTribe: null,
         isLoading: false,
@@ -191,24 +184,22 @@ export const useTribesStore = create<TribesState>()(
           members: '',
           location: '',
         },
-        setTribes: (tribes: Tribe[]) =>
-          set({ tribes }),
+        setTribes: (tribes: Tribe[]) => set({ tribes }),
         addTribe: (tribe: Tribe) =>
-          set((state) => ({ tribes: [tribe, ...state.tribes] })),
+          set(state => ({ tribes: [tribe, ...state.tribes] })),
         updateTribe: (id: string, tribe: Partial<Tribe>) =>
-          set((state) => ({
-            tribes: state.tribes.map((t) =>
+          set(state => ({
+            tribes: state.tribes.map(t =>
               t.id === id ? { ...t, ...tribe } : t
             ),
           })),
         deleteTribe: (id: string) =>
-          set((state) => ({
-            tribes: state.tribes.filter((t) => t.id !== id),
+          set(state => ({
+            tribes: state.tribes.filter(t => t.id !== id),
           })),
-        setCurrentTribe: (currentTribe: Tribe | null) =>
-          set({ currentTribe }),
+        setCurrentTribe: (currentTribe: Tribe | null) => set({ currentTribe }),
         setFilters: (filters: Partial<TribesState['filters']>) =>
-          set((state) => ({
+          set(state => ({
             filters: { ...state.filters, ...filters },
           })),
         clearFilters: () =>
@@ -219,10 +210,8 @@ export const useTribesStore = create<TribesState>()(
               location: '',
             },
           }),
-        setLoading: (isLoading: boolean) =>
-          set({ isLoading }),
-        setError: (error: string | null) =>
-          set({ error }),
+        setLoading: (isLoading: boolean) => set({ isLoading }),
+        setError: (error: string | null) => set({ error }),
       }),
       {
         name: 'tribes-storage',
@@ -256,7 +245,7 @@ interface PostsState {
 export const usePostsStore = create<PostsState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         posts: [],
         currentPost: null,
         isLoading: false,
@@ -266,24 +255,20 @@ export const usePostsStore = create<PostsState>()(
           date: '',
           category: '',
         },
-        setPosts: (posts: Post[]) =>
-          set({ posts }),
+        setPosts: (posts: Post[]) => set({ posts }),
         addPost: (post: Post) =>
-          set((state) => ({ posts: [post, ...state.posts] })),
+          set(state => ({ posts: [post, ...state.posts] })),
         updatePost: (id: string, post: Partial<Post>) =>
-          set((state) => ({
-            posts: state.posts.map((p) =>
-              p.id === id ? { ...p, ...post } : p
-            ),
+          set(state => ({
+            posts: state.posts.map(p => (p.id === id ? { ...p, ...post } : p)),
           })),
         deletePost: (id: string) =>
-          set((state) => ({
-            posts: state.posts.filter((p) => p.id !== id),
+          set(state => ({
+            posts: state.posts.filter(p => p.id !== id),
           })),
-        setCurrentPost: (currentPost: Post | null) =>
-          set({ currentPost }),
+        setCurrentPost: (currentPost: Post | null) => set({ currentPost }),
         setFilters: (filters: Partial<PostsState['filters']>) =>
-          set((state) => ({
+          set(state => ({
             filters: { ...state.filters, ...filters },
           })),
         clearFilters: () =>
@@ -294,10 +279,8 @@ export const usePostsStore = create<PostsState>()(
               category: '',
             },
           }),
-        setLoading: (isLoading: boolean) =>
-          set({ isLoading }),
-        setError: (error: string | null) =>
-          set({ error }),
+        setLoading: (isLoading: boolean) => set({ isLoading }),
+        setError: (error: string | null) => set({ error }),
       }),
       {
         name: 'posts-storage',
@@ -324,28 +307,26 @@ interface UIState {
 export const useUIStore = create<UIState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         sidebarOpen: false,
         modalOpen: false,
         currentModal: null,
         notifications: [],
         theme: 'system',
         toggleSidebar: () =>
-          set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+          set(state => ({ sidebarOpen: !state.sidebarOpen })),
         openModal: (modal: string) =>
           set({ modalOpen: true, currentModal: modal }),
-        closeModal: () =>
-          set({ modalOpen: false, currentModal: null }),
+        closeModal: () => set({ modalOpen: false, currentModal: null }),
         addNotification: (notification: any) =>
-          set((state) => ({
+          set(state => ({
             notifications: [...state.notifications, notification],
           })),
         removeNotification: (id: string) =>
-          set((state) => ({
-            notifications: state.notifications.filter((n) => n.id !== id),
+          set(state => ({
+            notifications: state.notifications.filter(n => n.id !== id),
           })),
-        setTheme: (theme: 'light' | 'dark' | 'system') =>
-          set({ theme }),
+        setTheme: (theme: 'light' | 'dark' | 'system') => set({ theme }),
       }),
       {
         name: 'ui-storage',
@@ -370,21 +351,16 @@ interface SearchState {
 export const useSearchStore = create<SearchState>()(
   devtools(
     persist(
-      (set) => ({
+      set => ({
         query: '',
         results: [],
         filters: {},
         isLoading: false,
-        setQuery: (query: string) =>
-          set({ query }),
-        setResults: (results: any[]) =>
-          set({ results }),
-        setFilters: (filters: any) =>
-          set({ filters }),
-        setLoading: (isLoading: boolean) =>
-          set({ isLoading }),
-        clearSearch: () =>
-          set({ query: '', results: [], filters: {} }),
+        setQuery: (query: string) => set({ query }),
+        setResults: (results: any[]) => set({ results }),
+        setFilters: (filters: any) => set({ filters }),
+        setLoading: (isLoading: boolean) => set({ isLoading }),
+        clearSearch: () => set({ query: '', results: [], filters: {} }),
       }),
       {
         name: 'search-storage',
@@ -393,4 +369,4 @@ export const useSearchStore = create<SearchState>()(
   )
 );
 
-// All stores are already exported above 
+// All stores are already exported above

@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 // Create axios instance for client-side requests
 const apiClient: AxiosInstance = axios.create({
-  baseURL: process.env['NEXT_PUBLIC_API_URL'] || 'http://localhost:3001',
+  baseURL: process.env['NEXT_PUBLIC_API_URL'] || 'http://localhost:5000',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -11,14 +11,14 @@ const apiClient: AxiosInstance = axios.create({
 
 // Request interceptor
 apiClient.interceptors.request.use(
-  (config) => {
+  config => {
     const token = localStorage.getItem('accessToken');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  error => {
     return Promise.reject(error);
   }
 );
@@ -28,7 +28,7 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
   },
-  async (error) => {
+  async error => {
     const originalRequest = error.config;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -37,9 +37,12 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const response = await axios.post(`${process.env['NEXT_PUBLIC_API_URL']}/auth/refresh`, {
-            refreshToken,
-          });
+          const response = await axios.post(
+            `${process.env['NEXT_PUBLIC_API_URL']}/api/auth/refresh-token`,
+            {
+              refreshToken,
+            }
+          );
 
           const { accessToken } = response.data;
           if (accessToken) {

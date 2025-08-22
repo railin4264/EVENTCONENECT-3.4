@@ -15,7 +15,32 @@ class PostController {
 
       // Add author information
       postData.author = userId;
-      postData.status = 'active';
+      // Status lo maneja el modelo (default 'published')
+
+      // Saneos de payload
+      if (postData.type && postData.type !== 'poll') {
+        delete postData.poll;
+      }
+      if (postData.location) {
+        const coords = postData.location.coordinates;
+        const hasValidCoords = Array.isArray(coords) && coords.length === 2;
+        if (!hasValidCoords) {
+          delete postData.location;
+        } else {
+          // Normalizar a [lon, lat] números
+          postData.location.type = 'Point';
+          postData.location.coordinates = [
+            Number(postData.location.coordinates[0]),
+            Number(postData.location.coordinates[1]),
+          ];
+        }
+      }
+
+      // Mapear event → relatedEvent si viene del cliente
+      if (postData.event && !postData.relatedEvent) {
+        postData.relatedEvent = postData.event;
+        delete postData.event;
+      }
 
       // Handle media uploads if any
       if (req.files && req.files.length > 0) {
@@ -43,6 +68,15 @@ class PostController {
 
       // Create post
       const post = new Post(postData);
+
+      // Asegurar que no se persista location sin coordinates válidas
+      if (
+        !post.location ||
+        !Array.isArray(post.location.coordinates) ||
+        post.location.coordinates.length !== 2
+      ) {
+        post.location = undefined;
+      }
       await post.save();
 
       // Populate author information

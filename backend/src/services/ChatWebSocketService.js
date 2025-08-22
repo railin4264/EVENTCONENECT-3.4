@@ -45,7 +45,9 @@ class ChatWebSocketService {
         await this.joinEventRoom(socket, data.eventId, data.userId);
       } catch (error) {
         console.error('Error joining event room:', error);
-        socket.emit('error', { message: 'Error al unirse a la sala del evento' });
+        socket.emit('error', {
+          message: 'Error al unirse a la sala del evento',
+        });
       }
     });
 
@@ -55,7 +57,9 @@ class ChatWebSocketService {
         await this.joinTribeRoom(socket, data.tribeId, data.userId);
       } catch (error) {
         console.error('Error joining tribe room:', error);
-        socket.emit('error', { message: 'Error al unirse a la sala de la tribu' });
+        socket.emit('error', {
+          message: 'Error al unirse a la sala de la tribu',
+        });
       }
     });
 
@@ -230,7 +234,8 @@ class ChatWebSocketService {
       }
 
       // Check if user is attending or hosting the event
-      const hasAccess = event.attendees.includes(userId) || event.host.toString() === userId;
+      const hasAccess =
+        event.attendees.includes(userId) || event.host.toString() === userId;
       if (!hasAccess) {
         throw new AppError('No tienes acceso a este evento', 403);
       }
@@ -387,7 +392,11 @@ class ChatWebSocketService {
       }
 
       // Save reaction to database
-      const savedReaction = await this.saveMessageReaction(messageId, reaction, userId);
+      const savedReaction = await this.saveMessageReaction(
+        messageId,
+        reaction,
+        userId
+      );
 
       // Broadcast reaction to room
       this.io.to(room).emit('message-reaction', {
@@ -591,7 +600,11 @@ class ChatWebSocketService {
       }
 
       // Create call session
-      const callSession = await this.createCallSession(userId, targetUserId, room);
+      const callSession = await this.createCallSession(
+        userId,
+        targetUserId,
+        room
+      );
 
       // Send call request to target user
       targetSocket.emit('incoming-call', {
@@ -664,7 +677,11 @@ class ChatWebSocketService {
       }
 
       // Update call session
-      const callSession = await this.updateCallSession(callId, 'rejected', reason);
+      const callSession = await this.updateCallSession(
+        callId,
+        'rejected',
+        reason
+      );
 
       // Notify caller that call was rejected
       const callerSocket = this.getUserSocket(callSession.callerId);
@@ -954,7 +971,10 @@ class ChatWebSocketService {
         createdAt: new Date(),
       };
     } catch (error) {
-      throw new AppError(`Error al crear sesión de llamada: ${error.message}`, 500);
+      throw new AppError(
+        `Error al crear sesión de llamada: ${error.message}`,
+        500
+      );
     }
   }
 
@@ -976,7 +996,10 @@ class ChatWebSocketService {
         updatedAt: new Date(),
       };
     } catch (error) {
-      throw new AppError(`Error al actualizar sesión de llamada: ${error.message}`, 500);
+      throw new AppError(
+        `Error al actualizar sesión de llamada: ${error.message}`,
+        500
+      );
     }
   }
 

@@ -44,49 +44,49 @@ export interface ModalFooterProps {
 const overlayVariants: Variants = {
   initial: { opacity: 0 },
   animate: { opacity: 1 },
-  exit: { opacity: 0 }
+  exit: { opacity: 0 },
 };
 
 const modalVariants: Variants = {
-  initial: { 
-    opacity: 0, 
-    scale: 0.8, 
+  initial: {
+    opacity: 0,
+    scale: 0.8,
     y: 50,
-    rotateX: -15
+    rotateX: -15,
   },
-  animate: { 
-    opacity: 1, 
-    scale: 1, 
+  animate: {
+    opacity: 1,
+    scale: 1,
     y: 0,
     rotateX: 0,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
-      damping: 30
-    }
+      damping: 30,
+    },
   },
-  exit: { 
-    opacity: 0, 
-    scale: 0.8, 
+  exit: {
+    opacity: 0,
+    scale: 0.8,
     y: 50,
     rotateX: -15,
     transition: {
-      duration: 0.2
-    }
-  }
+      duration: 0.2,
+    },
+  },
 };
 
 // ===== MODAL ICONS =====
 const getModalIcon = (variant?: string) => {
   switch (variant) {
     case 'success':
-      return <CheckCircle className="w-6 h-6 text-green-400" />;
+      return <CheckCircle className='w-6 h-6 text-green-400' />;
     case 'error':
-      return <AlertCircle className="w-6 h-6 text-red-400" />;
+      return <AlertCircle className='w-6 h-6 text-red-400' />;
     case 'warning':
-      return <AlertTriangle className="w-6 h-6 text-yellow-400" />;
+      return <AlertTriangle className='w-6 h-6 text-yellow-400' />;
     case 'info':
-      return <Info className="w-6 h-6 text-blue-400" />;
+      return <Info className='w-6 h-6 text-blue-400' />;
     default:
       return null;
   }
@@ -104,13 +104,12 @@ export const Modal: React.FC<ModalProps> = ({
   closeOnOverlayClick = true,
   closeOnEscape = true,
   className,
-  overlayClassName
+  overlayClassName,
 }) => {
-  
   // ===== ESCAPE KEY HANDLER =====
   useEffect(() => {
     if (!closeOnEscape) return;
-    
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
@@ -141,7 +140,7 @@ export const Modal: React.FC<ModalProps> = ({
     md: 'max-w-lg',
     lg: 'max-w-2xl',
     xl: 'max-w-4xl',
-    full: 'max-w-[95vw] max-h-[95vh]'
+    full: 'max-w-[95vw] max-h-[95vh]',
   };
 
   // ===== VARIANT STYLES =====
@@ -149,8 +148,9 @@ export const Modal: React.FC<ModalProps> = ({
     default: 'bg-white/5 backdrop-blur-sm border border-white/10',
     glass: 'backdrop-blur-xl bg-white/10 border border-white/20',
     neon: 'bg-black/80 border border-cyan-400/50 shadow-cyan-500/25',
-    gradient: 'bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-cyan-400/30',
-    elevated: 'bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl'
+    gradient:
+      'bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-cyan-400/30',
+    elevated: 'bg-white/5 backdrop-blur-sm border border-white/10 shadow-2xl',
   };
 
   return (
@@ -163,30 +163,30 @@ export const Modal: React.FC<ModalProps> = ({
             overlayClassName
           )}
           variants={overlayVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
+          initial='initial'
+          animate='animate'
+          exit='exit'
           onClick={handleOverlayClick}
         >
           {/* Background particles effect */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className='absolute inset-0 overflow-hidden pointer-events-none'>
             {Array.from({ length: 20 }).map((_, i) => (
               <motion.div
                 key={i}
-                className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-20"
+                className='absolute w-1 h-1 bg-cyan-400 rounded-full opacity-20'
                 style={{
                   left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`
+                  top: `${Math.random() * 100}%`,
                 }}
                 animate={{
                   y: [0, -100, 0],
                   opacity: [0.2, 0.6, 0.2],
-                  scale: [1, 1.5, 1]
+                  scale: [1, 1.5, 1],
                 }}
                 transition={{
                   duration: Math.random() * 10 + 10,
                   repeat: Infinity,
-                  ease: "easeInOut"
+                  ease: 'easeInOut',
                 }}
               />
             ))}
@@ -202,32 +202,30 @@ export const Modal: React.FC<ModalProps> = ({
               className
             )}
             variants={modalVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
+            initial='initial'
+            animate='animate'
+            exit='exit'
           >
             {/* Background gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300" />
-            
+            <div className='absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300' />
+
             {/* Neon border effect for neon variant */}
             {variant === 'neon' && (
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-400/20 to-purple-400/20 opacity-0 hover:opacity-100 transition-opacity duration-300" />
+              <div className='absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-400/20 to-purple-400/20 opacity-0 hover:opacity-100 transition-opacity duration-300' />
             )}
 
             {/* Content */}
-            <div className="relative z-10">
-              {children}
-            </div>
+            <div className='relative z-10'>{children}</div>
 
             {/* Close button overlay */}
             {showCloseButton && (
               <motion.button
                 onClick={onClose}
-                className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:border-white/40 transition-all duration-200 flex items-center justify-center"
+                className='absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/20 backdrop-blur-sm border border-white/20 text-white hover:bg-black/40 hover:border-white/40 transition-all duration-200 flex items-center justify-center'
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
               >
-                <X className="w-4 h-4" />
+                <X className='w-4 h-4' />
               </motion.button>
             )}
           </motion.div>
@@ -244,34 +242,28 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
   icon,
   onClose,
   showCloseButton = true,
-  className
+  className,
 }) => {
   return (
     <div className={cn('p-6 pb-4', className)}>
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-3">
+      <div className='flex items-start justify-between'>
+        <div className='flex items-start space-x-3'>
           {icon && (
-            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg">
+            <div className='flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg'>
               {icon}
             </div>
           )}
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold text-white mb-1">
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-sm text-gray-300">
-                {subtitle}
-              </p>
-            )}
+          <div className='flex-1'>
+            <h2 className='text-xl font-semibold text-white mb-1'>{title}</h2>
+            {subtitle && <p className='text-sm text-gray-300'>{subtitle}</p>}
           </div>
         </div>
         {showCloseButton && onClose && (
           <button
             onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center justify-center text-white"
+            className='flex-shrink-0 w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center justify-center text-white'
           >
-            <X className="w-4 h-4" />
+            <X className='w-4 h-4' />
           </button>
         )}
       </div>
@@ -283,21 +275,17 @@ export const ModalHeader: React.FC<ModalHeaderProps> = ({
 export const ModalContent: React.FC<ModalContentProps> = ({
   children,
   padding = 'md',
-  className
+  className,
 }) => {
   const paddingClasses = {
     none: '',
     sm: 'px-6 py-2',
     md: 'px-6 py-4',
-    lg: 'px-8 py-6'
+    lg: 'px-8 py-6',
   };
 
   return (
-    <div className={cn(
-      'text-gray-300',
-      paddingClasses[padding],
-      className
-    )}>
+    <div className={cn('text-gray-300', paddingClasses[padding], className)}>
       {children}
     </div>
   );
@@ -308,21 +296,15 @@ export const ModalFooter: React.FC<ModalFooterProps> = ({
   children,
   actions,
   divider = true,
-  className
+  className,
 }) => {
   return (
     <div className={cn('p-6 pt-4', className)}>
-      {divider && (
-        <div className="border-t border-white/10 mb-4" />
-      )}
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          {children}
-        </div>
+      {divider && <div className='border-t border-white/10 mb-4' />}
+      <div className='flex items-center justify-between'>
+        <div className='flex-1'>{children}</div>
         {actions && (
-          <div className="flex items-center space-x-3">
-            {actions}
-          </div>
+          <div className='flex items-center space-x-3'>{actions}</div>
         )}
       </div>
     </div>
@@ -342,8 +324,8 @@ export const AlertModal: React.FC<{
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="sm"
-      variant="glass"
+      size='sm'
+      variant='glass'
       closeOnOverlayClick={false}
     >
       <ModalHeader
@@ -352,15 +334,13 @@ export const AlertModal: React.FC<{
         showCloseButton={false}
       />
       <ModalContent>
-        <p className="text-gray-300 leading-relaxed">
-          {message}
-        </p>
+        <p className='text-gray-300 leading-relaxed'>{message}</p>
       </ModalContent>
       <ModalFooter>
         {actions || (
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200"
+            className='px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200'
           >
             Entendido
           </button>
@@ -380,15 +360,15 @@ export const ConfirmModal: React.FC<{
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
-}> = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
-  message, 
+}> = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
-  variant = 'info'
+  variant = 'info',
 }) => {
   const handleConfirm = () => {
     onConfirm();
@@ -410,8 +390,8 @@ export const ConfirmModal: React.FC<{
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="sm"
-      variant="glass"
+      size='sm'
+      variant='glass'
       closeOnOverlayClick={false}
     >
       <ModalHeader
@@ -420,14 +400,12 @@ export const ConfirmModal: React.FC<{
         showCloseButton={false}
       />
       <ModalContent>
-        <p className="text-gray-300 leading-relaxed">
-          {message}
-        </p>
+        <p className='text-gray-300 leading-relaxed'>{message}</p>
       </ModalContent>
       <ModalFooter>
         <button
           onClick={onClose}
-          className="px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-all duration-200"
+          className='px-4 py-2 border border-white/20 text-white rounded-lg hover:bg-white/10 transition-all duration-200'
         >
           {cancelText}
         </button>

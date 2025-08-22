@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '@/services/api';
@@ -79,9 +79,11 @@ interface UpdateUserData {
 }
 
 // Fetch users with filters
-const fetchUsers = async (filters: UserFilters = {}): Promise<{ users: User[]; pagination: any }> => {
+const fetchUsers = async (
+  filters: UserFilters = {}
+): Promise<{ users: User[]; pagination: any }> => {
   const params = new URLSearchParams();
-  
+
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
       if (key === 'location' && typeof value === 'object') {
@@ -173,16 +175,16 @@ export const useUsers = (filters: UserFilters = {}) => {
     // Data
     users: usersData?.users || [],
     pagination: usersData?.pagination,
-    
+
     // State
     isLoading,
     error,
-    
+
     // Actions
     refetch,
     followUser: followUserMutation.mutateAsync,
     unfollowUser: unfollowUserMutation.mutateAsync,
-    
+
     // Mutations state
     isFollowing: followUserMutation.isPending,
     isUnfollowing: unfollowUserMutation.isPending,

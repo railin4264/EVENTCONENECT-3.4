@@ -49,6 +49,9 @@ const {
 const app = express();
 const server = http.createServer(app);
 
+// Habilitar trust proxy para que cookies secure funcionen detrás de proxy
+app.set('trust proxy', 1);
+
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {

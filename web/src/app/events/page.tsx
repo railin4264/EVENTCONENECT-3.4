@@ -2,19 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Search, 
-  MapPin, 
-  Calendar, 
-  Users, 
-  Star, 
+import {
+  Search,
+  MapPin,
+  Calendar,
+  Users,
+  Star,
   Heart,
   Share,
   Clock,
   ArrowRight,
   TrendingUp,
   Grid,
-  List
+  List,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardTitle, CardBadge } from '@/components/ui/Card';
@@ -55,7 +55,8 @@ const sampleEvents: Event[] = [
   {
     id: '1',
     title: 'Tech Meetup Barcelona 2024',
-    description: 'Únete a desarrolladores y entusiastas de la tecnología para una noche de networking y charlas inspiradoras sobre el futuro del desarrollo web, IA y blockchain.',
+    description:
+      'Únete a desarrolladores y entusiastas de la tecnología para una noche de networking y charlas inspiradoras sobre el futuro del desarrollo web, IA y blockchain.',
     date: '15 Dic 2024',
     time: '19:00',
     location: 'Barcelona, España',
@@ -73,7 +74,8 @@ const sampleEvents: Event[] = [
   {
     id: '2',
     title: 'Festival de Música Urbana Madrid',
-    description: 'Celebra la cultura urbana con los mejores artistas del momento. Una noche llena de ritmo, baile y energía positiva que no te puedes perder.',
+    description:
+      'Celebra la cultura urbana con los mejores artistas del momento. Una noche llena de ritmo, baile y energía positiva que no te puedes perder.',
     date: '20 Dic 2024',
     time: '22:00',
     location: 'Madrid, España',
@@ -91,7 +93,8 @@ const sampleEvents: Event[] = [
   {
     id: '3',
     title: 'Workshop de Arte Digital Avanzado',
-    description: 'Aprende técnicas avanzadas de arte digital con herramientas modernas como Procreate, Photoshop y Blender. Perfecto para artistas que quieren expandir sus habilidades.',
+    description:
+      'Aprende técnicas avanzadas de arte digital con herramientas modernas como Procreate, Photoshop y Blender. Perfecto para artistas que quieren expandir sus habilidades.',
     date: '22 Dic 2024',
     time: '16:00',
     location: 'Valencia, España',
@@ -109,7 +112,8 @@ const sampleEvents: Event[] = [
   {
     id: '4',
     title: 'Networking Empresarial Sevilla',
-    description: 'Conecta con emprendedores y profesionales del sector empresarial. Oportunidades únicas de colaboración, inversión y crecimiento para tu negocio.',
+    description:
+      'Conecta con emprendedores y profesionales del sector empresarial. Oportunidades únicas de colaboración, inversión y crecimiento para tu negocio.',
     date: '25 Dic 2024',
     time: '18:30',
     location: 'Sevilla, España',
@@ -127,7 +131,8 @@ const sampleEvents: Event[] = [
   {
     id: '5',
     title: 'Maratón Nocturna Barcelona',
-    description: 'Corre por las calles iluminadas de Barcelona en esta maratón nocturna única. Recorrido de 42km con vistas espectaculares de la ciudad.',
+    description:
+      'Corre por las calles iluminadas de Barcelona en esta maratón nocturna única. Recorrido de 42km con vistas espectaculares de la ciudad.',
     date: '28 Dic 2024',
     time: '21:00',
     location: 'Barcelona, España',
@@ -145,7 +150,8 @@ const sampleEvents: Event[] = [
   {
     id: '6',
     title: 'Festival Gastronómico Valencia',
-    description: 'Explora la rica tradición culinaria valenciana con chefs reconocidos, degustaciones exclusivas y talleres de cocina tradicional.',
+    description:
+      'Explora la rica tradición culinaria valenciana con chefs reconocidos, degustaciones exclusivas y talleres de cocina tradicional.',
     date: '30 Dic 2024',
     time: '14:00',
     location: 'Valencia, España',
@@ -198,8 +204,8 @@ const priceRanges = [
 ];
 
 // ===== EVENT CARD COMPONENT =====
-const EventCard: React.FC<{ 
-  event: Event; 
+const EventCard: React.FC<{
+  event: Event;
   index: number;
   viewMode: 'grid' | 'list';
 }> = ({ event, index, viewMode }) => {
@@ -225,29 +231,35 @@ const EventCard: React.FC<{
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: index * 0.1 }}
-        className="w-full"
+        className='w-full'
       >
-        <Card variant="glass" className="hover:scale-[1.02] transition-transform duration-300">
-          <CardContent className="p-0">
-            <div className="flex">
+        <Card
+          variant='glass'
+          className='hover:scale-[1.02] transition-transform duration-300'
+        >
+          <CardContent className='p-0'>
+            <div className='flex'>
               {/* Event Image */}
-              <div className="w-48 h-32 relative flex-shrink-0">
+              <div className='w-48 h-32 relative flex-shrink-0'>
                 <img
                   src={event.image}
                   alt={event.title}
-                  className="w-full h-full object-cover rounded-l-xl"
+                  className='w-full h-full object-cover rounded-l-xl'
                 />
-                
+
                 {/* Category Badge */}
-                <div className="absolute top-3 left-3">
-                  <CardBadge variant="primary">{event.category}</CardBadge>
+                <div className='absolute top-3 left-3'>
+                  <CardBadge variant='primary'>{event.category}</CardBadge>
                 </div>
-                
+
                 {/* Trending Badge */}
                 {event.isTrending && (
-                  <div className="absolute top-3 right-3">
-                    <CardBadge variant="accent" className="flex items-center space-x-1">
-                      <TrendingUp className="w-3 h-3" />
+                  <div className='absolute top-3 right-3'>
+                    <CardBadge
+                      variant='accent'
+                      className='flex items-center space-x-1'
+                    >
+                      <TrendingUp className='w-3 h-3' />
                       <span>Trending</span>
                     </CardBadge>
                   </div>
@@ -255,86 +267,100 @@ const EventCard: React.FC<{
               </div>
 
               {/* Event Content */}
-              <div className="flex-1 p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <CardTitle className="text-xl mb-2">{event.title}</CardTitle>
-                    <p className="text-gray-300 text-sm mb-3 line-clamp-2">
+              <div className='flex-1 p-6'>
+                <div className='flex justify-between items-start mb-4'>
+                  <div className='flex-1'>
+                    <CardTitle className='text-xl mb-2'>
+                      {event.title}
+                    </CardTitle>
+                    <p className='text-gray-300 text-sm mb-3 line-clamp-2'>
                       {event.description}
                     </p>
-                    
+
                     {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className='flex flex-wrap gap-2 mb-4'>
                       {event.tags.map((tag, tagIndex) => (
                         <span
                           key={tagIndex}
-                          className="px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300"
+                          className='px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300'
                         >
                           {tag}
                         </span>
                       ))}
                     </div>
                   </div>
-                  
+
                   {/* Rating */}
-                  <div className="flex items-center space-x-1 ml-4">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="text-sm text-gray-300">{event.rating}</span>
+                  <div className='flex items-center space-x-1 ml-4'>
+                    <Star className='w-4 h-4 text-yellow-400 fill-current' />
+                    <span className='text-sm text-gray-300'>
+                      {event.rating}
+                    </span>
                   </div>
                 </div>
 
                 {/* Event Details */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm text-gray-300">{event.date}</span>
+                <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-4'>
+                  <div className='flex items-center space-x-2'>
+                    <Calendar className='w-4 h-4 text-cyan-400' />
+                    <span className='text-sm text-gray-300'>{event.date}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Clock className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm text-gray-300">{event.time}</span>
+                  <div className='flex items-center space-x-2'>
+                    <Clock className='w-4 h-4 text-cyan-400' />
+                    <span className='text-sm text-gray-300'>{event.time}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm text-gray-300">{event.location}</span>
+                  <div className='flex items-center space-x-2'>
+                    <MapPin className='w-4 h-4 text-cyan-400' />
+                    <span className='text-sm text-gray-300'>
+                      {event.location}
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm text-gray-300">
+                  <div className='flex items-center space-x-2'>
+                    <Users className='w-4 h-4 text-cyan-400' />
+                    <span className='text-sm text-gray-300'>
                       {event.attendees}/{event.maxAttendees}
                     </span>
                   </div>
                 </div>
 
                 {/* Event Footer */}
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-400">Organizado por:</span>
-                    <span className="text-sm text-cyan-400 font-medium">{event.organizer}</span>
-                    <span className="text-lg font-bold text-cyan-400">{event.price}</span>
+                <div className='flex justify-between items-center'>
+                  <div className='flex items-center space-x-4'>
+                    <span className='text-sm text-gray-400'>
+                      Organizado por:
+                    </span>
+                    <span className='text-sm text-cyan-400 font-medium'>
+                      {event.organizer}
+                    </span>
+                    <span className='text-lg font-bold text-cyan-400'>
+                      {event.price}
+                    </span>
                   </div>
-                  
-                  <div className="flex items-center space-x-3">
+
+                  <div className='flex items-center space-x-3'>
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant='ghost'
+                      size='sm'
                       onClick={handleShare}
-                      className="text-gray-400 hover:text-white"
+                      className='text-gray-400 hover:text-white'
                     >
-                      <Share className="w-4 h-4" />
+                      <Share className='w-4 h-4' />
                     </Button>
-                    
+
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant='ghost'
+                      size='sm'
                       onClick={handleLike}
                       className={`${isLiked ? 'text-pink-400' : 'text-gray-400'} hover:text-pink-400`}
                     >
-                      <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+                      <Heart
+                        className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`}
+                      />
                     </Button>
-                    
-                    <Button variant="primary" size="sm">
+
+                    <Button variant='primary' size='sm'>
                       <span>Unirse</span>
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      <ArrowRight className='w-4 h-4 ml-2' />
                     </Button>
                   </div>
                 </div>
@@ -352,39 +378,45 @@ const EventCard: React.FC<{
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: index * 0.1 }}
-      className="w-full"
+      className='w-full'
     >
-      <Card variant="glass" className="hover:scale-105 transition-transform duration-300 h-full">
-        <CardContent className="p-0">
+      <Card
+        variant='glass'
+        className='hover:scale-105 transition-transform duration-300 h-full'
+      >
+        <CardContent className='p-0'>
           {/* Event Image */}
-          <div className="relative h-48">
+          <div className='relative h-48'>
             <img
               src={event.image}
               alt={event.title}
-              className="w-full h-full object-cover rounded-t-xl"
+              className='w-full h-full object-cover rounded-t-xl'
             />
-            
+
             {/* Category Badge */}
-            <div className="absolute top-3 left-3">
-              <CardBadge variant="primary">{event.category}</CardBadge>
+            <div className='absolute top-3 left-3'>
+              <CardBadge variant='primary'>{event.category}</CardBadge>
             </div>
-            
+
             {/* Trending Badge */}
             {event.isTrending && (
-              <div className="absolute top-3 right-3">
-                <CardBadge variant="accent" className="flex items-center space-x-1">
-                  <TrendingUp className="w-3 h-3" />
+              <div className='absolute top-3 right-3'>
+                <CardBadge
+                  variant='accent'
+                  className='flex items-center space-x-1'
+                >
+                  <TrendingUp className='w-3 h-3' />
                   <span>Trending</span>
                 </CardBadge>
               </div>
             )}
-            
+
             {/* Like Button */}
             <button
               onClick={handleLike}
               className={`absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                isLiked 
-                  ? 'bg-pink-500 text-white' 
+                isLiked
+                  ? 'bg-pink-500 text-white'
                   : 'bg-black/60 text-white hover:bg-black/80'
               }`}
             >
@@ -393,60 +425,66 @@ const EventCard: React.FC<{
           </div>
 
           {/* Event Content */}
-          <div className="p-4">
-            <div className="mb-3">
-              <CardTitle className="text-lg mb-2 line-clamp-2">{event.title}</CardTitle>
-              <p className="text-gray-300 text-sm line-clamp-2 mb-3">
+          <div className='p-4'>
+            <div className='mb-3'>
+              <CardTitle className='text-lg mb-2 line-clamp-2'>
+                {event.title}
+              </CardTitle>
+              <p className='text-gray-300 text-sm line-clamp-2 mb-3'>
                 {event.description}
               </p>
             </div>
 
             {/* Event Details */}
-            <div className="space-y-2 mb-4">
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm text-gray-300">{event.date} • {event.time}</span>
+            <div className='space-y-2 mb-4'>
+              <div className='flex items-center space-x-2'>
+                <Calendar className='w-4 h-4 text-cyan-400' />
+                <span className='text-sm text-gray-300'>
+                  {event.date} • {event.time}
+                </span>
               </div>
-              <div className="flex items-center space-x-2">
-                <MapPin className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm text-gray-300">{event.location}</span>
+              <div className='flex items-center space-x-2'>
+                <MapPin className='w-4 h-4 text-cyan-400' />
+                <span className='text-sm text-gray-300'>{event.location}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm text-gray-300">
+              <div className='flex items-center space-x-2'>
+                <Users className='w-4 h-4 text-cyan-400' />
+                <span className='text-sm text-gray-300'>
                   {event.attendees}/{event.maxAttendees} asistentes
                 </span>
               </div>
             </div>
 
             {/* Tags */}
-            <div className="flex flex-wrap gap-1 mb-4">
+            <div className='flex flex-wrap gap-1 mb-4'>
               {event.tags.slice(0, 2).map((tag, tagIndex) => (
                 <span
                   key={tagIndex}
-                  className="px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300"
+                  className='px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300'
                 >
                   {tag}
                 </span>
               ))}
               {event.tags.length > 2 && (
-                <span className="px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300">
+                <span className='px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300'>
                   +{event.tags.length - 2}
                 </span>
               )}
             </div>
 
             {/* Event Footer */}
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                <span className="text-sm text-gray-300">{event.rating}</span>
-                <span className="text-lg font-bold text-cyan-400 ml-2">{event.price}</span>
+            <div className='flex justify-between items-center'>
+              <div className='flex items-center space-x-2'>
+                <Star className='w-4 h-4 text-yellow-400 fill-current' />
+                <span className='text-sm text-gray-300'>{event.rating}</span>
+                <span className='text-lg font-bold text-cyan-400 ml-2'>
+                  {event.price}
+                </span>
               </div>
-              
-              <Button variant="primary" size="sm">
+
+              <Button variant='primary' size='sm'>
                 <span>Unirse</span>
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className='w-4 h-4 ml-2' />
               </Button>
             </div>
           </div>
@@ -476,17 +514,20 @@ export default function EventsPage() {
 
     // Search filter
     if (searchQuery) {
-      filtered = filtered.filter(event =>
-        event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+      filtered = filtered.filter(
+        event =>
+          event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          event.tags.some(tag =>
+            tag.toLowerCase().includes(searchQuery.toLowerCase())
+          )
       );
     }
 
     // Category filter
     if (filters.category !== 'all') {
-      filtered = filtered.filter(event =>
-        event.category.toLowerCase() === filters.category
+      filtered = filtered.filter(
+        event => event.category.toLowerCase() === filters.category
       );
     }
 
@@ -502,9 +543,16 @@ export default function EventsPage() {
       filtered = filtered.filter(event => {
         const price = event.price;
         if (filters.price === 'free') return price === 'Gratis';
-        if (filters.price === 'low') return price !== 'Gratis' && parseFloat(price.replace('€', '')) <= 25;
-        if (filters.price === 'medium') return price !== 'Gratis' && parseFloat(price.replace('€', '')) > 25 && parseFloat(price.replace('€', '')) <= 50;
-        if (filters.price === 'high') return price !== 'Gratis' && parseFloat(price.replace('€', '')) > 50;
+        if (filters.price === 'low')
+          return price !== 'Gratis' && parseFloat(price.replace('€', '')) <= 25;
+        if (filters.price === 'medium')
+          return (
+            price !== 'Gratis' &&
+            parseFloat(price.replace('€', '')) > 25 &&
+            parseFloat(price.replace('€', '')) <= 50
+          );
+        if (filters.price === 'high')
+          return price !== 'Gratis' && parseFloat(price.replace('€', '')) > 50;
         return true;
       });
     }
@@ -530,13 +578,13 @@ export default function EventsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'>
       {/* Background Particles */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className='fixed inset-0 overflow-hidden pointer-events-none'>
         {Array.from({ length: 50 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 bg-cyan-400 rounded-full opacity-20"
+            className='absolute w-1 h-1 bg-cyan-400 rounded-full opacity-20'
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -544,45 +592,49 @@ export default function EventsPage() {
             animate={{
               y: [0, -100, 0],
               opacity: [0.2, 0.6, 0.2],
-              scale: [1, 1.5, 1]
+              scale: [1, 1.5, 1],
             }}
             transition={{
               duration: Math.random() * 10 + 10,
               repeat: Infinity,
-              ease: "easeInOut"
+              ease: 'easeInOut',
             }}
           />
         ))}
       </div>
 
       {/* Grid Pattern Overlay */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(0,212,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20 pointer-events-none" />
+      <div className='fixed inset-0 bg-[linear-gradient(rgba(0,212,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20 pointer-events-none' />
 
-      <div className="relative z-10">
+      <div className='relative z-10'>
         {/* Header Section */}
-        <section className="pt-20 pb-16 text-center">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className='pt-20 pb-16 text-center'>
+          <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+              className='text-5xl md:text-6xl font-bold mb-6 leading-tight'
             >
-              <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+              <span className='bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent'>
                 Descubre
               </span>
               <br />
-              <span className="text-white">Eventos Increíbles</span>
+              <span className='text-white'>Eventos Increíbles</span>
             </motion.h1>
-            
+
             <motion.p
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed"
+              className='text-xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed'
             >
-              Explora miles de eventos únicos, únete a comunidades apasionadas y crea 
-              <span className="text-cyan-400 font-semibold"> conexiones que duran toda la vida</span>
+              Explora miles de eventos únicos, únete a comunidades apasionadas y
+              crea
+              <span className='text-cyan-400 font-semibold'>
+                {' '}
+                conexiones que duran toda la vida
+              </span>
             </motion.p>
 
             {/* Search Bar */}
@@ -590,29 +642,24 @@ export default function EventsPage() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="max-w-2xl mx-auto"
+              className='max-w-2xl mx-auto'
             >
-              <Card variant="glass" className="backdrop-blur-2xl">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <div className="flex-1 relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Card variant='glass' className='backdrop-blur-2xl'>
+                <CardContent className='p-6'>
+                  <div className='flex flex-col sm:flex-row gap-4'>
+                    <div className='flex-1 relative'>
+                      <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400' />
                       <Input
-                        type="text"
-                        placeholder="¿Qué tipo de evento buscas?"
+                        type='text'
+                        placeholder='¿Qué tipo de evento buscas?'
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        variant="glass"
-                        className="pl-10"
+                        onChange={e => setSearchQuery(e.target.value)}
+                        variant='glass'
+                        className='pl-10'
                       />
                     </div>
-                    <Button 
-                      variant="primary" 
-                      size="lg" 
-                      className="px-8"
-                      glow
-                    >
-                      <Search className="w-5 h-5 mr-2" />
+                    <Button variant='primary' size='lg' className='px-8' glow>
+                      <Search className='w-5 h-5 mr-2' />
                       Buscar
                     </Button>
                   </div>
@@ -623,58 +670,62 @@ export default function EventsPage() {
         </section>
 
         {/* Filters Section */}
-        <section className="pb-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className='pb-12'>
+          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              <Card variant="glass" className="backdrop-blur-2xl">
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row gap-6">
+              <Card variant='glass' className='backdrop-blur-2xl'>
+                <CardContent className='p-6'>
+                  <div className='flex flex-col lg:flex-row gap-6'>
                     {/* Category Filter */}
-                    <div className="flex-1">
+                    <div className='flex-1'>
                       <Dropdown
-                        label="Categoría"
+                        label='Categoría'
                         options={categories}
                         value={filters.category}
-                        onChange={(value) => handleFilterChange('category', value)}
-                        variant="glass"
-                        placeholder="Seleccionar categoría"
+                        onChange={value =>
+                          handleFilterChange('category', value)
+                        }
+                        variant='glass'
+                        placeholder='Seleccionar categoría'
                       />
                     </div>
 
                     {/* Location Filter */}
-                    <div className="flex-1">
+                    <div className='flex-1'>
                       <Dropdown
-                        label="Ubicación"
+                        label='Ubicación'
                         options={locations}
                         value={filters.location}
-                        onChange={(value) => handleFilterChange('location', value)}
-                        variant="glass"
-                        placeholder="Seleccionar ubicación"
+                        onChange={value =>
+                          handleFilterChange('location', value)
+                        }
+                        variant='glass'
+                        placeholder='Seleccionar ubicación'
                       />
                     </div>
 
                     {/* Price Filter */}
-                    <div className="flex-1">
+                    <div className='flex-1'>
                       <Dropdown
-                        label="Precio"
+                        label='Precio'
                         options={priceRanges}
                         value={filters.price}
-                        onChange={(value) => handleFilterChange('price', value)}
-                        variant="glass"
-                        placeholder="Seleccionar precio"
+                        onChange={value => handleFilterChange('price', value)}
+                        variant='glass'
+                        placeholder='Seleccionar precio'
                       />
                     </div>
 
                     {/* Clear Filters */}
-                    <div className="flex items-end">
+                    <div className='flex items-end'>
                       <Button
-                        variant="outline"
+                        variant='outline'
                         onClick={clearFilters}
-                        className="px-6"
+                        className='px-6'
                       >
                         Limpiar Filtros
                       </Button>
@@ -687,45 +738,45 @@ export default function EventsPage() {
         </section>
 
         {/* View Mode Toggle */}
-        <section className="pb-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className='pb-8'>
+          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.8 }}
-              className="flex justify-between items-center"
+              className='flex justify-between items-center'
             >
-              <div className="flex items-center space-x-4">
-                <h2 className="text-2xl font-bold text-white">
+              <div className='flex items-center space-x-4'>
+                <h2 className='text-2xl font-bold text-white'>
                   {filteredEvents.length} Eventos Encontrados
                 </h2>
                 {Object.values(filters).some(f => f !== 'all') && (
-                  <span className="px-3 py-1 bg-cyan-500/20 text-cyan-400 text-sm rounded-full border border-cyan-400/30">
+                  <span className='px-3 py-1 bg-cyan-500/20 text-cyan-400 text-sm rounded-full border border-cyan-400/30'>
                     Filtros activos
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-lg p-1">
+              <div className='flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-lg p-1'>
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`p-2 rounded-md transition-all duration-200 ${
-                    viewMode === 'grid' 
-                      ? 'bg-cyan-500 text-white' 
+                    viewMode === 'grid'
+                      ? 'bg-cyan-500 text-white'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  <Grid className="w-5 h-5" />
+                  <Grid className='w-5 h-5' />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
                   className={`p-2 rounded-md transition-all duration-200 ${
-                    viewMode === 'list' 
-                      ? 'bg-cyan-500 text-white' 
+                    viewMode === 'list'
+                      ? 'bg-cyan-500 text-white'
                       : 'text-gray-400 hover:text-white'
                   }`}
                 >
-                  <List className="w-5 h-5" />
+                  <List className='w-5 h-5' />
                 </button>
               </div>
             </motion.div>
@@ -733,10 +784,16 @@ export default function EventsPage() {
         </section>
 
         {/* Events Grid */}
-        <section className="pb-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className='pb-20'>
+          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
             {filteredEvents.length > 0 ? (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-6'}>
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                    : 'space-y-6'
+                }
+              >
                 {filteredEvents.map((event, index) => (
                   <EventCard
                     key={event.id}
@@ -751,20 +808,21 @@ export default function EventsPage() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6 }}
-                className="text-center py-20"
+                className='text-center py-20'
               >
-                <Card variant="glass" className="max-w-md mx-auto">
-                  <CardContent className="p-8 text-center">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-500/20 flex items-center justify-center">
-                      <Search className="w-8 h-8 text-gray-400" />
+                <Card variant='glass' className='max-w-md mx-auto'>
+                  <CardContent className='p-8 text-center'>
+                    <div className='w-16 h-16 mx-auto mb-4 rounded-full bg-gray-500/20 flex items-center justify-center'>
+                      <Search className='w-8 h-8 text-gray-400' />
                     </div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
+                    <h3 className='text-xl font-semibold text-white mb-2'>
                       No se encontraron eventos
                     </h3>
-                    <p className="text-gray-300 mb-6">
-                      Intenta cambiar los filtros o la búsqueda para encontrar más eventos
+                    <p className='text-gray-300 mb-6'>
+                      Intenta cambiar los filtros o la búsqueda para encontrar
+                      más eventos
                     </p>
-                    <Button variant="primary" onClick={clearFilters}>
+                    <Button variant='primary' onClick={clearFilters}>
                       Limpiar Filtros
                     </Button>
                   </CardContent>
@@ -775,26 +833,27 @@ export default function EventsPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="pb-20">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className='pb-20'>
+          <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 1.0 }}
             >
-              <Card variant="neon" className="text-center">
-                <CardContent className="p-8">
-                  <h2 className="text-3xl font-bold text-white mb-4">
+              <Card variant='neon' className='text-center'>
+                <CardContent className='p-8'>
+                  <h2 className='text-3xl font-bold text-white mb-4'>
                     ¿No encuentras lo que buscas?
                   </h2>
-                  <p className="text-gray-300 mb-8 text-lg">
-                    Crea tu propio evento y reúne a tu tribu. ¡Es más fácil de lo que piensas!
+                  <p className='text-gray-300 mb-8 text-lg'>
+                    Crea tu propio evento y reúne a tu tribu. ¡Es más fácil de
+                    lo que piensas!
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button variant="primary" size="lg" glow>
+                  <div className='flex flex-col sm:flex-row gap-4 justify-center'>
+                    <Button variant='primary' size='lg' glow>
                       Crear Evento
                     </Button>
-                    <Button variant="outline" size="lg">
+                    <Button variant='outline' size='lg'>
                       Ver Tutorial
                     </Button>
                   </div>

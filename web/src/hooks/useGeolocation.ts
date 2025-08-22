@@ -30,7 +30,9 @@ interface UseGeolocationReturn {
   clearWatch: () => void;
 }
 
-export const useGeolocation = (options: UseGeolocationOptions = {}): UseGeolocationReturn => {
+export const useGeolocation = (
+  options: UseGeolocationOptions = {}
+): UseGeolocationReturn => {
   const [location, setLocation] = useState<Location | null>(null);
   const [error, setError] = useState<GeolocationError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,16 +61,19 @@ export const useGeolocation = (options: UseGeolocationOptions = {}): UseGeolocat
     localStorage.setItem('userLocation', JSON.stringify(newLocation));
   }, []);
 
-  const errorCallback = useCallback((geolocationError: GeolocationPositionError) => {
-    const error: GeolocationError = {
-      code: geolocationError.code,
-      message: getErrorMessage(geolocationError.code),
-    };
+  const errorCallback = useCallback(
+    (geolocationError: GeolocationPositionError) => {
+      const error: GeolocationError = {
+        code: geolocationError.code,
+        message: getErrorMessage(geolocationError.code),
+      };
 
-    setError(error);
-    setIsLoading(false);
-    setLocation(null);
-  }, []);
+      setError(error);
+      setIsLoading(false);
+      setLocation(null);
+    },
+    []
+  );
 
   const getCurrentPosition = useCallback(async (): Promise<void> => {
     if (!navigator.geolocation) {
@@ -83,13 +88,15 @@ export const useGeolocation = (options: UseGeolocationOptions = {}): UseGeolocat
     setError(null);
 
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy,
-          timeout,
-          maximumAge,
-        });
-      });
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy,
+            timeout,
+            maximumAge,
+          });
+        }
+      );
 
       successCallback(position);
     } catch (geolocationError: any) {
@@ -185,7 +192,10 @@ const getErrorMessage = (code: number): string => {
 };
 
 // Hook for getting nearby places based on coordinates
-export const useNearbyPlaces = (location: Location | null, radius: number = 5000) => {
+export const useNearbyPlaces = (
+  location: Location | null,
+  radius: number = 5000
+) => {
   const [places, setPlaces] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -231,7 +241,10 @@ export const useNearbyPlaces = (location: Location | null, radius: number = 5000
 };
 
 // Hook for calculating distance between two points
-export const useDistance = (point1: Location | null, point2: Location | null) => {
+export const useDistance = (
+  point1: Location | null,
+  point2: Location | null
+) => {
   const [distance, setDistance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -247,14 +260,16 @@ export const useDistance = (point1: Location | null, point2: Location | null) =>
 // Helper function to calculate distance between two points (Haversine formula)
 const calculateDistance = (point1: Location, point2: Location): number => {
   const R = 6371; // Earth's radius in kilometers
-  const dLat = (point2.latitude - point1.latitude) * Math.PI / 180;
-  const dLon = (point2.longitude - point1.longitude) * Math.PI / 180;
-  
-  const a = 
+  const dLat = ((point2.latitude - point1.latitude) * Math.PI) / 180;
+  const dLon = ((point2.longitude - point1.longitude) * Math.PI) / 180;
+
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(point1.latitude * Math.PI / 180) * Math.cos(point2.latitude * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  
+    Math.cos((point1.latitude * Math.PI) / 180) *
+      Math.cos((point2.latitude * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };

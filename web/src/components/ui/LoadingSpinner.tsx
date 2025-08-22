@@ -34,10 +34,10 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
           sizeClasses[size],
           variantClasses[variant]
         )}
-        role="status"
-        aria-label="Loading"
+        role='status'
+        aria-label='Loading'
       >
-        <span className="sr-only">Cargando...</span>
+        <span className='sr-only'>Cargando...</span>
       </div>
     </div>
   );

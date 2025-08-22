@@ -18,7 +18,9 @@ router.post('/sync', requireAuth, async (req, res, next) => {
     const userId = req.user.id;
     const { items = [], updatedAt } = req.body || {};
 
-    const user = await User.findById(userId).select('watchlist watchlistUpdatedAt');
+    const user = await User.findById(userId).select(
+      'watchlist watchlistUpdatedAt'
+    );
     if (!user) throw new AppError('Usuario no encontrado', 404);
 
     const clientUpdatedAt = new Date(updatedAt || 0).getTime();
@@ -31,7 +33,11 @@ router.post('/sync', requireAuth, async (req, res, next) => {
       // Accept client state
       const dedup = new Map();
       for (const it of items) {
-        if (it && it.id) dedup.set(it.id, { id: it.id, updatedAt: it.updatedAt || new Date().toISOString() });
+        if (it && it.id)
+          dedup.set(it.id, {
+            id: it.id,
+            updatedAt: it.updatedAt || new Date().toISOString(),
+          });
       }
       user.watchlist = Array.from(dedup.values());
       user.watchlistUpdatedAt = new Date();
@@ -51,4 +57,3 @@ router.post('/sync', requireAuth, async (req, res, next) => {
 });
 
 module.exports = router;
-

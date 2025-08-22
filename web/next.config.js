@@ -12,9 +12,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'google-fonts-cache',
         expiration: {
           maxEntries: 10,
-          maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-        }
-      }
+          maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+        },
+      },
     },
     {
       urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
@@ -23,9 +23,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'gstatic-fonts-cache',
         expiration: {
           maxEntries: 10,
-          maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
-        }
-      }
+          maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+        },
+      },
     },
     {
       urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
@@ -34,9 +34,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-font-assets',
         expiration: {
           maxEntries: 4,
-          maxAgeSeconds: 7 * 24 * 60 * 60 // 7 days
-        }
-      }
+          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+        },
+      },
     },
     {
       urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
@@ -45,9 +45,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-image-assets',
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\/_next\/image\?url=.+$/i,
@@ -56,9 +56,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'next-image',
         expiration: {
           maxEntries: 64,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\.(?:mp3|wav|ogg)$/i,
@@ -68,9 +68,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-audio-assets',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\.(?:mp4)$/i,
@@ -80,9 +80,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-video-assets',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\.(?:js)$/i,
@@ -91,9 +91,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-js-assets',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\.(?:css|less)$/i,
@@ -102,9 +102,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'static-style-assets',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\/_next\/static\/chunks\/.*/i,
@@ -113,9 +113,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'next-js-chunks',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\/_next\/static\/.*/i,
@@ -124,9 +124,9 @@ const withPWA = require('next-pwa')({
         cacheName: 'next-static',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
-        }
-      }
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
+        },
+      },
     },
     {
       urlPattern: /\/api\/.*$/i,
@@ -136,10 +136,10 @@ const withPWA = require('next-pwa')({
         cacheName: 'apis',
         expiration: {
           maxEntries: 16,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
         },
-        networkTimeoutSeconds: 10
-      }
+        networkTimeoutSeconds: 10,
+      },
     },
     {
       urlPattern: /.*/i,
@@ -148,16 +148,16 @@ const withPWA = require('next-pwa')({
         cacheName: 'others',
         expiration: {
           maxEntries: 32,
-          maxAgeSeconds: 24 * 60 * 60 // 24 hours
+          maxAgeSeconds: 24 * 60 * 60, // 24 hours
         },
-        networkTimeoutSeconds: 10
-      }
-    }
+        networkTimeoutSeconds: 10,
+      },
+    },
   ],
   buildExcludes: [/middleware-manifest\.json$/],
   fallbacks: {
-    document: '/offline'
-  }
+    document: '/offline',
+  },
 });
 
 const nextConfig = {
@@ -167,14 +167,14 @@ const nextConfig = {
       'res.cloudinary.com',
       'lh3.googleusercontent.com',
       'graph.facebook.com',
-      'platform-lookaside.fbsbx.com'
+      'platform-lookaside.fbsbx.com',
     ],
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60,
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;"
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   webpack: (config, { isServer }) => {
     // Optimizaciones para PWA
@@ -183,7 +183,7 @@ const nextConfig = {
         ...config.resolve.fallback,
         fs: false,
         net: false,
-        tls: false
+        tls: false,
       };
     }
 
@@ -198,12 +198,14 @@ const nextConfig = {
           chunks: 'all',
           test: /(?<!node_modules.*)[\\/]node_modules[\\/](react|react-dom|svelte|vue|lit|preact|marko|stencil|angular|next)[\\/]/,
           priority: 40,
-          enforce: true
+          enforce: true,
         },
         lib: {
           test(module) {
-            return module.size() > 160000 &&
-              /node_modules[/\\]/.test(module.identifier());
+            return (
+              module.size() > 160000 &&
+              /node_modules[/\\]/.test(module.identifier())
+            );
           },
           name(module) {
             const hash = require('crypto').createHash('sha1');
@@ -212,12 +214,12 @@ const nextConfig = {
           },
           priority: 30,
           minChunks: 1,
-          reuseExistingChunk: true
+          reuseExistingChunk: true,
         },
         commons: {
           name: 'commons',
           minChunks: 2,
-          priority: 20
+          priority: 20,
         },
         shared: {
           name(module, chunks) {
@@ -228,9 +230,9 @@ const nextConfig = {
           },
           priority: 10,
           minChunks: 2,
-          reuseExistingChunk: true
-        }
-      }
+          reuseExistingChunk: true,
+        },
+      },
     };
 
     return config;
@@ -242,49 +244,49 @@ const nextConfig = {
         headers: [
           {
             key: 'X-Frame-Options',
-            value: 'DENY'
+            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',
-            value: 'nosniff'
+            value: 'nosniff',
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin'
+            value: 'origin-when-cross-origin',
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()'
-          }
-        ]
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
       },
       {
         source: '/manifest.json',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=3600, must-revalidate'
-          }
-        ]
+            value: 'public, max-age=3600, must-revalidate',
+          },
+        ],
       },
       {
         source: '/service-worker.js',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=0, must-revalidate'
-          }
-        ]
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
       },
       {
         source: '/offline',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable'
-          }
-        ]
-      }
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
     ];
   },
   redirects: async () => {
@@ -292,28 +294,28 @@ const nextConfig = {
       {
         source: '/home',
         destination: '/',
-        permanent: true
+        permanent: true,
       },
       {
         source: '/events/create',
         destination: '/events/new',
-        permanent: true
+        permanent: true,
       },
       {
         source: '/tribes/create',
         destination: '/tribes/new',
-        permanent: true
-      }
+        permanent: true,
+      },
     ];
   },
   env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY || ''
+    CUSTOM_KEY: process.env.CUSTOM_KEY || '',
   },
   typescript: {
-    ignoreBuildErrors: true
+    ignoreBuildErrors: true,
   },
   eslint: {
-    ignoreDuringBuilds: true
+    ignoreDuringBuilds: true,
   },
   swcMinify: true,
   compress: true,
@@ -321,11 +323,11 @@ const nextConfig = {
   generateEtags: false,
   onDemandEntries: {
     maxInactiveAge: 25 * 1000,
-    pagesBufferLength: 2
+    pagesBufferLength: 2,
   },
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production'
-  }
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
 };
 
 module.exports = withPWA(nextConfig);

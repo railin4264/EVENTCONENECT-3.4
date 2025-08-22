@@ -1,6 +1,19 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle, Bell } from 'lucide-react';
+import {
+  X,
+  CheckCircle,
+  AlertCircle,
+  Info,
+  AlertTriangle,
+  Bell,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ===== TOAST INTERFACES =====
@@ -15,7 +28,13 @@ export interface Toast {
     onClick: () => void;
   };
   variant?: 'default' | 'glass' | 'neon' | 'gradient';
-  position?: 'top-left' | 'top-right' | 'top-center' | 'bottom-left' | 'bottom-right' | 'bottom-center';
+  position?:
+    | 'top-left'
+    | 'top-right'
+    | 'top-center'
+    | 'bottom-left'
+    | 'bottom-right'
+    | 'bottom-center';
 }
 
 export interface ToastContextType {
@@ -31,76 +50,76 @@ const toastVariants: Variants = {
     const isTop = position.includes('top');
     const isLeft = position.includes('left');
     const isRight = position.includes('right');
-    
+
     if (isTop) {
-      return { 
-        opacity: 0, 
-        y: -100, 
+      return {
+        opacity: 0,
+        y: -100,
         scale: 0.8,
-        x: isLeft ? -50 : isRight ? 50 : 0
+        x: isLeft ? -50 : isRight ? 50 : 0,
       };
     } else {
-      return { 
-        opacity: 0, 
-        y: 100, 
+      return {
+        opacity: 0,
+        y: 100,
         scale: 0.8,
-        x: isLeft ? -50 : isRight ? 50 : 0
+        x: isLeft ? -50 : isRight ? 50 : 0,
       };
     }
   },
-  animate: { 
-    opacity: 1, 
-    y: 0, 
+  animate: {
+    opacity: 1,
+    y: 0,
     scale: 1,
     x: 0,
     transition: {
-      type: "spring",
+      type: 'spring',
       stiffness: 300,
-      damping: 30
-    }
+      damping: 30,
+    },
   },
   exit: (position: string) => {
     const isTop = position.includes('top');
     const isLeft = position.includes('left');
     const isRight = position.includes('right');
-    
+
     if (isTop) {
-      return { 
-        opacity: 0, 
-        y: -100, 
+      return {
+        opacity: 0,
+        y: -100,
         scale: 0.8,
         x: isLeft ? -50 : isRight ? 50 : 0,
         transition: {
-          duration: 0.2
-        }
+          duration: 0.2,
+        },
       };
     } else {
-      return { 
-        opacity: 0, 
-        y: 100, 
+      return {
+        opacity: 0,
+        y: 100,
         scale: 0.8,
         x: isLeft ? -50 : isRight ? 50 : 0,
         transition: {
-          duration: 0.2
-        }
+          duration: 0.2,
+        },
       };
     }
-  }
+  },
 };
 
 // ===== TOAST ICONS =====
 const getToastIcon = (type: Toast['type']) => {
   switch (type) {
     case 'success':
-      return <CheckCircle className="w-5 h-5 text-green-400" />;
+      return <CheckCircle className='w-5 h-5 text-green-400' />;
     case 'error':
-      return <AlertCircle className="w-5 h-5 text-red-400" />;
+      return <AlertCircle className='w-5 h-5 text-red-400' />;
     case 'warning':
-      return <AlertTriangle className="w-5 h-5 text-yellow-400" />;
+      return <AlertTriangle className='w-5 h-5 text-yellow-400' />;
     case 'info':
-      return <Info className="w-5 h-5 text-blue-400" />;
+      return <Info className='w-5 h-5 text-blue-400' />;
     default:
-      return <Bell className="w-5 h-5 text-cyan-400" />;
+      return <Bell className='w-5 h-5 text-cyan-400' />;
   }
 };
 
@@ -115,26 +134,26 @@ const ToastItem: React.FC<{
   // ===== AUTO-DISMISS LOGIC =====
   useEffect(() => {
     if (toast.duration === 0) return; // Infinite toast
-    
+
     const duration = toast.duration || 5000;
     const startTime = Date.now();
     const endTime = startTime + duration;
-    
+
     const updateProgress = () => {
       const now = Date.now();
       const remaining = Math.max(0, endTime - now);
       const newProgress = (remaining / duration) * 100;
-      
+
       if (newProgress <= 0) {
         setIsVisible(false);
         setTimeout(() => onRemove(toast.id), 300);
         return;
       }
-      
+
       setProgress(newProgress);
       requestAnimationFrame(updateProgress);
     };
-    
+
     requestAnimationFrame(updateProgress);
   }, [toast.duration, toast.id, onRemove]);
 
@@ -172,23 +191,25 @@ const ToastItem: React.FC<{
     <motion.div
       custom={toast.position}
       variants={toastVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      className="w-full"
+      initial='initial'
+      animate='animate'
+      exit='exit'
+      className='w-full'
     >
-      <div className={cn(
-        'relative overflow-hidden rounded-xl shadow-2xl',
-        'transform-gpu transition-all duration-300',
-        'hover:scale-[1.02] hover:shadow-3xl',
-        getVariantStyles(),
-        getTypeStyles()
-      )}>
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-xl shadow-2xl',
+          'transform-gpu transition-all duration-300',
+          'hover:scale-[1.02] hover:shadow-3xl',
+          getVariantStyles(),
+          getTypeStyles()
+        )}
+      >
         {/* Progress Bar */}
         {toast.duration !== 0 && (
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-blue-500">
+          <div className='absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 to-blue-500'>
             <motion.div
-              className="h-full bg-gradient-to-r from-green-400 to-emerald-500"
+              className='h-full bg-gradient-to-r from-green-400 to-emerald-500'
               initial={{ width: '100%' }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 0.1 }}
@@ -197,29 +218,29 @@ const ToastItem: React.FC<{
         )}
 
         {/* Toast Content */}
-        <div className="p-4">
-          <div className="flex items-start space-x-3">
+        <div className='p-4'>
+          <div className='flex items-start space-x-3'>
             {/* Icon */}
-            <div className="flex-shrink-0 mt-0.5">
+            <div className='flex-shrink-0 mt-0.5'>
               {getToastIcon(toast.type)}
             </div>
 
             {/* Content */}
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold text-white mb-1">
+            <div className='flex-1 min-w-0'>
+              <h4 className='text-sm font-semibold text-white mb-1'>
                 {toast.title}
               </h4>
               {toast.message && (
-                <p className="text-sm text-gray-300 leading-relaxed">
+                <p className='text-sm text-gray-300 leading-relaxed'>
                   {toast.message}
                 </p>
               )}
-              
+
               {/* Action Button */}
               {toast.action && (
                 <button
                   onClick={toast.action.onClick}
-                  className="mt-2 text-sm text-cyan-400 hover:text-cyan-300 font-medium transition-colors duration-200"
+                  className='mt-2 text-sm text-cyan-400 hover:text-cyan-300 font-medium transition-colors duration-200'
                 >
                   {toast.action.label}
                 </button>
@@ -232,15 +253,15 @@ const ToastItem: React.FC<{
                 setIsVisible(false);
                 setTimeout(() => onRemove(toast.id), 300);
               }}
-              className="flex-shrink-0 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center justify-center text-gray-400 hover:text-white"
+              className='flex-shrink-0 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200 flex items-center justify-center text-gray-400 hover:text-white'
             >
-              <X className="w-4 h-4" />
+              <X className='w-4 h-4' />
             </button>
           </div>
         </div>
 
         {/* Background gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        <div className='absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 pointer-events-none' />
       </div>
     </motion.div>
   );
@@ -253,7 +274,7 @@ const ToastContainer: React.FC<{
   onRemove: (id: string) => void;
 }> = ({ toasts, position, onRemove }) => {
   const filteredToasts = toasts.filter(toast => toast.position === position);
-  
+
   if (filteredToasts.length === 0) return null;
 
   const getPositionClasses = () => {
@@ -276,18 +297,11 @@ const ToastContainer: React.FC<{
   };
 
   return (
-    <div className={cn(
-      'fixed z-50 w-96 max-w-sm',
-      getPositionClasses()
-    )}>
-      <div className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {filteredToasts.map((toast) => (
-            <ToastItem
-              key={toast.id}
-              toast={toast}
-              onRemove={onRemove}
-            />
+    <div className={cn('fixed z-50 w-96 max-w-sm', getPositionClasses())}>
+      <div className='space-y-3'>
+        <AnimatePresence mode='popLayout'>
+          {filteredToasts.map(toast => (
+            <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
           ))}
         </AnimatePresence>
       </div>
@@ -313,17 +327,20 @@ export const ToastProvider: React.FC<{
 }> = ({ children, defaultPosition = 'top-right' }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const newToast: Toast = {
-      ...toast,
-      id,
-      position: toast.position || defaultPosition,
-      duration: toast.duration ?? 5000,
-    };
-    
-    setToasts(prev => [...prev, newToast]);
-  }, [defaultPosition]);
+  const addToast = useCallback(
+    (toast: Omit<Toast, 'id'>) => {
+      const id = Math.random().toString(36).substr(2, 9);
+      const newToast: Toast = {
+        ...toast,
+        id,
+        position: toast.position || defaultPosition,
+        duration: toast.duration ?? 5000,
+      };
+
+      setToasts(prev => [...prev, newToast]);
+    },
+    [defaultPosition]
+  );
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
@@ -335,17 +352,19 @@ export const ToastProvider: React.FC<{
 
   const positions: Toast['position'][] = [
     'top-left',
-    'top-right', 
+    'top-right',
     'top-center',
     'bottom-left',
     'bottom-right',
-    'bottom-center'
+    'bottom-center',
   ];
 
   return (
-    <ToastContext.Provider value={{ toasts, addToast, removeToast, clearToasts }}>
+    <ToastContext.Provider
+      value={{ toasts, addToast, removeToast, clearToasts }}
+    >
       {children}
-      
+
       {/* Toast Containers */}
       {positions.map(position => (
         <ToastContainer
