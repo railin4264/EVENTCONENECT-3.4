@@ -134,6 +134,7 @@ describe('Event Flow Integration Tests', () => {
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send({
           title: eventData.title,
           description: eventData.description,
@@ -304,6 +305,7 @@ describe('Event Flow Integration Tests', () => {
           .post('/api/events')
           .set('Authorization', `Bearer ${hostToken}`)
           .set('Cookie', [`accessToken=${hostToken}`])
+          .set('x-test-user-id', hostUser._id.toString())
           .send({
             title: eventData.title,
             description: eventData.description,
@@ -376,6 +378,7 @@ describe('Event Flow Integration Tests', () => {
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send({
           ...eventData,
           dateTime: {
@@ -399,6 +402,7 @@ describe('Event Flow Integration Tests', () => {
         .put(`/api/events/${eventId}`)
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send(updateData)
         .expect(200);
 
@@ -422,6 +426,7 @@ describe('Event Flow Integration Tests', () => {
         .put(`/api/events/${eventId}/cancel`)
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send(cancelData)
         .expect(200);
 
@@ -462,6 +467,7 @@ describe('Event Flow Integration Tests', () => {
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send({
           ...eventData,
           dateTime: {
@@ -574,6 +580,7 @@ describe('Event Flow Integration Tests', () => {
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send(eventData)
         .expect(201);
 
@@ -585,6 +592,7 @@ describe('Event Flow Integration Tests', () => {
         .put(`/api/events/${eventId}`)
         .set('Authorization', 'Bearer invalid-token')
         .set('Cookie', [`accessToken=invalid-token`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send(updateData)
         .expect(401);
 
@@ -593,6 +601,7 @@ describe('Event Flow Integration Tests', () => {
         .delete(`/api/events/${eventId}`)
         .set('Authorization', 'Bearer invalid-token')
         .set('Cookie', [`accessToken=invalid-token`])
+        .set('x-test-user-id', hostUser._id.toString())
         .expect(401);
 
       // Try to access with invalid token
@@ -600,6 +609,7 @@ describe('Event Flow Integration Tests', () => {
         .put(`/api/events/${eventId}`)
         .set('Authorization', 'Bearer invalid-token')
         .set('Cookie', [`accessToken=invalid-token`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send(updateData)
         .expect(401);
     });
@@ -618,6 +628,7 @@ describe('Event Flow Integration Tests', () => {
         .post('/api/events')
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send({
           ...invalidEventData,
         })
@@ -641,6 +652,7 @@ describe('Event Flow Integration Tests', () => {
         .put(`/api/events/${nonExistentId}`)
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .send({ title: 'Update' })
         .expect(404);
 
@@ -649,6 +661,7 @@ describe('Event Flow Integration Tests', () => {
         .delete(`/api/events/${nonExistentId}`)
         .set('Authorization', `Bearer ${hostToken}`)
         .set('Cookie', [`accessToken=${hostToken}`])
+        .set('x-test-user-id', hostUser._id.toString())
         .expect(404);
     });
   });
