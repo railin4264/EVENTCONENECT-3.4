@@ -4,13 +4,7 @@
     "slug": "eventconnect",
     "version": "2.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#3B82F6"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -28,10 +22,6 @@
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3B82F6"
-      },
       "package": "com.eventconnect.app",
       "versionCode": 2,
       "permissions": [
@@ -55,7 +45,6 @@
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [
@@ -68,9 +57,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
-          "color": "#3B82F6",
-          "sounds": ["./assets/notification-sound.wav"]
+          "color": "#3B82F6"
         }
       ],
       [

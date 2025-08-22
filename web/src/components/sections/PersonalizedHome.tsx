@@ -11,7 +11,7 @@ import {
   HeartIcon,
   CalendarDaysIcon,
   TagIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   UserGroupIcon
 } from '@heroicons/react/24/outline';
 import { Card, CardContent, CardTitle } from '@/components/ui/Card';
@@ -174,7 +174,7 @@ export const PersonalizedHome: React.FC = () => {
           {[
             { key: 'para-ti', label: 'Para Ti', icon: SparklesIcon },
             { key: 'cerca', label: 'Cerca de Ti', icon: MapPinIcon },
-            { key: 'trending', label: 'Trending', icon: TrendingUpIcon }
+            { key: 'trending', label: 'Trending', icon: ArrowTrendingUpIcon }
           ].map(({ key, label, icon: Icon }) => (
             <button
               key={key}

@@ -14,7 +14,7 @@ import {
   ClockIcon,
   TagIcon,
   FireIcon,
-  TrendingUpIcon
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -240,7 +240,7 @@ export const OptimizedEventCard: React.FC<OptimizedEventCardProps> = ({
             )}
             {event.isTrending && (
               <div className="flex items-center bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                <TrendingUpIcon className="w-3 h-3 mr-1" />
+                <ArrowTrendingUpIcon className="w-3 h-3 mr-1" />
                 Trending
               </div>
             )}

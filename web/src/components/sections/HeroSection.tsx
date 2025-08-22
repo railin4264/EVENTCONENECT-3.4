@@ -147,7 +147,7 @@ export const HeroSection: React.FC = () => {
       style={{
         background: isImmersiveMode 
           ? 'radial-gradient(circle at center, #1a1a1a 0%, #000000 100%)'
-          : currentTheme.colors.background
+          : currentTheme?.colors?.background || '#ffffff'
       }}
     >
       {/* Background con gradiente dinámico */}

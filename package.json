@@ -71,15 +71,17 @@
     "release": "semantic-release"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "husky": "^8.0.3",
-    "lint-staged": "^15.2.0",
-    "commitizen": "^4.3.0",
-    "cz-conventional-changelog": "^3.3.0",
-    "semantic-release": "^22.0.7",
+    "@babel/core": "^7.28.3",
+    "@babel/helper-define-polyfill-provider": "^0.6.5",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/npm": "^10.0.6"
+    "@semantic-release/npm": "^10.0.6",
+    "commitizen": "^4.3.0",
+    "concurrently": "^8.2.2",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "semantic-release": "^22.0.7"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -111,5 +113,8 @@
     "commitizen": {
       "path": "cz-conventional-changelog"
     }
+  },
+  "dependencies": {
+    "lodash": "^4.17.21"
   }
 }

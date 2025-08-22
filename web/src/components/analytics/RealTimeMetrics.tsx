@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   UsersIcon,
   CalendarDaysIcon,
-  TrendingUpIcon,
+  ArrowTrendingUpIcon,
   ChartBarIcon,
   EyeIcon,
   HeartIcon,
@@ -276,7 +276,7 @@ export const RealTimeMetrics: React.FC = () => {
         <MetricCard
           title="Nuevos Usuarios"
           value={metrics.newSignups}
-          icon={<TrendingUpIcon className="w-6 h-6" />}
+          icon={<ArrowTrendingUpIcon className="w-6 h-6" />}
           trend="+15%"
           color="purple"
           loading={loading}
@@ -320,7 +320,7 @@ export const RealTimeMetrics: React.FC = () => {
         <Card className="p-6">
           <CardTitle className="flex items-center justify-between mb-4">
             <span>Registros (24h)</span>
-            <TrendingUpIcon className="w-5 h-5 text-green-500" />
+            <ArrowTrendingUpIcon className="w-5 h-5 text-green-500" />
           </CardTitle>
           <CardContent>
             <div className="space-y-3">
@@ -415,7 +415,7 @@ export const RealTimeMetrics: React.FC = () => {
                 { action: 'Nuevo evento creado', user: 'María García', time: 'hace 2 min', icon: CalendarDaysIcon, color: 'text-green-600' },
                 { action: 'Usuario se unió a tribu', user: 'Carlos López', time: 'hace 5 min', icon: UsersIcon, color: 'text-blue-600' },
                 { action: 'Evento compartido', user: 'Ana Martín', time: 'hace 8 min', icon: ShareIcon, color: 'text-purple-600' },
-                { action: 'Nuevo registro', user: 'David Ruiz', time: 'hace 12 min', icon: TrendingUpIcon, color: 'text-orange-600' },
+                { action: 'Nuevo registro', user: 'David Ruiz', time: 'hace 12 min', icon: ArrowTrendingUpIcon, color: 'text-orange-600' },
                 { action: 'Evento marcado como favorito', user: 'Laura Sánchez', time: 'hace 15 min', icon: HeartIcon, color: 'text-red-600' }
               ].map((activity, index) => (
                 <motion.div
@@ -507,7 +507,7 @@ export const RealTimeMetrics: React.FC = () => {
                     {event.trend}
                   </span>
                   <div className="flex items-center space-x-1">
-                    <TrendingUpIcon className="w-3 h-3 text-red-500" />
+                    <ArrowTrendingUpIcon className="w-3 h-3 text-red-500" />
                     <span className="text-xs text-gray-500">
                       Trending #{index + 1}
                     </span>
