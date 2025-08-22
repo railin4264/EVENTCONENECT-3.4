@@ -1,35 +1,17 @@
-const redisClient = require('../config/redis');
+const logger = require('./logger');
 
-// Custom error class
 /**
- *
+ * Global error handler middleware
+ * @param {Error} error - Error object
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} _next - Express next function (unused but required)
  */
-class AppError extends Error {
-  /**
-   *
-   * @param message
-   * @param statusCode
-   * @param isOperational
-   */
-  constructor(message, statusCode, isOperational = true) {
-    super(message);
-    this.statusCode = statusCode;
-    this.isOperational = isOperational;
-    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-
-// Error handler middleware
-const errorHandler = (err, req, res, next) => {
-  let error = { ...err };
-  error.message = err.message;
-
-  // Log error
-  console.error('Error:', {
-    message: err.message,
-    stack: err.stack,
+const errorHandler = (error, req, res, _next) => {
+  // Log the error
+  logger.error('Global error handler:', {
+    error: error.message,
+    stack: error.stack,
     url: req.url,
     method: req.method,
     ip: req.ip,
@@ -37,320 +19,312 @@ const errorHandler = (err, req, res, next) => {
     timestamp: new Date().toISOString(),
   });
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError') {
-    const message = 'Recurso no encontrado';
-    error = new AppError(message, 404);
-  }
+  // Determine error type and status code
+  let statusCode = 500;
+  let message = 'Error interno del servidor';
 
-  // Mongoose duplicate key
-  if (err.code === 11000) {
-    const field = Object.keys(err.keyValue)[0];
-    const value = err.keyValue[field];
-    const message = `El valor '${value}' ya existe para el campo '${field}'. Por favor use otro valor.`;
-    error = new AppError(message, 400);
+  if (error.name === 'ValidationError') {
+    statusCode = 400;
+    message = 'Error de validación';
+  } else if (error.name === 'CastError') {
+    statusCode = 400;
+    message = 'ID inválido';
+  } else if (error.name === 'MongoError' && error.code === 11000) {
+    statusCode = 409;
+    message = 'Conflicto: el recurso ya existe';
+  } else if (error.name === 'JsonWebTokenError') {
+    statusCode = 401;
+    message = 'Token inválido';
+  } else if (error.name === 'TokenExpiredError') {
+    statusCode = 401;
+    message = 'Token expirado';
+  } else if (error.name === 'UnauthorizedError') {
+    statusCode = 401;
+    message = 'No autorizado';
+  } else if (error.name === 'ForbiddenError') {
+    statusCode = 403;
+    message = 'Acceso prohibido';
+  } else if (error.name === 'NotFoundError') {
+    statusCode = 404;
+    message = 'Recurso no encontrado';
+  } else if (error.name === 'RateLimitError') {
+    statusCode = 429;
+    message = 'Demasiadas solicitudes';
+  } else if (error.statusCode) {
+    statusCode = error.statusCode;
+    message = error.message || message;
   }
-
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors)
-      .map(val => val.message)
-      .join('. ');
-    error = new AppError(message, 400);
-  }
-
-  // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    const message = 'Token inválido';
-    error = new AppError(message, 401);
-  }
-
-  if (err.name === 'TokenExpiredError') {
-    const message = 'Token expirado';
-    error = new AppError(message, 401);
-  }
-
-  // Multer errors
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    const message = 'El archivo es demasiado grande';
-    error = new AppError(message, 400);
-  }
-
-  if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-    const message = 'Campo de archivo inesperado';
-    error = new AppError(message, 400);
-  }
-
-  // Rate limiting errors
-  if (err.status === 429) {
-    const message = 'Demasiadas solicitudes. Intente de nuevo más tarde';
-    error = new AppError(message, 429);
-  }
-
-  // Redis connection errors
-  if (err.code === 'ECONNREFUSED' && err.syscall === 'connect') {
-    const message = 'Error de conexión con la base de datos';
-    error = new AppError(message, 503);
-  }
-
-  // MongoDB connection errors
-  if (err.name === 'MongoNetworkError') {
-    const message = 'Error de conexión con la base de datos';
-    error = new AppError(message, 503);
-  }
-
-  // Default error
-  const statusCode = error.statusCode || 500;
-  const message = error.message || 'Error interno del servidor';
 
   // Send error response
   res.status(statusCode).json({
     success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-    ...(process.env.NODE_ENV === 'development' && { error: err }),
+    error: {
+      message,
+      statusCode,
+      timestamp: new Date().toISOString(),
+      path: req.url,
+      method: req.method,
+      ...(process.env.NODE_ENV === 'development' && {
+        stack: error.stack,
+        details: error.message,
+      }),
+    },
   });
 };
 
-// Not found middleware
-const notFound = (req, res, next) => {
-  const error = new AppError(`Ruta no encontrada: ${req.originalUrl}`, 404);
-  next(error);
+/**
+ * 404 Not Found middleware
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const notFound = (req, res) => {
+  logger.warn('404 Not Found:', {
+    url: req.url,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString(),
+  });
+
+  res.status(404).json({
+    success: false,
+    error: {
+      message: 'Ruta no encontrada',
+      statusCode: 404,
+      timestamp: new Date().toISOString(),
+      path: req.url,
+      method: req.method,
+    },
+  });
 };
 
-// Async error wrapper
+/**
+ * Handle unhandled promise rejections
+ * @param {Error} reason - Rejection reason
+ * @param {Promise} promise - Rejected promise
+ */
+const handleUnhandledRejection = (reason, promise) => {
+  logger.error('Unhandled Promise Rejection:', {
+    reason: reason?.message || reason,
+    stack: reason?.stack,
+    promise: promise.toString(),
+    timestamp: new Date().toISOString(),
+  });
+
+  // In production, you might want to exit the process
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Unhandled Promise Rejection. Exiting...');
+    process.exit(1);
+  }
+};
+
+/**
+ * Handle uncaught exceptions
+ * @param {Error} error - Uncaught error
+ */
+const handleUncaughtException = error => {
+  logger.error('Uncaught Exception:', {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Always exit on uncaught exceptions
+  console.error('Uncaught Exception. Exiting...');
+  process.exit(1);
+};
+
+/**
+ * Graceful shutdown handler
+ * @param {Object} server - HTTP server instance
+ * @param {string} signal - Termination signal
+ */
+const gracefulShutdown = async (server, signal) => {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  try {
+    // Close server
+    server.close(() => {
+      logger.info('HTTP server closed');
+    });
+
+    // Close database connections
+    const { database } = require('../config');
+    if (database && database.disconnect) {
+      await database.disconnect();
+      logger.info('Database connections closed');
+    }
+
+    // Close Redis connections
+    const { redisService } = require('../config');
+    if (redisService && redisService.disconnect) {
+      await redisService.disconnect();
+      logger.info('Redis connections closed');
+    }
+
+    // Exit process
+    logger.info('Graceful shutdown completed');
+    process.exit(0);
+  } catch (error) {
+    logger.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
+};
+
+/**
+ * Async error wrapper for route handlers
+ * @param {Function} fn - Async route handler function
+ * @returns {Function} Wrapped function with error handling
+ */
 const asyncHandler = fn => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
 
-// Global error handler for unhandled rejections
-const handleUnhandledRejection = err => {
-  console.error('Unhandled Rejection:', err);
-  console.error('Stack:', err.stack);
-
-  // Close server gracefully
-  process.exit(1);
-};
-
-// Global error handler for uncaught exceptions
-const handleUncaughtException = err => {
-  console.error('Uncaught Exception:', err);
-  console.error('Stack:', err.stack);
-
-  // Close server gracefully
-  process.exit(1);
-};
-
-// Graceful shutdown
-const gracefulShutdown = signal => {
-  console.log(`\n🔄 Recibida señal ${signal}. Cerrando servidor...`);
-
-  // Close Redis connection
-  if (redisClient.isConnected) {
-    redisClient.client.quit();
-    console.log('✅ Conexión a Redis cerrada');
-  }
-
-  // Close server
-  process.exit(0);
-};
-
-// Error logging service
-const logError = (error, req = null) => {
-  const errorLog = {
-    timestamp: new Date().toISOString(),
-    message: error.message,
-    stack: error.stack,
-    statusCode: error.statusCode || 500,
-    url: req?.url || 'N/A',
-    method: req?.method || 'N/A',
-    ip: req?.ip || 'N/A',
-    userAgent: req?.get('User-Agent') || 'N/A',
-    userId: req?.user?.id || 'N/A',
+/**
+ * Error response helper
+ * @param {Object} res - Express response object
+ * @param {number} statusCode - HTTP status code
+ * @param {string} message - Error message
+ * @param {*} details - Additional error details
+ */
+const sendError = (res, statusCode, message, details = null) => {
+  const errorResponse = {
+    success: false,
+    error: {
+      message,
+      statusCode,
+      timestamp: new Date().toISOString(),
+    },
   };
 
-  // Log to console in development
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error Log:', errorLog);
+  if (details) {
+    errorResponse.error.details = details;
   }
 
-  // TODO: In production, send to external logging service
-  // Example: Winston, Loggly, Sentry, etc.
-
-  return errorLog;
+  res.status(statusCode).json(errorResponse);
 };
 
-// Rate limit exceeded handler
-const rateLimitExceeded = (req, res) => {
-  const error = new AppError('Demasiadas solicitudes desde esta IP', 429);
-  logError(error, req);
+/**
+ * Success response helper
+ * @param {Object} res - Express response object
+ * @param {*} data - Response data
+ * @param {string} message - Success message
+ * @param {number} statusCode - HTTP status code
+ */
+const sendSuccess = (
+  res,
+  data = null,
+  message = 'Success',
+  statusCode = 200
+) => {
+  const response = {
+    success: true,
+    message,
+    timestamp: new Date().toISOString(),
+  };
 
-  res.status(429).json({
+  if (data !== null) {
+    response.data = data;
+  }
+
+  res.status(statusCode).json(response);
+};
+
+/**
+ * Validation error response helper
+ * @param {Object} res - Express response object
+ * @param {Array} errors - Validation errors
+ */
+const sendValidationError = (res, errors) => {
+  res.status(400).json({
     success: false,
-    message: 'Demasiadas solicitudes. Intente de nuevo más tarde',
-    retryAfter: Math.ceil(process.env.RATE_LIMIT_WINDOW_MS / 1000),
+    error: {
+      message: 'Error de validación',
+      statusCode: 400,
+      timestamp: new Date().toISOString(),
+      details: errors,
+    },
   });
 };
 
-// Validation error formatter
-const formatValidationErrors = errors => {
-  return errors.array().map(error => ({
-    field: error.param,
-    message: error.msg,
-    value: error.value,
-    location: error.location,
-  }));
-};
-
-// Database error handler
-const handleDatabaseError = error => {
-  if (error.name === 'ValidationError') {
-    return {
-      statusCode: 400,
-      message: 'Error de validación de datos',
-      details: Object.values(error.errors).map(err => err.message),
-    };
-  }
-
-  if (error.code === 11000) {
-    const field = Object.keys(error.keyValue)[0];
-    return {
-      statusCode: 400,
-      message: `El valor '${error.keyValue[field]}' ya existe para el campo '${field}'`,
-    };
-  }
-
-  if (error.name === 'CastError') {
-    return {
-      statusCode: 400,
-      message: 'ID inválido proporcionado',
-    };
-  }
-
-  return {
-    statusCode: 500,
-    message: 'Error de base de datos',
-  };
-};
-
-// File upload error handler
-const handleFileUploadError = error => {
-  if (error.code === 'LIMIT_FILE_SIZE') {
-    return {
-      statusCode: 400,
-      message: 'El archivo es demasiado grande',
-    };
-  }
-
-  if (error.code === 'LIMIT_FILE_COUNT') {
-    return {
-      statusCode: 400,
-      message: 'Demasiados archivos',
-    };
-  }
-
-  if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-    return {
-      statusCode: 400,
-      message: 'Campo de archivo inesperado',
-    };
-  }
-
-  return {
-    statusCode: 400,
-    message: 'Error al subir archivo',
-  };
-};
-
-// Authentication error handler
-const handleAuthError = error => {
-  if (error.name === 'JsonWebTokenError') {
-    return {
+/**
+ * Authentication error response helper
+ * @param {Object} res - Express response object
+ * @param {string} message - Error message
+ */
+const sendAuthError = (res, message = 'No autorizado') => {
+  res.status(401).json({
+    success: false,
+    error: {
+      message,
       statusCode: 401,
-      message: 'Token inválido',
-    };
-  }
-
-  if (error.name === 'TokenExpiredError') {
-    return {
-      statusCode: 401,
-      message: 'Token expirado',
-    };
-  }
-
-  if (error.name === 'NotBeforeError') {
-    return {
-      statusCode: 401,
-      message: 'Token no válido aún',
-    };
-  }
-
-  return {
-    statusCode: 401,
-    message: 'Error de autenticación',
-  };
+      timestamp: new Date().toISOString(),
+    },
+  });
 };
 
-// Permission error handler
-const handlePermissionError = error => {
-  return {
-    statusCode: 403,
-    message: 'No tiene permisos para realizar esta acción',
-  };
+/**
+ * Permission error response helper
+ * @param {Object} res - Express response object
+ * @param {string} message - Error message
+ */
+const sendPermissionError = (res, message = 'Acceso prohibido') => {
+  res.status(403).json({
+    success: false,
+    error: {
+      message,
+      statusCode: 403,
+      timestamp: new Date().toISOString(),
+    },
+  });
 };
 
-// Not found error handler
-const handleNotFoundError = (resource = 'Recurso') => {
-  return {
-    statusCode: 404,
-    message: `${resource} no encontrado`,
-  };
+/**
+ * Not found error response helper
+ * @param {Object} res - Express response object
+ * @param {string} message - Error message
+ */
+const sendNotFoundError = (res, message = 'Recurso no encontrado') => {
+  res.status(404).json({
+    success: false,
+    error: {
+      message,
+      statusCode: 404,
+      timestamp: new Date().toISOString(),
+    },
+  });
 };
 
-// Conflict error handler
-const handleConflictError = (message = 'Conflicto de datos') => {
-  return {
-    statusCode: 409,
-    message,
-  };
-};
-
-// Too many requests error handler
-const handleTooManyRequestsError = (retryAfter = 60) => {
-  return {
-    statusCode: 429,
-    message: 'Demasiadas solicitudes. Intente de nuevo más tarde',
-    retryAfter,
-  };
-};
-
-// Service unavailable error handler
-const handleServiceUnavailableError = (service = 'servicio') => {
-  return {
-    statusCode: 503,
-    message: `${service} no disponible temporalmente`,
-  };
+/**
+ * Rate limit error response helper
+ * @param {Object} res - Express response object
+ * @param {string} message - Error message
+ */
+const sendRateLimitError = (res, message = 'Demasiadas solicitudes') => {
+  res.status(429).json({
+    success: false,
+    error: {
+      message,
+      statusCode: 429,
+      timestamp: new Date().toISOString(),
+    },
+  });
 };
 
 module.exports = {
-  AppError,
   errorHandler,
   notFound,
-  asyncHandler,
   handleUnhandledRejection,
   handleUncaughtException,
   gracefulShutdown,
-  logError,
-  rateLimitExceeded,
-  formatValidationErrors,
-  handleDatabaseError,
-  handleFileUploadError,
-  handleAuthError,
-  handlePermissionError,
-  handleNotFoundError,
-  handleConflictError,
-  handleTooManyRequestsError,
-  handleServiceUnavailableError,
+  asyncHandler,
+  sendError,
+  sendSuccess,
+  sendValidationError,
+  sendAuthError,
+  sendPermissionError,
+  sendNotFoundError,
+  sendRateLimitError,
 };

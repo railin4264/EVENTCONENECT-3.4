@@ -381,7 +381,6 @@ const requestFrequencyMonitor = () => {
       console.warn(`High request frequency detected from IP: ${clientIP}`);
 
       // Log to security log
-      const securityLogEntry = `${new Date().toISOString()} - FREQUENCY: ${clientIP} - ${validRequests.length} requests in 1 minute\n`;
       // This would be written to a security log file
     }
 
@@ -391,6 +390,23 @@ const requestFrequencyMonitor = () => {
 
     next();
   };
+};
+
+// Log security event
+const logSecurityEvent = (req, eventType, details = {}) => {
+  const securityEvent = {
+    timestamp: new Date().toISOString(),
+    eventType,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    url: req.url,
+    method: req.method,
+    userId: req.user?.id || 'anonymous',
+    details,
+  };
+
+  // Log to security log
+  // This would be written to a security log file
 };
 
 // Export all security middleware

@@ -1,10 +1,22 @@
 const mongoose = require('mongoose');
-const { Event, User, Tribe, Post, Review, Chat, Notification } = require('../models');
+
+const {
+  Event,
+  User,
+  Tribe,
+  Post,
+  Review,
+  Chat,
+  Notification,
+} = require('../models');
 
 /**
  * Database management script for EventConnect
  */
 class DatabaseManager {
+  /**
+   *
+   */
   constructor() {
     this.connection = null;
     this.isConnected = false;
@@ -99,7 +111,9 @@ class DatabaseManager {
    */
   async getCollectionStats() {
     try {
-      const collections = await mongoose.connection.db.listCollections().toArray();
+      const collections = await mongoose.connection.db
+        .listCollections()
+        .toArray();
       const stats = {};
 
       for (const collection of collections) {
@@ -116,7 +130,10 @@ class DatabaseManager {
             indexSize: collectionStats.totalIndexSize,
           };
         } catch (error) {
-          console.warn(`⚠️ Error obteniendo stats de ${collection.name}:`, error.message);
+          console.warn(
+            `⚠️ Error obteniendo stats de ${collection.name}:`,
+            error.message
+          );
         }
       }
 
@@ -193,7 +210,10 @@ class DatabaseManager {
         message: 'Rollback ejecutado exitosamente',
       };
     } catch (error) {
-      console.error(`❌ Error haciendo rollback de migración ${migrationName}:`, error);
+      console.error(
+        `❌ Error haciendo rollback de migración ${migrationName}:`,
+        error
+      );
       throw error;
     }
   }

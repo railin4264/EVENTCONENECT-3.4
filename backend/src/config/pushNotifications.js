@@ -1,565 +1,556 @@
-const { redis } = require('./index');
+const admin = require('firebase-admin');
 
-class PushNotificationConfig {
+/**
+ * Push Notifications Configuration and Management Service
+ */
+class PushNotificationService {
+  /**
+   *
+   */
   constructor() {
-    this.expoConfig = {
-      accessToken: process.env.EXPO_ACCESS_TOKEN,
-      projectId: process.env.EXPO_PROJECT_ID,
-      pushUrl: 'https://exp.host/--/api/v2/push/send',
-    };
-
-    this.fcmConfig = {
-      serverKey: process.env.FCM_SERVER_KEY,
-      projectId: process.env.FCM_PROJECT_ID,
-    };
-
-    this.apnsConfig = {
-      keyId: process.env.APNS_KEY_ID,
-      teamId: process.env.APNS_TEAM_ID,
-      bundleId: process.env.APNS_BUNDLE_ID,
-      privateKey: process.env.APNS_PRIVATE_KEY,
-    };
-
-    this.defaultSettings = {
-      sound: 'default',
-      priority: 'normal',
-      badge: 1,
-      ttl: 86400, // 24 horas
-      expiration: null,
-    };
-
-    this.platformSettings = {
-      android: {
-        channelId: 'default',
-        priority: 'normal',
-        sound: 'default',
-        vibrate: [0, 250, 250, 250],
-        icon: 'ic_notification',
-        color: '#2196F3',
-        sticky: false,
-      },
-      ios: {
-        sound: 'default',
-        badge: 1,
-        categoryId: 'default',
-        threadId: null,
-      },
-      web: {
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/badge-72x72.png',
-        tag: 'default',
-        requireInteraction: false,
-        silent: false,
-      },
-    };
+    this.initialized = false;
+    this.init();
   }
 
-  // Obtener configuración de Expo
-  getExpoConfig() {
-    return this.expoConfig;
+  /**
+   * Initialize Firebase Admin SDK
+   */
+  init() {
+    try {
+      if (this.initialized) {
+        return;
+      }
+
+      // Check if Firebase credentials are available
+      if (
+        !process.env.FIREBASE_PROJECT_ID ||
+        !process.env.FIREBASE_PRIVATE_KEY ||
+        !process.env.FIREBASE_CLIENT_EMAIL
+      ) {
+        console.warn(
+          '⚠️ Firebase credentials not configured. Push notifications will be disabled.'
+        );
+        return;
+      }
+
+      // Parse private key (remove newlines and quotes)
+      const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+
+      // Initialize Firebase Admin
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          privateKey,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        }),
+      });
+
+      this.initialized = true;
+      console.log('✅ Firebase Admin SDK initialized successfully');
+    } catch (error) {
+      console.error('❌ Error initializing Firebase Admin SDK:', error);
+      this.initialized = false;
+    }
   }
 
-  // Obtener configuración de FCM
-  getFCMConfig() {
-    return this.fcmConfig;
-  }
+  /**
+   * Send push notification to a single device
+   * @param {string} token - FCM token
+   * @param {Object} notification - Notification data
+   * @param {Object} data - Additional data
+   * @returns {Promise<Object>} Send result
+   */
+  async sendToDevice(token, notification, data = {}) {
+    try {
+      if (!this.initialized) {
+        throw new Error('Firebase Admin SDK not initialized');
+      }
 
-  // Obtener configuración de APNS
-  getAPNSConfig() {
-    return this.apnsConfig;
-  }
+      if (!token) {
+        throw new Error('FCM token is required');
+      }
 
-  // Obtener configuración por defecto
-  getDefaultSettings() {
-    return this.defaultSettings;
-  }
-
-  // Obtener configuración por plataforma
-  getPlatformSettings(platform) {
-    return this.platformSettings[platform] || this.platformSettings.web;
-  }
-
-  // Verificar si Expo está configurado
-  isExpoConfigured() {
-    return !!(this.expoConfig.accessToken && this.expoConfig.projectId);
-  }
-
-  // Verificar si FCM está configurado
-  isFCMConfigured() {
-    return !!(this.fcmConfig.serverKey && this.fcmConfig.projectId);
-  }
-
-  // Verificar si APNS está configurado
-  isAPNSConfigured() {
-    return !!(
-      this.apnsConfig.keyId &&
-      this.apnsConfig.teamId &&
-      this.apnsConfig.bundleId
-    );
-  }
-
-  // Obtener configuración de notificaciones por tipo
-  getNotificationTypeConfig(type) {
-    const typeConfigs = {
-      event_invite: {
-        priority: 'high',
-        sound: 'default',
-        badge: 1,
+      const message = {
+        token,
+        notification: {
+          title: notification.title || 'EventConnect',
+          body: notification.body || 'You have a new notification',
+          ...notification,
+        },
+        data: {
+          ...data,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
         android: {
-          channelId: 'events',
           priority: 'high',
-          color: '#4CAF50',
+          notification: {
+            sound: 'default',
+            channel_id: 'eventconnect_channel',
+          },
         },
-        ios: {
-          categoryId: 'event_invite',
-          sound: 'default',
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
         },
-      },
-      event_reminder: {
-        priority: 'high',
-        sound: 'default',
-        badge: 1,
+      };
+
+      const result = await admin.messaging().send(message);
+
+      return {
+        success: true,
+        messageId: result,
+        token,
+      };
+    } catch (error) {
+      console.error('Error sending push notification to device:', error);
+      return {
+        success: false,
+        error: error.message,
+        token,
+      };
+    }
+  }
+
+  /**
+   * Send push notification to multiple devices
+   * @param {Array<string>} tokens - Array of FCM tokens
+   * @param {Object} notification - Notification data
+   * @param {Object} data - Additional data
+   * @returns {Promise<Object>} Send result
+   */
+  async sendToMultipleDevices(tokens, notification, data = {}) {
+    try {
+      if (!this.initialized) {
+        throw new Error('Firebase Admin SDK not initialized');
+      }
+
+      if (!tokens || !Array.isArray(tokens) || tokens.length === 0) {
+        throw new Error('Valid array of FCM tokens is required');
+      }
+
+      // Limit batch size to 500 (Firebase limit)
+      const batchSize = 500;
+      const results = {
+        successCount: 0,
+        failureCount: 0,
+        successTokens: [],
+        failedTokens: [],
+        errors: [],
+      };
+
+      // Process tokens in batches
+      for (let i = 0; i < tokens.length; i += batchSize) {
+        const batch = tokens.slice(i, i + batchSize);
+
+        try {
+          const message = {
+            tokens: batch,
+            notification: {
+              title: notification.title || 'EventConnect',
+              body: notification.body || 'You have a new notification',
+              ...notification,
+            },
+            data: {
+              ...data,
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
+            },
+            android: {
+              priority: 'high',
+              notification: {
+                sound: 'default',
+                channel_id: 'eventconnect_channel',
+              },
+            },
+            apns: {
+              payload: {
+                aps: {
+                  sound: 'default',
+                  badge: 1,
+                },
+              },
+            },
+          };
+
+          const result = await admin.messaging().sendMulticast(message);
+
+          // Process results
+          result.responses.forEach((response, index) => {
+            const token = batch[index];
+
+            if (response.success) {
+              results.successCount++;
+              results.successTokens.push(token);
+            } else {
+              results.failureCount++;
+              results.failedTokens.push(token);
+              results.errors.push({
+                token,
+                error: response.error?.message || 'Unknown error',
+              });
+            }
+          });
+        } catch (batchError) {
+          console.error('Error sending batch notification:', batchError);
+          results.failureCount += batch.length;
+          results.failedTokens.push(...batch);
+          results.errors.push({
+            tokens: batch,
+            error: batchError.message,
+          });
+        }
+      }
+
+      return results;
+    } catch (error) {
+      console.error(
+        'Error sending push notification to multiple devices:',
+        error
+      );
+      return {
+        success: false,
+        error: error.message,
+        successCount: 0,
+        failureCount: tokens.length,
+        successTokens: [],
+        failedTokens: tokens,
+        errors: [{ tokens, error: error.message }],
+      };
+    }
+  }
+
+  /**
+   * Send push notification to a topic
+   * @param {string} topic - Topic name
+   * @param {Object} notification - Notification data
+   * @param {Object} data - Additional data
+   * @returns {Promise<Object>} Send result
+   */
+  async sendToTopic(topic, notification, data = {}) {
+    try {
+      if (!this.initialized) {
+        throw new Error('Firebase Admin SDK not initialized');
+      }
+
+      if (!topic) {
+        throw new Error('Topic is required');
+      }
+
+      const message = {
+        topic,
+        notification: {
+          title: notification.title || 'EventConnect',
+          body: notification.body || 'You have a new notification',
+          ...notification,
+        },
+        data: {
+          ...data,
+          click_action: 'FLUTTER_NOTIFICATION_CLICK',
+        },
         android: {
-          channelId: 'reminders',
           priority: 'high',
-          color: '#FF9800',
+          notification: {
+            sound: 'default',
+            channel_id: 'eventconnect_channel',
+          },
         },
-        ios: {
-          categoryId: 'event_reminder',
-          sound: 'default',
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
         },
-      },
-      new_message: {
-        priority: 'normal',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'messages',
-          priority: 'normal',
-          color: '#2196F3',
-        },
-        ios: {
-          categoryId: 'new_message',
-          sound: 'default',
-        },
-      },
-      mention: {
-        priority: 'normal',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'social',
-          priority: 'normal',
-          color: '#9C27B0',
-        },
-        ios: {
-          categoryId: 'mention',
-          sound: 'default',
-        },
-      },
-      like: {
-        priority: 'low',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'social',
-          priority: 'low',
-          color: '#E91E63',
-        },
-        ios: {
-          categoryId: 'like',
-          sound: 'default',
-        },
-      },
-      comment: {
-        priority: 'normal',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'social',
-          priority: 'normal',
-          color: '#FF5722',
-        },
-        ios: {
-          categoryId: 'comment',
-          sound: 'default',
-        },
-      },
-      follow: {
-        priority: 'low',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'social',
-          priority: 'low',
-          color: '#00BCD4',
-        },
-        ios: {
-          categoryId: 'follow',
-          sound: 'default',
-        },
-      },
-      system: {
-        priority: 'normal',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'system',
-          priority: 'normal',
-          color: '#607D8B',
-        },
-        ios: {
-          categoryId: 'system',
-          sound: 'default',
-        },
-      },
-      security: {
-        priority: 'high',
-        sound: 'default',
-        badge: 1,
-        android: {
-          channelId: 'security',
-          priority: 'high',
-          color: '#F44336',
-        },
-        ios: {
-          categoryId: 'security',
-          sound: 'default',
-        },
-      },
-      promotional: {
-        priority: 'low',
-        sound: 'default',
-        badge: 0,
-        android: {
-          channelId: 'promotional',
-          priority: 'low',
-          color: '#795548',
-        },
-        ios: {
-          categoryId: 'promotional',
-          sound: 'default',
-        },
-      },
+      };
+
+      const result = await admin.messaging().send(message);
+
+      return {
+        success: true,
+        messageId: result,
+        topic,
+      };
+    } catch (error) {
+      console.error('Error sending push notification to topic:', error);
+      return {
+        success: false,
+        error: error.message,
+        topic,
+      };
+    }
+  }
+
+  /**
+   * Subscribe device to a topic
+   * @param {string|Array<string>} tokens - FCM token(s)
+   * @param {string} topic - Topic name
+   * @returns {Promise<Object>} Subscription result
+   */
+  async subscribeToTopic(tokens, topic) {
+    try {
+      if (!this.initialized) {
+        throw new Error('Firebase Admin SDK not initialized');
+      }
+
+      if (!tokens || !topic) {
+        throw new Error('Tokens and topic are required');
+      }
+
+      const tokenArray = Array.isArray(tokens) ? tokens : [tokens];
+      const result = await admin
+        .messaging()
+        .subscribeToTopic(tokenArray, topic);
+
+      return {
+        success: true,
+        successCount: result.successCount,
+        failureCount: result.failureCount,
+        errors: result.errors,
+        topic,
+      };
+    } catch (error) {
+      console.error('Error subscribing to topic:', error);
+      return {
+        success: false,
+        error: error.message,
+        topic,
+      };
+    }
+  }
+
+  /**
+   * Unsubscribe device from a topic
+   * @param {string|Array<string>} tokens - FCM token(s)
+   * @param {string} topic - Topic name
+   * @returns {Promise<Object>} Unsubscription result
+   */
+  async unsubscribeFromTopic(tokens, topic) {
+    try {
+      if (!this.initialized) {
+        throw new Error('Firebase Admin SDK not initialized');
+      }
+
+      if (!tokens || !topic) {
+        throw new Error('Tokens and topic are required');
+      }
+
+      const tokenArray = Array.isArray(tokens) ? tokens : [tokens];
+      const result = await admin
+        .messaging()
+        .unsubscribeFromTopic(tokenArray, topic);
+
+      return {
+        success: true,
+        successCount: result.successCount,
+        failureCount: result.failureCount,
+        errors: result.errors,
+        topic,
+      };
+    } catch (error) {
+      console.error('Error unsubscribing from topic:', error);
+      return {
+        success: false,
+        error: error.message,
+        topic,
+      };
+    }
+  }
+
+  /**
+   * Send event notification
+   * @param {string} eventId - Event ID
+   * @param {string} type - Notification type
+   * @param {Array<string>} tokens - Array of FCM tokens
+   * @param {Object} eventData - Event data
+   * @returns {Promise<Object>} Send result
+   */
+  async sendEventNotification(eventId, type, tokens, eventData = {}) {
+    try {
+      const notification = this.getEventNotificationContent(type, eventData);
+      const data = {
+        type: 'event',
+        eventId,
+        notificationType: type,
+        ...eventData,
+      };
+
+      return await this.sendToMultipleDevices(tokens, notification, data);
+    } catch (error) {
+      console.error('Error sending event notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send tribe notification
+   * @param {string} tribeId - Tribe ID
+   * @param {string} type - Notification type
+   * @param {Array<string>} tokens - Array of FCM tokens
+   * @param {Object} tribeData - Tribe data
+   * @returns {Promise<Object>} Send result
+   */
+  async sendTribeNotification(tribeId, type, tokens, tribeData = {}) {
+    try {
+      const notification = this.getTribeNotificationContent(type, tribeData);
+      const data = {
+        type: 'tribe',
+        tribeId,
+        notificationType: type,
+        ...tribeData,
+      };
+
+      return await this.sendToMultipleDevices(tokens, notification, data);
+    } catch (error) {
+      console.error('Error sending tribe notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Send social notification
+   * @param {string} type - Notification type
+   * @param {Array<string>} tokens - Array of FCM tokens
+   * @param {Object} socialData - Social interaction data
+   * @returns {Promise<Object>} Send result
+   */
+  async sendSocialNotification(type, tokens, socialData = {}) {
+    try {
+      const notification = this.getSocialNotificationContent(type, socialData);
+      const data = {
+        type: 'social',
+        notificationType: type,
+        ...socialData,
+      };
+
+      return await this.sendToMultipleDevices(tokens, notification, data);
+    } catch (error) {
+      console.error('Error sending social notification:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get event notification content
+   * @param {string} type - Notification type
+   * @param {Object} eventData - Event data
+   * @returns {Object} Notification content
+   */
+  getEventNotificationContent(type, eventData) {
+    const titles = {
+      invite: 'Invitación a evento',
+      update: 'Evento actualizado',
+      reminder: 'Recordatorio de evento',
+      cancellation: 'Evento cancelado',
+      new_attendee: 'Nuevo asistente',
+      event_starting: 'Evento comenzando',
     };
 
-    return typeConfigs[type] || this.defaultSettings;
-  }
+    const messages = {
+      invite: `Has sido invitado a "${eventData.title || 'un evento'}"`,
+      update: `El evento "${eventData.title || 'un evento'}" ha sido actualizado`,
+      reminder: `Recordatorio: "${eventData.title || 'un evento'}" comienza pronto`,
+      cancellation: `El evento "${eventData.title || 'un evento'}" ha sido cancelado`,
+      new_attendee: `Nuevo asistente en "${eventData.title || 'un evento'}"`,
+      event_starting: `"${eventData.title || 'Un evento'} está comenzando ahora`,
+    };
 
-  // Obtener configuración de canales de Android
-  getAndroidChannels() {
-    return [
-      {
-        id: 'default',
-        name: 'General',
-        description: 'Notificaciones generales',
-        importance: 3, // IMPORTANCE_DEFAULT
-        sound: 'default',
-        vibration: true,
-        light: true,
-        lightColor: '#2196F3',
-      },
-      {
-        id: 'events',
-        name: 'Eventos',
-        description: 'Notificaciones relacionadas con eventos',
-        importance: 4, // IMPORTANCE_HIGH
-        sound: 'default',
-        vibration: true,
-        light: true,
-        lightColor: '#4CAF50',
-      },
-      {
-        id: 'reminders',
-        name: 'Recordatorios',
-        description: 'Recordatorios de eventos',
-        importance: 4, // IMPORTANCE_HIGH
-        sound: 'default',
-        vibration: true,
-        light: true,
-        lightColor: '#FF9800',
-      },
-      {
-        id: 'messages',
-        name: 'Mensajes',
-        description: 'Nuevos mensajes de chat',
-        importance: 3, // IMPORTANCE_DEFAULT
-        sound: 'default',
-        vibration: true,
-        light: true,
-        lightColor: '#2196F3',
-      },
-      {
-        id: 'social',
-        name: 'Social',
-        description: 'Actividad social (likes, comentarios, menciones)',
-        importance: 2, // IMPORTANCE_LOW
-        sound: 'default',
-        vibration: false,
-        light: false,
-      },
-      {
-        id: 'system',
-        name: 'Sistema',
-        description: 'Notificaciones del sistema',
-        importance: 3, // IMPORTANCE_DEFAULT
-        sound: 'default',
-        vibration: false,
-        light: false,
-      },
-      {
-        id: 'security',
-        name: 'Seguridad',
-        description: 'Notificaciones de seguridad',
-        importance: 4, // IMPORTANCE_HIGH
-        sound: 'default',
-        vibration: true,
-        light: true,
-        lightColor: '#F44336',
-      },
-      {
-        id: 'promotional',
-        name: 'Promocional',
-        description: 'Contenido promocional',
-        importance: 1, // IMPORTANCE_MIN
-        sound: 'default',
-        vibration: false,
-        light: false,
-      },
-    ];
-  }
-
-  // Obtener configuración de categorías de iOS
-  getIOSCategories() {
-    return [
-      {
-        id: 'default',
-        actions: [
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'event_invite',
-        actions: [
-          {
-            id: 'accept',
-            title: 'Aceptar',
-            options: ['foreground'],
-          },
-          {
-            id: 'decline',
-            title: 'Rechazar',
-            options: ['foreground'],
-          },
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'event_reminder',
-        actions: [
-          {
-            id: 'snooze',
-            title: 'Posponer',
-            options: ['foreground'],
-          },
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'new_message',
-        actions: [
-          {
-            id: 'reply',
-            title: 'Responder',
-            options: ['foreground', 'authenticationRequired'],
-          },
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'mention',
-        actions: [
-          {
-            id: 'reply',
-            title: 'Responder',
-            options: ['foreground'],
-          },
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'like',
-        actions: [
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'comment',
-        actions: [
-          {
-            id: 'reply',
-            title: 'Responder',
-            options: ['foreground'],
-          },
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'follow',
-        actions: [
-          {
-            id: 'follow_back',
-            title: 'Seguir',
-            options: ['foreground'],
-          },
-          {
-            id: 'view',
-            title: 'Ver perfil',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'system',
-        actions: [
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-        ],
-      },
-      {
-        id: 'security',
-        actions: [
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-          {
-            id: 'dismiss',
-            title: 'Descartar',
-            options: ['destructive'],
-          },
-        ],
-      },
-      {
-        id: 'promotional',
-        actions: [
-          {
-            id: 'view',
-            title: 'Ver',
-            options: ['foreground'],
-          },
-          {
-            id: 'dismiss',
-            title: 'Descartar',
-            options: ['destructive'],
-          },
-        ],
-      },
-    ];
-  }
-
-  // Obtener configuración de horarios silenciosos
-  getQuietHoursConfig() {
     return {
-      default: {
-        enabled: false,
-        start: '22:00',
-        end: '08:00',
-        timezone: 'UTC',
-      },
-      userConfigurable: true,
-      allowedTypes: ['security', 'event_reminder'],
+      title: titles[type] || 'Notificación de evento',
+      body: messages[type] || 'Tienes una nueva notificación de evento',
     };
   }
 
-  // Obtener configuración de retry
-  getRetryConfig() {
+  /**
+   * Get tribe notification content
+   * @param {string} type - Notification type
+   * @param {Object} tribeData - Tribe data
+   * @returns {Object} Notification content
+   */
+  getTribeNotificationContent(type, tribeData) {
+    const titles = {
+      invite: 'Invitación a tribu',
+      update: 'Tribu actualizada',
+      new_member: 'Nuevo miembro',
+      new_post: 'Nuevo post en la tribu',
+      event_created: 'Nuevo evento en la tribu',
+    };
+
+    const messages = {
+      invite: `Has sido invitado a unirte a "${tribeData.name || 'una tribu'}"`,
+      update: `La tribu "${tribeData.name || 'una tribu'}" ha sido actualizada`,
+      new_member: `Nuevo miembro en "${tribeData.name || 'una tribu'}"`,
+      new_post: `Nuevo post en "${tribeData.name || 'una tribu'}"`,
+      event_created: `Nuevo evento en "${tribeData.name || 'una tribu'}"`,
+    };
+
     return {
-      maxAttempts: 3,
-      backoffMultiplier: 2,
-      initialDelay: 1000, // 1 segundo
-      maxDelay: 30000, // 30 segundos
+      title: titles[type] || 'Notificación de tribu',
+      body: messages[type] || 'Tienes una nueva notificación de tribu',
     };
   }
 
-  // Obtener configuración de rate limiting
-  getRateLimitConfig() {
+  /**
+   * Get social notification content
+   * @param {string} type - Notification type
+   * @param {Object} socialData - Social interaction data
+   * @returns {Object} Notification content
+   */
+  getSocialNotificationContent(type, socialData) {
+    const titles = {
+      follow: 'Nuevo seguidor',
+      like: 'Nuevo like',
+      comment: 'Nuevo comentario',
+      mention: 'Mencionado en un post',
+      friend_request: 'Solicitud de amistad',
+      message: 'Nuevo mensaje',
+    };
+
+    const messages = {
+      follow: `${socialData.senderName || 'Alguien'} comenzó a seguirte`,
+      like: `${socialData.senderName || 'Alguien'} dio like a tu post`,
+      comment: `${socialData.senderName || 'Alguien'} comentó en tu post`,
+      mention: `${socialData.senderName || 'Alguien'} te mencionó en un post`,
+      friend_request: `${socialData.senderName || 'Alguien'} te envió una solicitud de amistad`,
+      message: `${socialData.senderName || 'Alguien'} te envió un mensaje`,
+    };
+
     return {
-      maxNotificationsPerMinute: 60,
-      maxNotificationsPerHour: 1000,
-      maxNotificationsPerDay: 10000,
-      burstLimit: 10,
+      title: titles[type] || 'Notificación social',
+      body: messages[type] || 'Tienes una nueva notificación social',
     };
   }
 
-  // Obtener configuración de analytics
-  getAnalyticsConfig() {
-    return {
-      enabled: true,
-      trackDelivery: true,
-      trackOpen: true,
-      trackClick: true,
-      trackDismiss: true,
-      trackConversion: true,
-      retentionWindow: 30, // días
-    };
+  /**
+   * Check if service is initialized
+   * @returns {boolean} True if initialized
+   */
+  isInitialized() {
+    return this.initialized;
   }
 
-  // Obtener configuración de personalización
-  getPersonalizationConfig() {
+  /**
+   * Get service status
+   * @returns {Object} Service status
+   */
+  getStatus() {
     return {
-      enabled: true,
-      userSegments: true,
-      behaviorTracking: true,
-      a_bTesting: true,
-      dynamicContent: true,
-      smartScheduling: true,
-    };
-  }
-
-  // Obtener configuración de seguridad
-  getSecurityConfig() {
-    return {
-      encryption: true,
-      signatureVerification: true,
-      tokenValidation: true,
-      rateLimiting: true,
-      contentFiltering: true,
-      auditLogging: true,
+      initialized: this.initialized,
+      firebaseProjectId: process.env.FIREBASE_PROJECT_ID || null,
+      hasCredentials: !!(
+        process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL
+      ),
     };
   }
 }
 
-module.exports = new PushNotificationConfig();
+// Create and export push notification service instance
+const pushNotificationService = new PushNotificationService();
+
+module.exports = {
+  pushNotificationService,
+  PushNotificationService,
+};

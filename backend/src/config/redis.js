@@ -1,53 +1,78 @@
 const redis = require('redis');
 
-class RedisClient {
+/**
+ * Redis Configuration and Management Service
+ */
+class RedisService {
+  /**
+   *
+   */
   constructor() {
     this.client = null;
     this.isConnected = false;
     this.connectionRetries = 0;
     this.maxRetries = 5;
+    this.retryDelay = 1000;
   }
 
+  /**
+   * Connect to Redis
+   * @returns {Promise<boolean>} Connection success
+   */
   async connect() {
     try {
-      console.log('🔄 Conectando a Redis...');
+      if (this.client && this.isConnected) {
+        return true;
+      }
 
+      const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+      const redisPassword = process.env.REDIS_PASSWORD;
+      const redisDb = parseInt(process.env.REDIS_DB) || 0;
+
+      // Create Redis client
       this.client = redis.createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379',
+        url: redisUrl,
+        password: redisPassword,
+        database: redisDb,
+        retry_strategy: options => {
+          if (options.error && options.error.code === 'ECONNREFUSED') {
+            console.error('❌ Redis server refused connection');
+            return new Error('Redis server refused connection');
+          }
+          if (options.total_retry_time > 1000 * 60 * 60) {
+            console.error('❌ Redis retry time exhausted');
+            return new Error('Redis retry time exhausted');
+          }
+          if (options.attempt > this.maxRetries) {
+            console.error('❌ Redis max retries exceeded');
+            return new Error('Redis max retries exceeded');
+          }
+          return Math.min(options.attempt * this.retryDelay, 3000);
+        },
         socket: {
           connectTimeout: 10000,
           lazyConnect: true,
-          keepAlive: 5000,
-          family: 4,
-        },
-        retry_strategy: options => {
-          if (options.error && options.error.code === 'ECONNREFUSED') {
-            return new Error('El servidor Redis rechazó la conexión');
-          }
-          if (options.total_retry_time > 1000 * 60 * 60) {
-            return new Error('Tiempo de reintento agotado');
-          }
-          if (options.attempt > this.maxRetries) {
-            return undefined;
-          }
-          return Math.min(options.attempt * 100, 3000);
         },
       });
 
       // Event handlers
-      this.client.on('error', err => {
-        console.error('❌ Error de Redis:', err);
-        this.isConnected = false;
+      this.client.on('connect', () => {
+        console.log('🔄 Conectando a Redis...');
       });
 
-      this.client.on('connect', () => {
-        console.log('✅ Conectado a Redis');
+      this.client.on('ready', () => {
+        console.log('✅ Redis conectado y listo');
         this.isConnected = true;
         this.connectionRetries = 0;
       });
 
+      this.client.on('error', error => {
+        console.error('❌ Error de Redis:', error);
+        this.isConnected = false;
+      });
+
       this.client.on('end', () => {
-        console.log('⚠️ Conexión a Redis terminada');
+        console.log('🔌 Conexión a Redis cerrada');
         this.isConnected = false;
       });
 
@@ -56,664 +81,676 @@ class RedisClient {
         this.connectionRetries++;
       });
 
-      this.client.on('ready', () => {
-        console.log('🚀 Redis listo para recibir comandos');
-        this.isConnected = true;
-      });
-
       // Connect to Redis
       await this.client.connect();
 
-      // Test connection
-      await this.client.ping();
-      console.log('🏓 Ping a Redis exitoso');
-
-      return this.client;
+      return true;
     } catch (error) {
-      console.error('❌ Fallo al conectar a Redis:', error);
+      console.error('❌ Error conectando a Redis:', error);
       this.isConnected = false;
-
-      if (this.connectionRetries < this.maxRetries) {
-        console.log(
-          `🔄 Reintentando conexión (${this.connectionRetries + 1}/${this.maxRetries})...`
-        );
-        this.connectionRetries++;
-
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return this.connect();
-      }
-
-      throw error;
+      return false;
     }
   }
 
+  /**
+   * Disconnect from Redis
+   * @returns {Promise<void>}
+   */
   async disconnect() {
     try {
       if (this.client && this.isConnected) {
         await this.client.quit();
         this.isConnected = false;
-        console.log('✅ Desconectado de Redis');
+        console.log('🔌 Desconectado de Redis');
       }
     } catch (error) {
-      console.error('❌ Error al desconectar de Redis:', error);
+      console.error('❌ Error desconectando de Redis:', error);
     }
   }
 
+  /**
+   * Check if Redis is connected
+   * @returns {boolean} Connection status
+   */
+  getConnectionStatus() {
+    return this.isConnected;
+  }
+
+  /**
+   * Get Redis client
+   * @returns {Object|null} Redis client
+   */
+  getClient() {
+    return this.client;
+  }
+
+  /**
+   * Set key-value pair
+   * @param {string} key - Redis key
+   * @param {*} value - Value to store
+   * @param {number} ttl - Time to live in seconds
+   * @returns {Promise<boolean>} Success status
+   */
+  async set(key, value, ttl = null) {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      const serializedValue =
+        typeof value === 'object' ? JSON.stringify(value) : value;
+
+      if (ttl) {
+        await this.client.setEx(key, ttl, serializedValue);
+      } else {
+        await this.client.set(key, serializedValue);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error setting Redis key:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get value by key
+   * @param {string} key - Redis key
+   * @returns {Promise<*>} Stored value
+   */
   async get(key) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede obtener la clave:',
-          key
-        );
+        throw new Error('Redis not connected');
+      }
+
+      const value = await this.client.get(key);
+
+      if (value === null) {
         return null;
       }
 
-      const data = await this.client.get(key);
-      if (data) {
-        try {
-          return JSON.parse(data);
-        } catch (parseError) {
-          // If not JSON, return as string
-          return data;
-        }
+      // Try to parse as JSON, fallback to string
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
       }
-      return null;
     } catch (error) {
-      console.error('❌ Error obteniendo clave de Redis:', error);
+      console.error('Error getting Redis key:', error);
       return null;
     }
   }
 
-  async set(key, value, expiryInSeconds = 3600) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede establecer la clave:',
-          key
-        );
-        return false;
-      }
-
-      const serializedValue =
-        typeof value === 'string' ? value : JSON.stringify(value);
-      await this.client.set(key, serializedValue, {
-        EX: expiryInSeconds,
-      });
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error estableciendo clave en Redis:', error);
-      return false;
-    }
-  }
-
-  async setEx(key, expiryInSeconds, value) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede establecer la clave:',
-          key
-        );
-        return false;
-      }
-
-      const serializedValue =
-        typeof value === 'string' ? value : JSON.stringify(value);
-      await this.client.setEx(key, expiryInSeconds, serializedValue);
-
-      return true;
-    } catch (error) {
-      console.error(
-        '❌ Error estableciendo clave con expiración en Redis:',
-        error
-      );
-      return false;
-    }
-  }
-
+  /**
+   * Delete key
+   * @param {string} key - Redis key
+   * @returns {Promise<boolean>} Success status
+   */
   async del(key) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede eliminar la clave:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
       const result = await this.client.del(key);
       return result > 0;
     } catch (error) {
-      console.error('❌ Error eliminando clave de Redis:', error);
+      console.error('Error deleting Redis key:', error);
       return false;
     }
   }
 
-  async delPattern(pattern) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se pueden eliminar claves con patrón:',
-          pattern
-        );
-        return false;
-      }
-
-      const keys = await this.client.keys(pattern);
-      if (keys.length > 0) {
-        await this.client.del(keys);
-        console.log(
-          `🗑️ Eliminadas ${keys.length} claves con patrón: ${pattern}`
-        );
-      }
-
-      return true;
-    } catch (error) {
-      console.error('❌ Error eliminando claves con patrón de Redis:', error);
-      return false;
-    }
-  }
-
-  async keys(pattern) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se pueden obtener claves con patrón:',
-          pattern
-        );
-        return [];
-      }
-
-      return await this.client.keys(pattern);
-    } catch (error) {
-      console.error('❌ Error obteniendo claves con patrón de Redis:', error);
-      return [];
-    }
-  }
-
+  /**
+   * Check if key exists
+   * @param {string} key - Redis key
+   * @returns {Promise<boolean>} Key existence
+   */
   async exists(key) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede verificar la existencia de la clave:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
       const result = await this.client.exists(key);
-      return result === 1;
+      return result > 0;
     } catch (error) {
-      console.error(
-        '❌ Error verificando existencia de clave en Redis:',
-        error
-      );
+      console.error('Error checking Redis key existence:', error);
       return false;
     }
   }
 
-  async expire(key, seconds) {
+  /**
+   * Set key expiration
+   * @param {string} key - Redis key
+   * @param {number} ttl - Time to live in seconds
+   * @returns {Promise<boolean>} Success status
+   */
+  async expire(key, ttl) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede establecer expiración para la clave:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
-      const result = await this.client.expire(key, seconds);
-      return result === 1;
+      const result = await this.client.expire(key, ttl);
+      return result > 0;
     } catch (error) {
-      console.error('❌ Error estableciendo expiración en Redis:', error);
+      console.error('Error setting Redis key expiration:', error);
       return false;
     }
   }
 
+  /**
+   * Get key time to live
+   * @param {string} key - Redis key
+   * @returns {Promise<number>} TTL in seconds
+   */
   async ttl(key) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede obtener TTL para la clave:',
-          key
-        );
-        return -1;
+        throw new Error('Redis not connected');
       }
 
       return await this.client.ttl(key);
     } catch (error) {
-      console.error('❌ Error obteniendo TTL de Redis:', error);
+      console.error('Error getting Redis key TTL:', error);
       return -1;
     }
   }
 
-  async incr(key) {
+  /**
+   * Increment key value
+   * @param {string} key - Redis key
+   * @param {number} increment - Increment value
+   * @returns {Promise<number>} New value
+   */
+  async incr(key, increment = 1) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede incrementar la clave:',
-          key
-        );
-        return null;
+        throw new Error('Redis not connected');
       }
 
-      return await this.client.incr(key);
+      if (increment === 1) {
+        return await this.client.incr(key);
+      } else {
+        return await this.client.incrBy(key, increment);
+      }
     } catch (error) {
-      console.error('❌ Error incrementando clave en Redis:', error);
+      console.error('Error incrementing Redis key:', error);
       return null;
     }
   }
 
-  async decr(key) {
+  /**
+   * Decrement key value
+   * @param {string} key - Redis key
+   * @param {number} decrement - Decrement value
+   * @returns {Promise<number>} New value
+   */
+  async decr(key, decrement = 1) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede decrementar la clave:',
-          key
-        );
-        return null;
+        throw new Error('Redis not connected');
       }
 
-      return await this.client.decr(key);
+      if (decrement === 1) {
+        return await this.client.decr(key);
+      } else {
+        return await this.client.decrBy(key, decrement);
+      }
     } catch (error) {
-      console.error('❌ Error decrementando clave en Redis:', error);
+      console.error('Error decrementing Redis key:', error);
       return null;
     }
   }
 
-  async hset(key, field, value) {
+  /**
+   * Add to set
+   * @param {string} key - Redis key
+   * @param {*} member - Set member
+   * @returns {Promise<boolean>} Success status
+   */
+  async sadd(key, member) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede establecer campo hash:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
-      const serializedValue =
-        typeof value === 'string' ? value : JSON.stringify(value);
-      await this.client.hSet(key, field, serializedValue);
-
-      return true;
+      const result = await this.client.sAdd(key, member);
+      return result > 0;
     } catch (error) {
-      console.error('❌ Error estableciendo campo hash en Redis:', error);
+      console.error('Error adding to Redis set:', error);
       return false;
     }
   }
 
+  /**
+   * Remove from set
+   * @param {string} key - Redis key
+   * @param {*} member - Set member
+   * @returns {Promise<boolean>} Success status
+   */
+  async srem(key, member) {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      const result = await this.client.sRem(key, member);
+      return result > 0;
+    } catch (error) {
+      console.error('Error removing from Redis set:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get set members
+   * @param {string} key - Redis key
+   * @returns {Promise<Array>} Set members
+   */
+  async smembers(key) {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      return await this.client.sMembers(key);
+    } catch (error) {
+      console.error('Error getting Redis set members:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Check if member exists in set
+   * @param {string} key - Redis key
+   * @param {*} member - Set member
+   * @returns {Promise<boolean>} Member existence
+   */
+  async sismember(key, member) {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      return await this.client.sIsMember(key, member);
+    } catch (error) {
+      console.error('Error checking Redis set membership:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get set size
+   * @param {string} key - Redis key
+   * @returns {Promise<number>} Set size
+   */
+  async scard(key) {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      return await this.client.sCard(key);
+    } catch (error) {
+      console.error('Error getting Redis set size:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Add to hash
+   * @param {string} key - Redis key
+   * @param {string} field - Hash field
+   * @param {*} value - Field value
+   * @returns {Promise<boolean>} Success status
+   */
+  async hset(key, field, value) {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      const serializedValue =
+        typeof value === 'object' ? JSON.stringify(value) : value;
+      const result = await this.client.hSet(key, field, serializedValue);
+      return result > 0;
+    } catch (error) {
+      console.error('Error setting Redis hash field:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get hash field value
+   * @param {string} key - Redis key
+   * @param {string} field - Hash field
+   * @returns {Promise<*>} Field value
+   */
   async hget(key, field) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede obtener campo hash:',
-          key
-        );
+        throw new Error('Redis not connected');
+      }
+
+      const value = await this.client.hGet(key, field);
+
+      if (value === null) {
         return null;
       }
 
-      const data = await this.client.hGet(key, field);
-      if (data) {
-        try {
-          return JSON.parse(data);
-        } catch (parseError) {
-          return data;
-        }
+      // Try to parse as JSON, fallback to string
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
       }
-      return null;
     } catch (error) {
-      console.error('❌ Error obteniendo campo hash de Redis:', error);
+      console.error('Error getting Redis hash field:', error);
       return null;
     }
   }
 
+  /**
+   * Get all hash fields
+   * @param {string} key - Redis key
+   * @returns {Promise<Object>} Hash fields
+   */
   async hgetall(key) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede obtener hash completo:',
-          key
-        );
-        return {};
+        throw new Error('Redis not connected');
       }
 
-      const data = await this.client.hGetAll(key);
+      const hash = await this.client.hGetAll(key);
       const result = {};
 
-      for (const [field, value] of Object.entries(data)) {
+      for (const [field, value] of Object.entries(hash)) {
         try {
           result[field] = JSON.parse(value);
-        } catch (parseError) {
+        } catch {
           result[field] = value;
         }
       }
 
       return result;
     } catch (error) {
-      console.error('❌ Error obteniendo hash completo de Redis:', error);
+      console.error('Error getting Redis hash:', error);
       return {};
     }
   }
 
+  /**
+   * Delete hash field
+   * @param {string} key - Redis key
+   * @param {string} field - Hash field
+   * @returns {Promise<boolean>} Success status
+   */
   async hdel(key, field) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede eliminar campo hash:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
       const result = await this.client.hDel(key, field);
       return result > 0;
     } catch (error) {
-      console.error('❌ Error eliminando campo hash de Redis:', error);
+      console.error('Error deleting Redis hash field:', error);
       return false;
     }
   }
 
-  async sadd(key, member) {
+  /**
+   * Check if hash field exists
+   * @param {string} key - Redis key
+   * @param {string} field - Hash field
+   * @returns {Promise<boolean>} Field existence
+   */
+  async hexists(key, field) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede agregar miembro al set:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
-      const result = await this.client.sAdd(key, member);
-      return result > 0;
+      return await this.client.hExists(key, field);
     } catch (error) {
-      console.error('❌ Error agregando miembro al set en Redis:', error);
+      console.error('Error checking Redis hash field existence:', error);
       return false;
     }
   }
 
-  async srem(key, member) {
+  /**
+   * Get hash size
+   * @param {string} key - Redis key
+   * @returns {Promise<number>} Hash size
+   */
+  async hlen(key) {
     try {
       if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede remover miembro del set:',
-          key
-        );
-        return false;
+        throw new Error('Redis not connected');
       }
 
-      const result = await this.client.sRem(key, member);
-      return result > 0;
+      return await this.client.hLen(key);
     } catch (error) {
-      console.error('❌ Error removiendo miembro del set en Redis:', error);
-      return false;
-    }
-  }
-
-  async smembers(key) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se pueden obtener miembros del set:',
-          key
-        );
-        return [];
-      }
-
-      return await this.client.sMembers(key);
-    } catch (error) {
-      console.error('❌ Error obteniendo miembros del set de Redis:', error);
-      return [];
-    }
-  }
-
-  async sismember(key, member) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede verificar membresía del set:',
-          key
-        );
-        return false;
-      }
-
-      return await this.client.sIsMember(key, member);
-    } catch (error) {
-      console.error('❌ Error verificando membresía del set en Redis:', error);
-      return false;
-    }
-  }
-
-  async lpush(key, value) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede hacer push a la lista:',
-          key
-        );
-        return false;
-      }
-
-      const serializedValue =
-        typeof value === 'string' ? value : JSON.stringify(value);
-      const result = await this.client.lPush(key, serializedValue);
-
-      return result > 0;
-    } catch (error) {
-      console.error('❌ Error haciendo push a lista en Redis:', error);
-      return false;
-    }
-  }
-
-  async rpush(key, value) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede hacer push a la lista:',
-          key
-        );
-        return false;
-      }
-
-      const serializedValue =
-        typeof value === 'string' ? value : JSON.stringify(value);
-      const result = await this.client.rPush(key, serializedValue);
-
-      return result > 0;
-    } catch (error) {
-      console.error('❌ Error haciendo push a lista en Redis:', error);
-      return false;
-    }
-  }
-
-  async lpop(key) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede hacer pop de la lista:',
-          key
-        );
-        return null;
-      }
-
-      const data = await this.client.lPop(key);
-      if (data) {
-        try {
-          return JSON.parse(data);
-        } catch (parseError) {
-          return data;
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('❌ Error haciendo pop de lista en Redis:', error);
-      return null;
-    }
-  }
-
-  async rpop(key) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede hacer pop de la lista:',
-          key
-        );
-        return null;
-      }
-
-      const data = await this.client.rPop(key);
-      if (data) {
-        try {
-          return JSON.parse(data);
-        } catch (parseError) {
-          return data;
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('❌ Error haciendo pop de lista en Redis:', error);
-      return null;
-    }
-  }
-
-  async lrange(key, start, stop) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede obtener rango de lista:',
-          key
-        );
-        return [];
-      }
-
-      const data = await this.client.lRange(key, start, stop);
-      return data.map(item => {
-        try {
-          return JSON.parse(item);
-        } catch (parseError) {
-          return item;
-        }
-      });
-    } catch (error) {
-      console.error('❌ Error obteniendo rango de lista de Redis:', error);
-      return [];
-    }
-  }
-
-  async llen(key) {
-    try {
-      if (!this.isConnected) {
-        console.warn(
-          '⚠️ Redis no está conectado. No se puede obtener longitud de lista:',
-          key
-        );
-        return 0;
-      }
-
-      return await this.client.lLen(key);
-    } catch (error) {
-      console.error('❌ Error obteniendo longitud de lista de Redis:', error);
+      console.error('Error getting Redis hash size:', error);
       return 0;
     }
   }
 
-  // Health check
-  async healthCheck() {
+  /**
+   * Push to list
+   * @param {string} key - Redis key
+   * @param {*} value - List value
+   * @param {string} direction - 'left' or 'right'
+   * @returns {Promise<number>} List length
+   */
+  async push(key, value, direction = 'right') {
     try {
       if (!this.isConnected) {
-        return {
-          status: 'unhealthy',
-          message: 'Redis no está conectado',
-          timestamp: new Date().toISOString(),
-        };
+        throw new Error('Redis not connected');
       }
 
-      await this.client.ping();
+      const serializedValue =
+        typeof value === 'object' ? JSON.stringify(value) : value;
 
-      return {
-        status: 'healthy',
-        message: 'Redis está funcionando correctamente',
-        timestamp: new Date().toISOString(),
-      };
+      if (direction === 'left') {
+        return await this.client.lPush(key, serializedValue);
+      } else {
+        return await this.client.rPush(key, serializedValue);
+      }
     } catch (error) {
-      return {
-        status: 'unhealthy',
-        message: error.message,
-        timestamp: new Date().toISOString(),
-      };
+      console.error('Error pushing to Redis list:', error);
+      return 0;
     }
   }
 
-  // Get Redis info
-  async getInfo() {
+  /**
+   * Pop from list
+   * @param {string} key - Redis key
+   * @param {string} direction - 'left' or 'right'
+   * @returns {Promise<*>} Popped value
+   */
+  async pop(key, direction = 'left') {
     try {
       if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      let value;
+
+      if (direction === 'left') {
+        value = await this.client.lPop(key);
+      } else {
+        value = await this.client.rPop(key);
+      }
+
+      if (value === null) {
         return null;
       }
 
-      const info = await this.client.info();
-      return info;
+      // Try to parse as JSON, fallback to string
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value;
+      }
     } catch (error) {
-      console.error('❌ Error obteniendo info de Redis:', error);
+      console.error('Error popping from Redis list:', error);
       return null;
     }
   }
 
-  // Get Redis stats
-  async getStats() {
+  /**
+   * Get list range
+   * @param {string} key - Redis key
+   * @param {number} start - Start index
+   * @param {number} stop - Stop index
+   * @returns {Promise<Array>} List range
+   */
+  async lrange(key, start, stop) {
     try {
       if (!this.isConnected) {
-        return null;
+        throw new Error('Redis not connected');
       }
 
-      const info = await this.client.info();
-      const lines = info.split('\r\n');
-      const stats = {};
+      const values = await this.client.lRange(key, start, stop);
+      const result = [];
 
-      lines.forEach(line => {
-        if (line.includes(':')) {
-          const [key, value] = line.split(':');
-          stats[key] = value;
+      for (const value of values) {
+        try {
+          result.push(JSON.parse(value));
+        } catch {
+          result.push(value);
         }
-      });
+      }
 
-      return stats;
+      return result;
     } catch (error) {
-      console.error('❌ Error obteniendo stats de Redis:', error);
-      return null;
+      console.error('Error getting Redis list range:', error);
+      return [];
     }
   }
 
-  // Flush all (dangerous - only use in development/testing)
-  async flushAll() {
+  /**
+   * Get list length
+   * @param {string} key - Redis key
+   * @returns {Promise<number>} List length
+   */
+  async llen(key) {
     try {
       if (!this.isConnected) {
-        console.warn('⚠️ Redis no está conectado. No se puede hacer flush all');
-        return false;
+        throw new Error('Redis not connected');
       }
 
-      await this.client.flushAll();
-      console.log('🗑️ Redis flush all completado');
+      return await this.client.lLen(key);
+    } catch (error) {
+      console.error('Error getting Redis list length:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Flush database
+   * @returns {Promise<boolean>} Success status
+   */
+  async flushdb() {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      await this.client.flushDb();
       return true;
     } catch (error) {
-      console.error('❌ Error haciendo flush all en Redis:', error);
+      console.error('Error flushing Redis database:', error);
       return false;
     }
   }
 
-  // Get client instance
-  getClient() {
-    return this.client;
+  /**
+   * Get Redis info
+   * @returns {Promise<Object>} Redis information
+   */
+  async info() {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      const info = await this.client.info();
+      const lines = info.split('\r\n');
+      const result = {};
+
+      for (const line of lines) {
+        if (line.includes(':')) {
+          const [key, value] = line.split(':');
+          if (key && value) {
+            result[key] = value;
+          }
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error getting Redis info:', error);
+      return {};
+    }
   }
 
-  // Check connection status
-  isConnected() {
-    return this.isConnected;
+  /**
+   * Get Redis memory usage
+   * @returns {Promise<Object>} Memory usage information
+   */
+  async memory() {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      const memory = await this.client.memoryUsage();
+      return memory;
+    } catch (error) {
+      console.error('Error getting Redis memory usage:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Ping Redis server
+   * @returns {Promise<string>} Pong response
+   */
+  async ping() {
+    try {
+      if (!this.isConnected) {
+        throw new Error('Redis not connected');
+      }
+
+      return await this.client.ping();
+    } catch (error) {
+      console.error('Error pinging Redis:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get service status
+   * @returns {Object} Service status
+   */
+  getStatus() {
+    return {
+      connected: this.isConnected,
+      connectionRetries: this.connectionRetries,
+      maxRetries: this.maxRetries,
+      retryDelay: this.retryDelay,
+    };
   }
 }
 
-// Create and export Redis client instance
-const redisClient = new RedisClient();
+// Create and export Redis service instance
+const redisService = new RedisService();
 
-module.exports = redisClient;
+module.exports = {
+  redisService,
+  RedisService,
+};

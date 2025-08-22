@@ -12,7 +12,7 @@ class EventService {
   async getPersonalizedRecommendations(userId, limit = 10) {
     try {
       const user = await User.findById(userId).select(
-        'interests location following',
+        'interests location following'
       );
       if (!user) {
         throw new AppError('Usuario no encontrado', 404);
@@ -78,7 +78,7 @@ class EventService {
       const recommendations = this.rankRecommendations(
         [...interestEvents, ...followedEvents, ...trendingEvents],
         userInterests,
-        userLocation,
+        userLocation
       );
 
       // Remove duplicates and limit results
@@ -87,7 +87,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener recomendaciones: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -123,7 +123,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener analytics del evento: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -170,7 +170,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener tribus universales: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -209,7 +209,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener eventos del pulso: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -226,7 +226,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener tribus del usuario: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -242,10 +242,7 @@ class EventService {
       await event.save();
       return event;
     } catch (error) {
-      throw new AppError(
-        `Error al crear evento: ${error.message}`,
-        500,
-      );
+      throw new AppError(`Error al crear evento: ${error.message}`, 500);
     }
   }
 
@@ -264,10 +261,7 @@ class EventService {
         timestamp: new Date(),
       };
     } catch (error) {
-      throw new AppError(
-        `Error al guardar mensaje: ${error.message}`,
-        500,
-      );
+      throw new AppError(`Error al guardar mensaje: ${error.message}`, 500);
     }
   }
 
@@ -282,13 +276,13 @@ class EventService {
       const user = await User.findByIdAndUpdate(
         userId,
         { location: locationData },
-        { new: true },
+        { new: true }
       );
       return user;
     } catch (error) {
       throw new AppError(
         `Error al actualizar ubicación: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -319,7 +313,7 @@ class EventService {
     } catch (error) {
       throw new AppError(
         `Error al obtener usuarios cercanos: ${error.message}`,
-        500,
+        500
       );
     }
   }
@@ -501,6 +495,66 @@ class EventService {
   async handleEventCancellationContent(event) {
     // Implementation for content handling
     // This would update related posts and content
+  }
+
+  /**
+   * Get event by ID
+   * @param {string} _eventId - Event ID
+   * @returns {Promise<Object>} Event data
+   */
+  static async getEventById(_eventId) {
+    // Implementation for getting event by ID
+    return null;
+  }
+
+  /**
+   * Get events by host
+   * @param {string} _hostId - Host ID
+   * @returns {Promise<Array>} Events by host
+   */
+  static async getEventsByHost(_hostId) {
+    // Implementation for getting events by host
+    return [];
+  }
+
+  /**
+   * Get event statistics
+   * @param {Object} _event - Event object
+   * @returns {Promise<Object>} Event statistics
+   */
+  static async getEventStats(_event) {
+    // Implementation for getting event statistics
+    return {};
+  }
+
+  /**
+   * Get event analytics
+   * @param {Object} _event - Event object
+   * @returns {Promise<Object>} Event analytics
+   */
+  static async getEventAnalytics(_event) {
+    // Implementation for getting event analytics
+    return {};
+  }
+
+  /**
+   * Get event insights
+   * @param {Object} _event - Event object
+   * @returns {Promise<Object>} Event insights
+   */
+  static async getEventInsights(_event) {
+    // Implementation for getting event insights
+    return {};
+  }
+
+  /**
+   * Get event recommendations
+   * @param {Object} _event - Event object
+   * @returns {Promise<Array>} Event recommendations
+   */
+  static async getEventRecommendations(_event) {
+    // Implementation for getting event recommendations
+    return [];
   }
 }
 

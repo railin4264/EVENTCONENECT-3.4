@@ -2,10 +2,10 @@ const { googleMaps } = require('../config');
 const { redis } = require('../config');
 const Chat = require('../models/Chat');
 const Event = require('../models/Event');
-const Tribe = require('../models/Tribe');
-const User = require('../models/User');
 const InAppNotification = require('../models/InAppNotification');
 const ScheduledNotification = require('../models/ScheduledNotification');
+const Tribe = require('../models/Tribe');
+const User = require('../models/User');
 
 /**
  * Servicio de notificaciones para EventConnect

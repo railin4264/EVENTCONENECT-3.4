@@ -2,67 +2,83 @@ const crypto = require('crypto');
 
 const jwt = require('jsonwebtoken');
 
-const redisClient = require('./redis');
-
-class JWTManager {
+/**
+ * JWT Configuration and Management Service
+ */
+class JWTService {
+  /**
+   *
+   */
   constructor() {
-    this.secret =
-      process.env.JWT_SECRET || 'default_jwt_secret_change_in_production';
-    this.refreshSecret =
-      process.env.JWT_REFRESH_SECRET ||
-      'default_refresh_secret_change_in_production';
-    this.accessExpiresIn = process.env.JWT_EXPIRES_IN || '15m';
-    this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
-    this.algorithm = 'HS256';
+    this.secret = process.env.JWT_SECRET;
+    this.refreshSecret = process.env.JWT_REFRESH_SECRET;
+    this.expiresIn = process.env.JWT_EXPIRES_IN || '7d';
+    this.refreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
+
+    if (!this.secret || !this.refreshSecret) {
+      throw new Error('JWT secrets are required');
+    }
   }
 
-  // Generate access token
+  /**
+   * Generate access token
+   * @param {Object} payload - Token payload
+   * @param {string} payload.userId - User ID
+   * @param {string} payload.email - User email
+   * @param {string} payload.role - User role
+   * @returns {string} JWT token
+   */
   generateAccessToken(payload) {
     try {
-      if (!payload || typeof payload !== 'object') {
-        throw new Error('Payload debe ser un objeto válido');
-      }
+      const tokenPayload = {
+        userId: payload.userId,
+        email: payload.email,
+        role: payload.role,
+        type: 'access',
+        iat: Math.floor(Date.now() / 1000),
+      };
 
-      const token = jwt.sign(payload, this.secret, {
-        expiresIn: this.accessExpiresIn,
-        algorithm: this.algorithm,
-        issuer: 'EventConnect',
-        audience: 'EventConnect-Users',
-        subject: payload.userId || payload.id,
-        jwtid: crypto.randomBytes(16).toString('hex'),
+      return jwt.sign(tokenPayload, this.secret, {
+        expiresIn: this.expiresIn,
+        issuer: 'eventconnect',
+        audience: 'eventconnect-users',
       });
-
-      return token;
     } catch (error) {
-      console.error('❌ Error generando access token:', error);
-      throw error;
+      console.error('Error generating access token:', error);
+      throw new Error('Failed to generate access token');
     }
   }
 
-  // Generate refresh token
+  /**
+   * Generate refresh token
+   * @param {Object} payload - Token payload
+   * @param {string} payload.userId - User ID
+   * @returns {string} JWT refresh token
+   */
   generateRefreshToken(payload) {
     try {
-      if (!payload || typeof payload !== 'object') {
-        throw new Error('Payload debe ser un objeto válido');
-      }
+      const tokenPayload = {
+        userId: payload.userId,
+        type: 'refresh',
+        iat: Math.floor(Date.now() / 1000),
+      };
 
-      const token = jwt.sign(payload, this.refreshSecret, {
+      return jwt.sign(tokenPayload, this.refreshSecret, {
         expiresIn: this.refreshExpiresIn,
-        algorithm: this.algorithm,
-        issuer: 'EventConnect',
-        audience: 'EventConnect-Users',
-        subject: payload.userId || payload.id,
-        jwtid: crypto.randomBytes(16).toString('hex'),
+        issuer: 'eventconnect',
+        audience: 'eventconnect-users',
       });
-
-      return token;
     } catch (error) {
-      console.error('❌ Error generando refresh token:', error);
-      throw error;
+      console.error('Error generating refresh token:', error);
+      throw new Error('Failed to generate refresh token');
     }
   }
 
-  // Generate both tokens
+  /**
+   * Generate both access and refresh tokens
+   * @param {Object} payload - Token payload
+   * @returns {Object} Object containing access and refresh tokens
+   */
   generateTokens(payload) {
     try {
       const accessToken = this.generateAccessToken(payload);
@@ -71,524 +87,396 @@ class JWTManager {
       return {
         accessToken,
         refreshToken,
-        expiresIn: this.getExpirationTime(this.accessExpiresIn),
-        refreshExpiresIn: this.getExpirationTime(this.refreshExpiresIn),
+        expiresIn: this.expiresIn,
+        refreshExpiresIn: this.refreshExpiresIn,
       };
     } catch (error) {
-      console.error('❌ Error generando tokens:', error);
-      throw error;
+      console.error('Error generating tokens:', error);
+      throw new Error('Failed to generate tokens');
     }
   }
 
-  // Verify access token
+  /**
+   * Verify access token
+   * @param {string} token - JWT token to verify
+   * @returns {Object} Decoded token payload
+   */
   verifyAccessToken(token) {
     try {
-      if (!token) {
-        throw new Error('Token no proporcionado');
-      }
-
       const decoded = jwt.verify(token, this.secret, {
-        algorithms: [this.algorithm],
-        issuer: 'EventConnect',
-        audience: 'EventConnect-Users',
+        issuer: 'eventconnect',
+        audience: 'eventconnect-users',
       });
+
+      if (decoded.type !== 'access') {
+        throw new Error('Invalid token type');
+      }
 
       return decoded;
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
-        throw new Error('Token expirado');
+        throw new Error('Token expired');
       } else if (error.name === 'JsonWebTokenError') {
-        throw new Error('Token inválido');
-      } else if (error.name === 'NotBeforeError') {
-        throw new Error('Token no válido aún');
+        throw new Error('Invalid token');
       } else {
-        throw new Error('Error verificando token');
+        throw new Error('Token verification failed');
       }
     }
   }
 
-  // Verify refresh token
+  /**
+   * Verify refresh token
+   * @param {string} token - JWT refresh token to verify
+   * @returns {Object} Decoded token payload
+   */
   verifyRefreshToken(token) {
     try {
-      if (!token) {
-        throw new Error('Refresh token no proporcionado');
-      }
-
       const decoded = jwt.verify(token, this.refreshSecret, {
-        algorithms: [this.algorithm],
-        issuer: 'EventConnect',
-        audience: 'EventConnect-Users',
+        issuer: 'eventconnect',
+        audience: 'eventconnect-users',
       });
+
+      if (decoded.type !== 'refresh') {
+        throw new Error('Invalid token type');
+      }
 
       return decoded;
     } catch (error) {
       if (error.name === 'TokenExpiredError') {
-        throw new Error('Refresh token expirado');
+        throw new Error('Refresh token expired');
       } else if (error.name === 'JsonWebTokenError') {
-        throw new Error('Refresh token inválido');
-      } else if (error.name === 'NotBeforeError') {
-        throw new Error('Refresh token no válido aún');
+        throw new Error('Invalid refresh token');
       } else {
-        throw new Error('Error verificando refresh token');
+        throw new Error('Refresh token verification failed');
       }
     }
   }
 
-  // Decode token without verification (for logging/debugging)
+  /**
+   * Decode token without verification (for debugging)
+   * @param {string} token - JWT token to decode
+   * @returns {Object} Decoded token payload
+   */
   decodeToken(token) {
     try {
-      if (!token) {
-        return null;
-      }
-
-      return jwt.decode(token, { complete: true });
+      return jwt.decode(token);
     } catch (error) {
-      console.error('❌ Error decodificando token:', error);
+      console.error('Error decoding token:', error);
+      throw new Error('Failed to decode token');
+    }
+  }
+
+  /**
+   * Get token expiration time
+   * @param {string} token - JWT token
+   * @returns {Date} Expiration date
+   */
+  getTokenExpiration(token) {
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        return new Date(decoded.exp * 1000);
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting token expiration:', error);
       return null;
     }
   }
 
-  // Get token expiration time
-  getExpirationTime(expiresIn) {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      let seconds = 0;
-
-      if (typeof expiresIn === 'string') {
-        // Parse time strings like '15m', '1h', '7d'
-        const match = expiresIn.match(/^(\d+)([smhd])$/);
-        if (match) {
-          const value = parseInt(match[1]);
-          const unit = match[2];
-
-          switch (unit) {
-            case 's':
-              seconds = value;
-              break;
-            case 'm':
-              seconds = value * 60;
-              break;
-            case 'h':
-              seconds = value * 60 * 60;
-              break;
-            case 'd':
-              seconds = value * 24 * 60 * 60;
-              break;
-            default:
-              seconds = value;
-          }
-        } else {
-          seconds = parseInt(expiresIn) || 0;
-        }
-      } else {
-        seconds = expiresIn || 0;
-      }
-
-      return now + seconds;
-    } catch (error) {
-      console.error('❌ Error calculando tiempo de expiración:', error);
-      return 0;
-    }
-  }
-
-  // Check if token is expired
+  /**
+   * Check if token is expired
+   * @param {string} token - JWT token
+   * @returns {boolean} True if token is expired
+   */
   isTokenExpired(token) {
     try {
-      const decoded = this.decodeToken(token);
-      if (!decoded || !decoded.payload.exp) {
-        return true;
-      }
-
-      const now = Math.floor(Date.now() / 1000);
-      return decoded.payload.exp < now;
+      const expiration = this.getTokenExpiration(token);
+      if (!expiration) return true;
+      return Date.now() >= expiration.getTime();
     } catch (error) {
-      console.error('❌ Error verificando expiración de token:', error);
+      console.error('Error checking token expiration:', error);
       return true;
     }
   }
 
-  // Get time until token expires
-  getTimeUntilExpiry(token) {
-    try {
-      const decoded = this.decodeToken(token);
-      if (!decoded || !decoded.payload.exp) {
-        return 0;
-      }
-
-      const now = Math.floor(Date.now() / 1000);
-      const timeLeft = decoded.payload.exp - now;
-
-      return Math.max(0, timeLeft);
-    } catch (error) {
-      console.error('❌ Error calculando tiempo hasta expiración:', error);
-      return 0;
-    }
-  }
-
-  // Store refresh token in Redis
-  async storeRefreshToken(userId, refreshToken, deviceInfo = {}) {
-    try {
-      if (!userId || !refreshToken) {
-        throw new Error('userId y refreshToken son requeridos');
-      }
-
-      const tokenId = crypto.randomBytes(16).toString('hex');
-      const key = `refresh_token:${userId}:${tokenId}`;
-
-      const tokenData = {
-        token: refreshToken,
-        userId,
-        tokenId,
-        deviceInfo,
-        createdAt: new Date().toISOString(),
-        expiresAt: new Date(
-          Date.now() + this.getExpirationTime(this.refreshExpiresIn) * 1000
-        ).toISOString(),
-      };
-
-      // Store in Redis with expiration
-      const success = await redisClient.setEx(
-        key,
-        this.getExpirationTime(this.refreshExpiresIn),
-        tokenData
-      );
-
-      if (success) {
-        // Store token ID in user's active tokens set
-        await redisClient.sadd(`user_tokens:${userId}`, tokenId);
-
-        return tokenId;
-      } else {
-        throw new Error('No se pudo almacenar el refresh token');
-      }
-    } catch (error) {
-      console.error('❌ Error almacenando refresh token:', error);
-      throw error;
-    }
-  }
-
-  // Get refresh token from Redis
-  async getRefreshToken(userId, tokenId) {
-    try {
-      if (!userId || !tokenId) {
-        throw new Error('userId y tokenId son requeridos');
-      }
-
-      const key = `refresh_token:${userId}:${tokenId}`;
-      const tokenData = await redisClient.get(key);
-
-      if (!tokenData) {
-        return null;
-      }
-
-      return tokenData;
-    } catch (error) {
-      console.error('❌ Error obteniendo refresh token:', error);
-      return null;
-    }
-  }
-
-  // Revoke refresh token
-  async revokeRefreshToken(userId, tokenId) {
-    try {
-      if (!userId || !tokenId) {
-        throw new Error('userId y tokenId son requeridos');
-      }
-
-      const key = `refresh_token:${userId}:${tokenId}`;
-
-      // Remove from Redis
-      const success = await redisClient.del(key);
-
-      if (success) {
-        // Remove from user's active tokens set
-        await redisClient.srem(`user_tokens:${userId}`, tokenId);
-
-        return true;
-      }
-
-      return false;
-    } catch (error) {
-      console.error('❌ Error revocando refresh token:', error);
-      return false;
-    }
-  }
-
-  // Revoke all refresh tokens for a user
-  async revokeAllUserTokens(userId) {
-    try {
-      if (!userId) {
-        throw new Error('userId es requerido');
-      }
-
-      const userTokensKey = `user_tokens:${userId}`;
-      const tokenIds = await redisClient.smembers(userTokensKey);
-
-      if (tokenIds.length === 0) {
-        return true;
-      }
-
-      let revokedCount = 0;
-
-      for (const tokenId of tokenIds) {
-        const key = `refresh_token:${userId}:${tokenId}`;
-        const success = await redisClient.del(key);
-        if (success) {
-          revokedCount++;
-        }
-      }
-
-      // Clear user's active tokens set
-      await redisClient.del(userTokensKey);
-
-      console.log(`🗑️ Revocados ${revokedCount} tokens para usuario ${userId}`);
-      return true;
-    } catch (error) {
-      console.error('❌ Error revocando todos los tokens del usuario:', error);
-      return false;
-    }
-  }
-
-  // Get user's active refresh tokens
-  async getUserActiveTokens(userId) {
-    try {
-      if (!userId) {
-        throw new Error('userId es requerido');
-      }
-
-      const userTokensKey = `user_tokens:${userId}`;
-      const tokenIds = await redisClient.smembers(userTokensKey);
-
-      if (tokenIds.length === 0) {
-        return [];
-      }
-
-      const activeTokens = [];
-
-      for (const tokenId of tokenIds) {
-        const key = `refresh_token:${userId}:${tokenId}`;
-        const tokenData = await redisClient.get(key);
-
-        if (tokenData) {
-          activeTokens.push({
-            tokenId,
-            deviceInfo: tokenData.deviceInfo,
-            createdAt: tokenData.createdAt,
-            expiresAt: tokenData.expiresAt,
-          });
-        }
-      }
-
-      return activeTokens;
-    } catch (error) {
-      console.error('❌ Error obteniendo tokens activos del usuario:', error);
-      return [];
-    }
-  }
-
-  // Clean up expired tokens
-  async cleanupExpiredTokens() {
-    try {
-      console.log('🧹 Limpiando tokens expirados...');
-
-      // This is a simplified cleanup - in production you might want to use Redis TTL
-      // or a scheduled job to clean up expired tokens
-
-      const pattern = 'refresh_token:*';
-      const keys = await redisClient.keys(pattern);
-
-      let cleanedCount = 0;
-
-      for (const key of keys) {
-        const tokenData = await redisClient.get(key);
-
-        if (tokenData && tokenData.expiresAt) {
-          const expiresAt = new Date(tokenData.expiresAt);
-          const now = new Date();
-
-          if (expiresAt < now) {
-            await redisClient.del(key);
-
-            // Remove from user's active tokens set
-            const [, userId, tokenId] = key.split(':');
-            await redisClient.srem(`user_tokens:${userId}`, tokenId);
-
-            cleanedCount++;
-          }
-        }
-      }
-
-      console.log(
-        `✅ Limpieza completada. ${cleanedCount} tokens expirados removidos`
-      );
-      return cleanedCount;
-    } catch (error) {
-      console.error('❌ Error limpiando tokens expirados:', error);
-      return 0;
-    }
-  }
-
-  // Generate password reset token
-  generatePasswordResetToken(userId) {
+  /**
+   * Generate token pair for password reset
+   * @param {string} _email - User email (not used in token generation)
+   * @returns {Object} Reset token and expiry
+   */
+  generatePasswordResetToken(_email) {
     try {
       const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetTokenHash = crypto
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+
+      const hashedToken = crypto
         .createHash('sha256')
         .update(resetToken)
         .digest('hex');
 
       return {
-        resetToken,
-        resetTokenHash,
-        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+        resetToken: hashedToken,
+        resetTokenExpiry,
+        plainToken: resetToken,
       };
     } catch (error) {
-      console.error('❌ Error generando password reset token:', error);
-      throw error;
+      console.error('Error generating password reset token:', error);
+      throw new Error('Failed to generate password reset token');
     }
   }
 
-  // Generate email verification token
-  generateEmailVerificationToken(userId) {
+  /**
+   * Verify password reset token
+   * @param {string} token - Plain reset token
+   * @param {string} hashedToken - Hashed reset token from database
+   * @param {Date} expiry - Token expiry date
+   * @returns {boolean} True if token is valid
+   */
+  verifyPasswordResetToken(token, hashedToken, expiry) {
+    try {
+      if (Date.now() > expiry.getTime()) {
+        return false;
+      }
+
+      const hashedInputToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+      return hashedInputToken === hashedToken;
+    } catch (error) {
+      console.error('Error verifying password reset token:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate email verification token
+   * @param {string} _email - User email (not used in token generation)
+   * @returns {Object} Verification token and expiry
+   */
+  generateEmailVerificationToken(_email) {
     try {
       const verificationToken = crypto.randomBytes(32).toString('hex');
-      const verificationTokenHash = crypto
+      const verificationTokenExpiry = new Date(Date.now() + 86400000); // 24 hours
+
+      const hashedToken = crypto
         .createHash('sha256')
         .update(verificationToken)
         .digest('hex');
 
       return {
-        verificationToken,
-        verificationTokenHash,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        verificationToken: hashedToken,
+        verificationTokenExpiry,
+        plainToken: verificationToken,
       };
     } catch (error) {
-      console.error('❌ Error generando email verification token:', error);
-      throw error;
+      console.error('Error generating email verification token:', error);
+      throw new Error('Failed to generate email verification token');
     }
   }
 
-  // Generate API key
-  generateAPIKey(userId, permissions = []) {
+  /**
+   * Verify email verification token
+   * @param {string} token - Plain verification token
+   * @param {string} hashedToken - Hashed verification token from database
+   * @param {Date} expiry - Token expiry date
+   * @returns {boolean} True if token is valid
+   */
+  verifyEmailVerificationToken(token, hashedToken, expiry) {
     try {
-      const apiKey = crypto.randomBytes(32).toString('hex');
-      const apiKeyHash = crypto
+      if (Date.now() > expiry.getTime()) {
+        return false;
+      }
+
+      const hashedInputToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+      return hashedInputToken === hashedToken;
+    } catch (error) {
+      console.error('Error verifying email verification token:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate MFA token
+   * @param {string} _userId - User ID (not used in token generation)
+   * @returns {Object} MFA token and expiry
+   */
+  generateMFAToken(_userId) {
+    try {
+      const mfaToken = crypto.randomBytes(32).toString('hex');
+      const mfaTokenExpiry = new Date(Date.now() + 300000); // 5 minutes
+
+      const hashedToken = crypto
+        .createHash('sha256')
+        .update(mfaToken)
+        .digest('hex');
+
+      return {
+        mfaToken: hashedToken,
+        mfaTokenExpiry,
+        plainToken: mfaToken,
+      };
+    } catch (error) {
+      console.error('Error generating MFA token:', error);
+      throw new Error('Failed to generate MFA token');
+    }
+  }
+
+  /**
+   * Verify MFA token
+   * @param {string} token - Plain MFA token
+   * @param {string} hashedToken - Hashed MFA token from database
+   * @param {Date} expiry - Token expiry date
+   * @returns {boolean} True if token is valid
+   */
+  verifyMFAToken(token, hashedToken, expiry) {
+    try {
+      if (Date.now() > expiry.getTime()) {
+        return false;
+      }
+
+      const hashedInputToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+      return hashedInputToken === hashedToken;
+    } catch (error) {
+      console.error('Error verifying MFA token:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Generate API key
+   * @param {string} userId - User ID
+   * @param {string} purpose - Purpose of the API key
+   * @returns {Object} API key and metadata
+   */
+  generateAPIKey(userId, purpose) {
+    try {
+      const apiKey = crypto.randomBytes(64).toString('hex');
+      const hashedKey = crypto
         .createHash('sha256')
         .update(apiKey)
         .digest('hex');
 
       return {
         apiKey,
-        apiKeyHash,
-        permissions,
-        createdAt: new Date().toISOString(),
+        hashedKey,
+        userId,
+        purpose,
+        createdAt: new Date(),
+        lastUsed: null,
       };
     } catch (error) {
-      console.error('❌ Error generando API key:', error);
-      throw error;
+      console.error('Error generating API key:', error);
+      throw new Error('Failed to generate API key');
     }
   }
 
-  // Get token statistics
-  async getTokenStats() {
+  /**
+   * Verify API key
+   * @param {string} apiKey - Plain API key
+   * @param {string} hashedKey - Hashed API key from database
+   * @returns {boolean} True if API key is valid
+   */
+  verifyAPIKey(apiKey, hashedKey) {
     try {
-      const stats = {
-        totalActiveTokens: 0,
-        totalUsersWithTokens: 0,
-        averageTokensPerUser: 0,
-        oldestToken: null,
-        newestToken: null,
-      };
+      const hashedInputKey = crypto
+        .createHash('sha256')
+        .update(apiKey)
+        .digest('hex');
 
-      const userTokensPattern = 'user_tokens:*';
-      const userTokenKeys = await redisClient.keys(userTokensPattern);
-
-      stats.totalUsersWithTokens = userTokenKeys.length;
-
-      let totalTokens = 0;
-      let oldestDate = null;
-      let newestDate = null;
-
-      for (const userKey of userTokenKeys) {
-        const userId = userKey.split(':')[1];
-        const tokenIds = await redisClient.smembers(userKey);
-        totalTokens += tokenIds.length;
-
-        for (const tokenId of tokenIds) {
-          const tokenKey = `refresh_token:${userId}:${tokenId}`;
-          const tokenData = await redisClient.get(tokenKey);
-
-          if (tokenData && tokenData.createdAt) {
-            const createdAt = new Date(tokenData.createdAt);
-
-            if (!oldestDate || createdAt < oldestDate) {
-              oldestDate = createdAt;
-            }
-
-            if (!newestDate || createdAt > newestDate) {
-              newestDate = createdAt;
-            }
-          }
-        }
-      }
-
-      stats.totalActiveTokens = totalTokens;
-      stats.averageTokensPerUser =
-        userTokenKeys.length > 0 ? totalTokens / userTokenKeys.length : 0;
-      stats.oldestToken = oldestDate;
-      stats.newestToken = newestDate;
-
-      return stats;
+      return hashedInputKey === hashedKey;
     } catch (error) {
-      console.error('❌ Error obteniendo estadísticas de tokens:', error);
-      return null;
-    }
-  }
-
-  // Validate token format
-  validateTokenFormat(token) {
-    try {
-      if (!token || typeof token !== 'string') {
-        return false;
-      }
-
-      // Check if token has the correct format (3 parts separated by dots)
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        return false;
-      }
-
-      // Check if each part is base64 encoded
-      for (const part of parts) {
-        try {
-          Buffer.from(part, 'base64');
-        } catch (error) {
-          return false;
-        }
-      }
-
-      return true;
-    } catch (error) {
+      console.error('Error verifying API key:', error);
       return false;
     }
   }
 
-  // Get token payload without verification
-  getTokenPayload(token) {
+  /**
+   * Generate session token
+   * @param {string} userId - User ID
+   * @param {Object} sessionData - Additional session data
+   * @returns {Object} Session token and metadata
+   */
+  generateSessionToken(userId, sessionData = {}) {
     try {
-      if (!this.validateTokenFormat(token)) {
-        return null;
+      const sessionToken = crypto.randomBytes(32).toString('hex');
+      const sessionTokenExpiry = new Date(Date.now() + 604800000); // 7 days
+
+      const hashedToken = crypto
+        .createHash('sha256')
+        .update(sessionToken)
+        .digest('hex');
+
+      return {
+        sessionToken: hashedToken,
+        sessionTokenExpiry,
+        plainToken: sessionToken,
+        userId,
+        sessionData,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+      };
+    } catch (error) {
+      console.error('Error generating session token:', error);
+      throw new Error('Failed to generate session token');
+    }
+  }
+
+  /**
+   * Verify session token
+   * @param {string} token - Plain session token
+   * @param {string} hashedToken - Hashed session token from database
+   * @param {Date} expiry - Token expiry date
+   * @returns {boolean} True if token is valid
+   */
+  verifySessionToken(token, hashedToken, expiry) {
+    try {
+      if (Date.now() > expiry.getTime()) {
+        return false;
       }
 
-      const decoded = jwt.decode(token);
-      return decoded;
+      const hashedInputToken = crypto
+        .createHash('sha256')
+        .update(token)
+        .digest('hex');
+
+      return hashedInputToken === hashedToken;
     } catch (error) {
-      return null;
+      console.error('Error verifying session token:', error);
+      return false;
     }
+  }
+
+  /**
+   * Get token statistics
+   * @returns {Object} Token configuration and statistics
+   */
+  getTokenStats() {
+    return {
+      accessTokenExpiry: this.expiresIn,
+      refreshTokenExpiry: this.refreshExpiresIn,
+      issuer: 'eventconnect',
+      audience: 'eventconnect-users',
+      algorithm: 'HS256',
+      createdAt: new Date(),
+    };
   }
 }
 
-// Create and export JWT manager instance
-const jwtManager = new JWTManager();
+// Create and export JWT service instance
+const jwtService = new JWTService();
 
-module.exports = jwtManager;
+module.exports = {
+  jwtService,
+  JWTService,
+};

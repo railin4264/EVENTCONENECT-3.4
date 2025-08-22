@@ -5,13 +5,13 @@ const compression = require('compression');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const express = require('express');
+const mongoSanitize = require('express-mongo-sanitize');
+const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
 const helmet = require('helmet');
 const hpp = require('hpp');
 const mongoose = require('mongoose');
 const morgan = require('morgan');
-const mongoSanitize = require('express-mongo-sanitize');
-const rateLimit = require('express-rate-limit');
-const slowDown = require('express-slow-down');
 const socketIo = require('socket.io');
 const xss = require('xss-clean');
 

@@ -1,5 +1,3 @@
-const mongoose = require('mongoose');
-
 // Pagination middleware
 const paginate = (req, res, next) => {
   // Parse pagination parameters
