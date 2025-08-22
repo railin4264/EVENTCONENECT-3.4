@@ -1,11 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { ThemeProvider } from '@/components/providers/ThemeProvider';
-import { QueryProvider } from '@/components/providers/QueryProvider';
-import { AuthProvider } from '@/components/providers/AuthProvider';
-import { DynamicThemeProvider } from '@/contexts/DynamicThemeContext';
-import { ImmersiveNotificationSystem } from '@/components/notifications/ImmersiveNotifications';
+import Providers from './providers';
 
 const inter = Inter({ 
   subsets: ['latin'],
@@ -132,48 +128,39 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} antialiased`}>
-        {/* Providers */}
-        <DynamicThemeProvider>
-          <ImmersiveNotificationSystem>
-            <AuthProvider>
-              <QueryProvider>
-                <ThemeProvider>
-                  {/* Main content */}
-                  <main className="min-h-screen">
-                    {children}
-                  </main>
-                  
-                  {/* Global UI elements */}
-                  <div id="portal-root" />
-                  
-                  {/* Performance monitoring */}
-                  <script
-                    dangerouslySetInnerHTML={{
-                      __html: `
-                        // Performance monitoring
-                        if ('performance' in window) {
-                          window.addEventListener('load', () => {
-                            const perfData = performance.getEntriesByType('navigation')[0];
-                            if (perfData) {
-                              console.log('Page Load Time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
-                            }
-                          });
-                        }
-                        
-                        // Service Worker registration
-                        if ('serviceWorker' in navigator) {
-                          navigator.serviceWorker.register('/sw.js')
-                            .then(registration => console.log('SW registered'))
-                            .catch(error => console.log('SW registration failed'));
-                        }
-                      `
-                    }}
-                  />
-                </ThemeProvider>
-              </QueryProvider>
-            </AuthProvider>
-          </ImmersiveNotificationSystem>
-        </DynamicThemeProvider>
+        <Providers>
+          {/* Main content */}
+          <main className="min-h-screen">
+            {children}
+          </main>
+          
+          {/* Global UI elements */}
+          <div id="portal-root" />
+          
+          {/* Performance monitoring */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                // Performance monitoring
+                if ('performance' in window) {
+                  window.addEventListener('load', () => {
+                    const perfData = performance.getEntriesByType('navigation')[0];
+                    if (perfData) {
+                      console.log('Page Load Time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
+                    }
+                  });
+                }
+                
+                // Service Worker registration
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(registration => console.log('SW registered'))
+                    .catch(error => console.log('SW registration failed'));
+                }
+              `
+            }}
+          />
+        </Providers>
       </body>
     </html>
   );

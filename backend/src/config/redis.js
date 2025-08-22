@@ -3,7 +3,7 @@ const redis = require('redis');
 class RedisClient {
   constructor() {
     this.client = null;
-    this.isConnected = false;
+    this.connected = false;
     this.connectionRetries = 0;
     this.maxRetries = 5;
   }
@@ -15,40 +15,42 @@ class RedisClient {
       this.client = redis.createClient({
         url: process.env.REDIS_URL || 'redis://localhost:6379',
         socket: {
-          connectTimeout: 10000,
+          connectTimeout: 5000,
           lazyConnect: true,
           keepAlive: 5000,
           family: 4,
         },
         retry_strategy: options => {
           if (options.error && options.error.code === 'ECONNREFUSED') {
-            return new Error('El servidor Redis rechazó la conexión');
+            console.warn('⚠️ Redis no disponible, continuando sin cache');
+            return undefined; // Don't retry on connection refused
           }
-          if (options.total_retry_time > 1000 * 60 * 60) {
-            return new Error('Tiempo de reintento agotado');
-          }
-          if (options.attempt > this.maxRetries) {
+          if (options.total_retry_time > 1000 * 30) { // Reduce retry time
+            console.warn('⚠️ Redis timeout, continuando sin cache');
             return undefined;
           }
-          return Math.min(options.attempt * 100, 3000);
+          if (options.attempt > 3) { // Reduce max retries
+            return undefined;
+          }
+          return Math.min(options.attempt * 100, 1000);
         },
       });
 
       // Event handlers
       this.client.on('error', err => {
         console.error('❌ Error de Redis:', err);
-        this.isConnected = false;
+        this.connected = false;
       });
 
       this.client.on('connect', () => {
         console.log('✅ Conectado a Redis');
-        this.isConnected = true;
+        this.connected = true;
         this.connectionRetries = 0;
       });
 
       this.client.on('end', () => {
         console.log('⚠️ Conexión a Redis terminada');
-        this.isConnected = false;
+        this.connected = false;
       });
 
       this.client.on('reconnecting', () => {
@@ -58,7 +60,7 @@ class RedisClient {
 
       this.client.on('ready', () => {
         console.log('🚀 Redis listo para recibir comandos');
-        this.isConnected = true;
+        this.connected = true;
       });
 
       // Connect to Redis
@@ -70,29 +72,38 @@ class RedisClient {
 
       return this.client;
     } catch (error) {
-      console.error('❌ Fallo al conectar a Redis:', error);
-      this.isConnected = false;
+      console.warn('⚠️ Redis no disponible:', error.message);
+      this.connected = false;
+      this.client = null;
 
-      if (this.connectionRetries < this.maxRetries) {
+      // Don't throw error in development, just continue without Redis
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 Continuando sin Redis en modo desarrollo');
+        return null;
+      }
+
+      if (this.connectionRetries < 2) { // Reduce retries
         console.log(
-          `🔄 Reintentando conexión (${this.connectionRetries + 1}/${this.maxRetries})...`
+          `🔄 Reintentando conexión (${this.connectionRetries + 1}/2)...`
         );
         this.connectionRetries++;
 
         // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
         return this.connect();
       }
 
-      throw error;
+      // In production, log warning but don't crash
+      console.warn('⚠️ Aplicación iniciando sin Redis');
+      return null;
     }
   }
 
   async disconnect() {
     try {
-      if (this.client && this.isConnected) {
+      if (this.client && this.connected) {
         await this.client.quit();
-        this.isConnected = false;
+        this.connected = false;
         console.log('✅ Desconectado de Redis');
       }
     } catch (error) {
@@ -102,7 +113,7 @@ class RedisClient {
 
   async get(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede obtener la clave:',
           key
@@ -128,7 +139,7 @@ class RedisClient {
 
   async set(key, value, expiryInSeconds = 3600) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede establecer la clave:',
           key
@@ -151,7 +162,7 @@ class RedisClient {
 
   async setEx(key, expiryInSeconds, value) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede establecer la clave:',
           key
@@ -175,7 +186,7 @@ class RedisClient {
 
   async del(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede eliminar la clave:',
           key
@@ -193,7 +204,7 @@ class RedisClient {
 
   async delPattern(pattern) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se pueden eliminar claves con patrón:',
           pattern
@@ -218,7 +229,7 @@ class RedisClient {
 
   async keys(pattern) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se pueden obtener claves con patrón:',
           pattern
@@ -235,7 +246,7 @@ class RedisClient {
 
   async exists(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede verificar la existencia de la clave:',
           key
@@ -256,7 +267,7 @@ class RedisClient {
 
   async expire(key, seconds) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede establecer expiración para la clave:',
           key
@@ -274,7 +285,7 @@ class RedisClient {
 
   async ttl(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede obtener TTL para la clave:',
           key
@@ -291,7 +302,7 @@ class RedisClient {
 
   async incr(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede incrementar la clave:',
           key
@@ -308,7 +319,7 @@ class RedisClient {
 
   async decr(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede decrementar la clave:',
           key
@@ -325,7 +336,7 @@ class RedisClient {
 
   async hset(key, field, value) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede establecer campo hash:',
           key
@@ -346,7 +357,7 @@ class RedisClient {
 
   async hget(key, field) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede obtener campo hash:',
           key
@@ -371,7 +382,7 @@ class RedisClient {
 
   async hgetall(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede obtener hash completo:',
           key
@@ -399,7 +410,7 @@ class RedisClient {
 
   async hdel(key, field) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede eliminar campo hash:',
           key
@@ -417,7 +428,7 @@ class RedisClient {
 
   async sadd(key, member) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede agregar miembro al set:',
           key
@@ -435,7 +446,7 @@ class RedisClient {
 
   async srem(key, member) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede remover miembro del set:',
           key
@@ -453,7 +464,7 @@ class RedisClient {
 
   async smembers(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se pueden obtener miembros del set:',
           key
@@ -470,7 +481,7 @@ class RedisClient {
 
   async sismember(key, member) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede verificar membresía del set:',
           key
@@ -487,7 +498,7 @@ class RedisClient {
 
   async lpush(key, value) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede hacer push a la lista:',
           key
@@ -508,7 +519,7 @@ class RedisClient {
 
   async rpush(key, value) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede hacer push a la lista:',
           key
@@ -529,7 +540,7 @@ class RedisClient {
 
   async lpop(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede hacer pop de la lista:',
           key
@@ -554,7 +565,7 @@ class RedisClient {
 
   async rpop(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede hacer pop de la lista:',
           key
@@ -579,7 +590,7 @@ class RedisClient {
 
   async lrange(key, start, stop) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede obtener rango de lista:',
           key
@@ -603,7 +614,7 @@ class RedisClient {
 
   async llen(key) {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn(
           '⚠️ Redis no está conectado. No se puede obtener longitud de lista:',
           key
@@ -621,7 +632,7 @@ class RedisClient {
   // Health check
   async healthCheck() {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         return {
           status: 'unhealthy',
           message: 'Redis no está conectado',
@@ -648,7 +659,7 @@ class RedisClient {
   // Get Redis info
   async getInfo() {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         return null;
       }
 
@@ -663,7 +674,7 @@ class RedisClient {
   // Get Redis stats
   async getStats() {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         return null;
       }
 
@@ -688,7 +699,7 @@ class RedisClient {
   // Flush all (dangerous - only use in development/testing)
   async flushAll() {
     try {
-      if (!this.isConnected) {
+      if (!this.connected) {
         console.warn('⚠️ Redis no está conectado. No se puede hacer flush all');
         return false;
       }
@@ -709,7 +720,7 @@ class RedisClient {
 
   // Check connection status
   isConnected() {
-    return this.isConnected;
+    return this.connected && this.client && this.client.isReady;
   }
 }
 
