@@ -1,0 +1,46 @@
+# CONFIGURACIÓN PARA .env DEL BACKEND
+# Copia y pega todo esto en tu archivo backend/.env
+
+# Puerto del servidor
+PORT=5000
+
+# Entorno
+NODE_ENV=development
+
+# Base de datos MongoDB
+MONGODB_URI=mongodb://localhost:27017/eventconnect
+
+# JWT Secrets
+JWT_SECRET=eventconnect-super-secret-jwt-key-2024-very-long-and-secure
+JWT_EXPIRE=7d
+REFRESH_TOKEN_SECRET=eventconnect-refresh-secret-key-2024-even-more-secure
+REFRESH_TOKEN_EXPIRE=30d
+
+# CORS Origins (frontend URLs)
+CORS_ORIGIN=http://localhost:3000,http://localhost:8081
+
+# Redis (opcional - para cache y sesiones)
+REDIS_URL=redis://localhost:6379
+
+# Cloudinary (opcional - para subida de imágenes)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
+# OAuth Providers (opcional)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+FACEBOOK_APP_ID=your-facebook-app-id
+FACEBOOK_APP_SECRET=your-facebook-app-secret
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# Email Service (opcional - para notificaciones)
+EMAIL_SERVICE=gmail
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Configuraciones adicionales
+API_BASE_URL=http://localhost:5000
+BCRYPT_ROUNDS=12
+SESSION_SECRET=eventconnect-session-secret-super-secure-2024

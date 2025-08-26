@@ -1,0 +1,335 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== NEON URBAN THEME SYSTEM ===== */
+
+:root {
+  /* ===== COLOR PALETTE ===== */
+  --neon-blue: #00d4ff;
+  --neon-purple: #a855f7;
+  --neon-cyan: #06b6d4;
+  --neon-green: #10b981;
+  --neon-orange: #f97316;
+  --neon-pink: #ec4899;
+  --neon-yellow: #eab308;
+
+  /* ===== BASE COLORS ===== */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+  --bg-glass: rgba(255, 255, 255, 0.05);
+  --bg-glass-hover: rgba(255, 255, 255, 0.1);
+
+  /* ===== TEXT COLORS ===== */
+  --text-primary: #ffffff;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --text-accent: var(--neon-cyan);
+
+  /* ===== BORDER COLORS ===== */
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-secondary: rgba(255, 255, 255, 0.05);
+  --border-accent: var(--neon-cyan);
+
+  /* ===== GRADIENTS ===== */
+  --gradient-primary: linear-gradient(
+    135deg,
+    var(--neon-blue) 0%,
+    var(--neon-purple) 100%
+  );
+  --gradient-secondary: linear-gradient(
+    135deg,
+    var(--neon-cyan) 0%,
+    var(--neon-green) 100%
+  );
+  --gradient-accent: linear-gradient(
+    135deg,
+    var(--neon-orange) 0%,
+    var(--neon-pink) 100%
+  );
+  --gradient-dark: linear-gradient(
+    135deg,
+    #0f0f23 0%,
+    #1a1a2e 50%,
+    #16213e 100%
+  );
+  --gradient-glass: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+
+  /* ===== SHADOWS ===== */
+  --shadow-neon: 0 0 20px rgba(0, 212, 255, 0.3);
+  --shadow-purple: 0 0 20px rgba(168, 85, 247, 0.3);
+  --shadow-cyan: 0 0 20px rgba(6, 182, 212, 0.3);
+  --shadow-glow: 0 0 40px rgba(0, 212, 255, 0.2);
+
+  /* ===== ANIMATIONS ===== */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --transition-bounce: 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* ===== DARK THEME (DEFAULT) ===== */
+[data-theme='dark'] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-tertiary: #1a1a1a;
+}
+
+/* ===== LIGHT THEME ===== */
+[data-theme='light'] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-glass: rgba(0, 0, 0, 0.05);
+  --bg-glass-hover: rgba(0, 0, 0, 0.1);
+
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+
+  --border-primary: rgba(0, 0, 0, 0.1);
+  --border-secondary: rgba(0, 0, 0, 0.05);
+}
+
+/* ===== BASE STYLES ===== */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gradient-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gradient-secondary);
+}
+
+/* ===== SELECTION STYLING ===== */
+::selection {
+  background: var(--neon-cyan);
+  color: var(--bg-primary);
+}
+
+/* ===== FOCUS STYLING ===== */
+*:focus {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 2px;
+}
+
+/* ===== UTILITY CLASSES ===== */
+.glass {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-primary);
+}
+
+.glass-hover:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-accent);
+}
+
+.neon-glow {
+  box-shadow: var(--shadow-neon);
+}
+
+.neon-glow-purple {
+  box-shadow: var(--shadow-purple);
+}
+
+.neon-glow-cyan {
+  box-shadow: var(--shadow-cyan);
+}
+
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-border {
+  position: relative;
+  background: var(--bg-primary);
+  border-radius: 8px;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  background: var(--gradient-primary);
+  border-radius: 8px;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+/* ===== ANIMATION KEYFRAMES ===== */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-neon {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: var(--shadow-neon);
+  }
+  50% {
+    box-shadow: var(--shadow-glow);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===== ANIMATION UTILITY CLASSES ===== */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-neon {
+  animation: pulse-neon 2s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.6s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.6s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s ease-out;
+}
+
+/* ===== RESPONSIVE UTILITIES ===== */
+@media (max-width: 768px) {
+  .glass {
+    backdrop-filter: blur(10px);
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .glass,
+  .neon-glow,
+  .gradient-text {
+    background: none !important;
+    box-shadow: none !important;
+    color: #000 !important;
+  }
+}

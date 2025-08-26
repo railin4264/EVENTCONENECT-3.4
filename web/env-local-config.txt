@@ -1,0 +1,18 @@
+# CONFIGURACIÓN PARA .env.local DEL FRONTEND
+# Copia y pega todo esto en tu archivo web/.env.local
+
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NODE_ENV=development
+
+# Google Maps API Key (reemplaza con tu key real)
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=TU_GOOGLE_MAPS_API_KEY_AQUI
+
+# Configuración de geolocalización
+NEXT_PUBLIC_DEFAULT_LAT=40.4168
+NEXT_PUBLIC_DEFAULT_LNG=-3.7038
+NEXT_PUBLIC_DEFAULT_ZOOM=12
+NEXT_PUBLIC_SEARCH_RADIUS_KM=10
+
+# Configuración de eventos cercanos
+NEXT_PUBLIC_ENABLE_GEOLOCATION=true
+NEXT_PUBLIC_AUTO_DETECT_LOCATION=true

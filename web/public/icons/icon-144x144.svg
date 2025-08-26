@@ -1,0 +1,13 @@
+<svg width="144" height="144" viewBox="0 0 144 144" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+<stop offset="0%" stop-color="#06b6d4"/>
+<stop offset="50%" stop-color="#3b82f6"/>
+<stop offset="100%" stop-color="#8b5cf6"/>
+</linearGradient>
+</defs>
+<circle cx="72" cy="72" r="65" fill="url(#gradient)"/>
+<circle cx="72" cy="72" r="36" fill="white" opacity="0.9"/>
+<circle cx="72" cy="72" r="22" fill="url(#gradient)"/>
+<text x="72" y="84" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="white">E</text>
+</svg>

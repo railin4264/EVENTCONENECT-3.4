@@ -1,0 +1,33 @@
+# CONFIGURACIÓN PARA .env DE LA APP MÓVIL
+# Copia y pega todo esto en tu archivo mobile/.env
+
+# API Backend URL
+EXPO_PUBLIC_API_URL=http://localhost:5000/api
+
+# Environment
+NODE_ENV=development
+
+# App Configuration
+EXPO_PUBLIC_APP_NAME=EventConnect
+EXPO_PUBLIC_APP_VERSION=2.0.0
+
+# Desarrollo
+EXPO_PUBLIC_DEV_MODE=true
+
+# URLs para diferentes entornos
+EXPO_PUBLIC_WEB_URL=http://localhost:3000
+EXPO_PUBLIC_BACKEND_URL=http://localhost:5000
+
+# OAuth Providers (opcional)
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=your-google-client-id
+EXPO_PUBLIC_FACEBOOK_APP_ID=your-facebook-app-id
+EXPO_PUBLIC_GITHUB_CLIENT_ID=your-github-client-id
+
+# Mapas (opcional)
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=AIzaSyDNN_nzVkisOiUq-O-3TT6vNYscXz5wkXo
+
+# Analytics (opcional)
+EXPO_PUBLIC_ANALYTICS_ID=your-analytics-id
+
+# Push Notifications (opcional)
+EXPO_PUBLIC_PUSH_NOTIFICATION_KEY=your-push-key
