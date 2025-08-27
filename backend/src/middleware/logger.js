@@ -1,394 +1,373 @@
-const morgan = require('morgan');
-const fs = require('fs');
+const winston = require('winston');
+const DailyRotateFile = require('winston-daily-rotate-file');
 const path = require('path');
 
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
+// ==========================================
+// CONFIGURACIÓN DE LOGGING AVANZADO
+// ==========================================
 
-// Custom token for request body size
-morgan.token('body-size', req => {
-  if (req.body) {
-    return JSON.stringify(req.body).length;
-  }
-  return 0;
-});
-
-// Custom token for response time in milliseconds
-morgan.token('response-time-ms', (req, res) => {
-  if (!res._header || !req._startAt) return '';
-  const diff = process.hrtime(req._startAt);
-  const ms = diff[0] * 1e3 + diff[1] * 1e-6;
-  return ms.toFixed(2);
-});
-
-// Custom token for user agent
-morgan.token('user-agent', req => {
-  return req.get('User-Agent') || 'Unknown';
-});
-
-// Custom token for referrer
-morgan.token('referrer', req => {
-  return req.get('Referrer') || 'Direct';
-});
-
-// Custom token for IP address
-morgan.token('ip', req => {
-  return (
-    req.ip ||
-    req.connection.remoteAddress ||
-    req.socket.remoteAddress ||
-    'Unknown'
-  );
-});
-
-// Custom token for user ID (if authenticated)
-morgan.token('user-id', req => {
-  return req.user ? req.user.id : 'Anonymous';
-});
-
-// Custom token for request method with color
-morgan.token('method-color', req => {
-  const method = req.method;
-  const colors = {
-    GET: '\x1b[32m', // Green
-    POST: '\x1b[34m', // Blue
-    PUT: '\x1b[33m', // Yellow
-    DELETE: '\x1b[31m', // Red
-    PATCH: '\x1b[35m', // Magenta
-    OPTIONS: '\x1b[36m', // Cyan
-    HEAD: '\x1b[37m', // White
-  };
-  const reset = '\x1b[0m';
-  return `${colors[method] || '\x1b[0m'}${method}${reset}`;
-});
-
-// Custom token for status code with color
-morgan.token('status-color', (req, res) => {
-  const status = res.statusCode;
-  let color = '\x1b[0m'; // Default
-
-  if (status >= 500) {
-    color = '\x1b[31m'; // Red for server errors
-  } else if (status >= 400) {
-    color = '\x1b[33m'; // Yellow for client errors
-  } else if (status >= 300) {
-    color = '\x1b[36m'; // Cyan for redirects
-  } else if (status >= 200) {
-    color = '\x1b[32m'; // Green for success
-  }
-
-  const reset = '\x1b[0m';
-  return `${color}${status}${reset}`;
-});
-
-// Development format (colored, detailed)
-const devFormat =
-  ':method-color :url :status-color :response-time-ms ms - :user-id - :ip - :user-agent';
-
-// Production format (minimal, structured)
-const prodFormat =
-  ':method :url :status :response-time-ms :user-id :ip :referrer';
-
-// JSON format for structured logging
-const jsonFormat = (tokens, req, res) => {
-  return JSON.stringify({
-    timestamp: new Date().toISOString(),
-    method: tokens.method(req, res),
-    url: tokens.url(req, res),
-    status: tokens.status(req, res),
-    responseTime: tokens['response-time-ms'](req, res),
-    userAgent: tokens['user-agent'](req, res),
-    ip: tokens.ip(req, res),
-    userId: tokens['user-id'](req, res),
-    referrer: tokens.referrer(req, res),
-    bodySize: tokens['body-size'](req, res),
-    userAgent: tokens['user-agent'](req, res),
-  });
-};
-
-// Create write streams for different log levels
-const accessLogStream = fs.createWriteStream(path.join(logsDir, 'access.log'), {
-  flags: 'a',
-});
-
-const errorLogStream = fs.createWriteStream(path.join(logsDir, 'error.log'), {
-  flags: 'a',
-});
-
-const combinedLogStream = fs.createWriteStream(
-  path.join(logsDir, 'combined.log'),
-  { flags: 'a' }
+// Formato personalizado para logs
+const logFormat = winston.format.combine(
+  winston.format.timestamp({
+    format: 'YYYY-MM-DD HH:mm:ss'
+  }),
+  winston.format.errors({ stack: true }),
+  winston.format.json(),
+  winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+    let log = `${timestamp} [${level.toUpperCase()}]: ${message}`;
+    
+    if (stack) {
+      log += `\n${stack}`;
+    }
+    
+    if (Object.keys(meta).length > 0) {
+      log += `\n${JSON.stringify(meta, null, 2)}`;
+    }
+    
+    return log;
+  })
 );
 
-// Development logger
-const devLogger = morgan(devFormat, {
-  skip: (req, res) => res.statusCode >= 400,
+// Formato para consola
+const consoleFormat = winston.format.combine(
+  winston.format.colorize(),
+  winston.format.timestamp({
+    format: 'HH:mm:ss'
+  }),
+  winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
+    let log = `${timestamp} [${level}]: ${message}`;
+    
+    if (stack) {
+      log += `\n${stack}`;
+    }
+    
+    if (Object.keys(meta).length > 0) {
+      log += `\n${JSON.stringify(meta, null, 2)}`;
+    }
+    
+    return log;
+  })
+);
+
+// ==========================================
+// TRANSPORTES DE LOGGING
+// ==========================================
+
+// Transporte para archivos de aplicación
+const appTransport = new DailyRotateFile({
+  filename: path.join(__dirname, '../logs/app-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  level: 'info',
+  format: logFormat
 });
 
-// Production logger
-const prodLogger = morgan(prodFormat, {
-  stream: accessLogStream,
-  skip: (req, res) => res.statusCode >= 400,
+// Transporte para archivos de error
+const errorTransport = new DailyRotateFile({
+  filename: path.join(__dirname, '../logs/error-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '30d',
+  level: 'error',
+  format: logFormat
 });
 
-// Error logger
-const errorLogger = morgan(prodFormat, {
-  stream: errorLogStream,
-  skip: (req, res) => res.statusCode < 400,
+// Transporte para archivos de seguridad
+const securityTransport = new DailyRotateFile({
+  filename: path.join(__dirname, '../logs/security-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '90d',
+  level: 'warn',
+  format: logFormat
 });
 
-// Combined logger
-const combinedLogger = morgan(prodFormat, {
-  stream: combinedLogStream,
+// Transporte para archivos de acceso
+const accessTransport = new DailyRotateFile({
+  filename: path.join(__dirname, '../logs/access-%DATE%.log'),
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  level: 'info',
+  format: logFormat
 });
 
-// JSON logger for structured logging
-const jsonLogger = morgan(jsonFormat, {
-  stream: accessLogStream,
+// Transporte para consola
+const consoleTransport = new winston.transports.Console({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
+  format: consoleFormat
 });
 
-// Request logger middleware
+// ==========================================
+// CONFIGURACIÓN DEL LOGGER PRINCIPAL
+// ==========================================
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: logFormat,
+  defaultMeta: { 
+    service: 'eventconnect-backend',
+    environment: process.env.NODE_ENV || 'development'
+  },
+  transports: [
+    appTransport,
+    errorTransport,
+    securityTransport,
+    accessTransport,
+    consoleTransport
+  ],
+  // No salir en caso de error
+  exitOnError: false
+});
+
+// ==========================================
+// LOGGERS ESPECIALIZADOS
+// ==========================================
+
+// Logger para acceso HTTP
+const accessLogger = winston.createLogger({
+  level: 'info',
+  format: logFormat,
+  defaultMeta: { 
+    service: 'eventconnect-backend',
+    type: 'access'
+  },
+  transports: [accessTransport, consoleTransport]
+});
+
+// Logger para seguridad
+const securityLogger = winston.createLogger({
+  level: 'warn',
+  format: logFormat,
+  defaultMeta: { 
+    service: 'eventconnect-backend',
+    type: 'security'
+  },
+  transports: [securityTransport, consoleTransport]
+});
+
+// Logger para errores
+const errorLogger = winston.createLogger({
+  level: 'error',
+  format: logFormat,
+  defaultMeta: { 
+    service: 'eventconnect-backend',
+    type: 'error'
+  },
+  transports: [errorTransport, consoleTransport]
+});
+
+// ==========================================
+// MIDDLEWARE DE LOGGING
+// ==========================================
+
+// Middleware para logging de requests HTTP
 const requestLogger = (req, res, next) => {
-  // Add timestamp to request
-  req._startAt = process.hrtime();
-
-  // Log request details
-  const logData = {
-    timestamp: new Date().toISOString(),
+  const start = Date.now();
+  
+  // Log del request
+  accessLogger.info('Request iniciado', {
     method: req.method,
-    url: req.url,
-    ip: req.ip || req.connection.remoteAddress,
+    url: req.originalUrl,
+    ip: req.ip,
     userAgent: req.get('User-Agent'),
-    userId: req.user ? req.user.id : 'Anonymous',
-    body: req.body,
-    query: req.query,
-    params: req.params,
-    headers: {
-      'content-type': req.get('Content-Type'),
-      'content-length': req.get('Content-Length'),
-      authorization: req.get('Authorization') ? 'Bearer ***' : undefined,
-      cookie: req.get('Cookie') ? '***' : undefined,
-    },
-  };
-
-  // Log to console in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('📥 Request:', {
-      method: logData.method,
-      url: logData.url,
-      ip: logData.ip,
-      userId: logData.userId,
-    });
-  }
-
-  // Store log data for response logging
-  req._logData = logData;
-
-  next();
-};
-
-// Response logger middleware
-const responseLogger = (req, res, next) => {
-  // Override res.end to capture response data
-  const originalEnd = res.end;
-  const originalSend = res.send;
-
-  res.send = function (data) {
-    res._responseData = data;
-    return originalSend.call(this, data);
-  };
-
-  res.end = function (chunk, encoding) {
-    if (chunk) {
-      res._responseData = chunk;
-    }
-
-    // Log response
-    const responseTime = process.hrtime(req._startAt);
-    const responseTimeMs = (
-      responseTime[0] * 1000 +
-      responseTime[1] / 1000000
-    ).toFixed(2);
-
-    const logData = {
-      ...req._logData,
-      responseTime: responseTimeMs,
-      statusCode: res.statusCode,
-      statusMessage: res.statusMessage,
-      responseSize: res.get('Content-Length') || 0,
-      responseHeaders: {
-        'content-type': res.get('Content-Type'),
-        'content-length': res.get('Content-Length'),
-      },
-    };
-
-    // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      const statusColor = res.statusCode >= 400 ? '\x1b[31m' : '\x1b[32m';
-      const reset = '\x1b[0m';
-
-      console.log(
-        `📤 Response: ${statusColor}${res.statusCode}${reset} - ${responseTimeMs}ms - ${req.method} ${req.url}`
-      );
-    }
-
-    // Write to log file
-    const logEntry = `${new Date().toISOString()} - ${req.method} ${req.url} - ${res.statusCode} - ${responseTimeMs}ms - ${req.ip} - ${req.user ? req.user.id : 'Anonymous'}\n`;
-
-    if (res.statusCode >= 400) {
-      errorLogStream.write(logEntry);
-    } else {
-      accessLogStream.write(logEntry);
-    }
-
-    combinedLogStream.write(logEntry);
-
-    return originalEnd.call(this, chunk, encoding);
-  };
-
-  next();
-};
-
-// Performance monitoring middleware
-const performanceMonitor = (req, res, next) => {
-  const start = process.hrtime();
-
+    userId: req.user?.id || 'anonymous',
+    timestamp: new Date().toISOString()
+  });
+  
+  // Interceptar el final de la respuesta
   res.on('finish', () => {
-    const [seconds, nanoseconds] = process.hrtime(start);
-    const duration = seconds * 1000 + nanoseconds / 1000000;
-
-    // Log slow requests (> 1 second)
-    if (duration > 1000) {
-      const slowLogEntry = `${new Date().toISOString()} - SLOW REQUEST: ${req.method} ${req.url} - ${duration.toFixed(2)}ms - ${req.ip}\n`;
-      fs.appendFileSync(path.join(logsDir, 'slow-requests.log'), slowLogEntry);
-    }
-
-    // Log performance metrics
-    const perfLogEntry = `${new Date().toISOString()} - ${req.method} ${req.url} - ${duration.toFixed(2)}ms - ${res.statusCode}\n`;
-    fs.appendFileSync(path.join(logsDir, 'performance.log'), perfLogEntry);
+    const duration = Date.now() - start;
+    
+    // Log del response
+    accessLogger.info('Request completado', {
+      method: req.method,
+      url: req.originalUrl,
+      statusCode: res.statusCode,
+      duration: `${duration}ms`,
+      ip: req.ip,
+      userId: req.user?.id || 'anonymous',
+      timestamp: new Date().toISOString()
+    });
   });
-
+  
   next();
 };
 
-// Security logging middleware
-const securityLogger = (req, res, next) => {
-  // Log potential security issues
-  const securityIssues = [];
-
-  // Check for suspicious headers
-  if (req.get('X-Forwarded-For') && !req.get('X-Real-IP')) {
-    securityIssues.push('Potential IP spoofing attempt');
-  }
-
-  // Check for suspicious user agents
-  const userAgent = req.get('User-Agent');
-  if (
-    userAgent &&
-    (userAgent.includes('bot') ||
-      userAgent.includes('crawler') ||
-      userAgent.includes('spider') ||
-      userAgent.length > 500)
-  ) {
-    securityIssues.push('Suspicious user agent');
-  }
-
-  // Check for suspicious request patterns
-  if (req.url.includes('..') || req.url.includes('//')) {
-    securityIssues.push('Path traversal attempt');
-  }
-
-  // Log security issues
-  if (securityIssues.length > 0) {
-    const securityLogEntry = `${new Date().toISOString()} - SECURITY: ${req.method} ${req.url} - ${req.ip} - Issues: ${securityIssues.join(', ')}\n`;
-    fs.appendFileSync(path.join(logsDir, 'security.log'), securityLogEntry);
-  }
-
-  next();
+// Middleware para logging de errores
+const errorLoggerMiddleware = (err, req, res, next) => {
+  // Log del error
+  errorLogger.error('Error en la aplicación', {
+    error: err.message,
+    stack: err.stack,
+    method: req.method,
+    url: req.originalUrl,
+    ip: req.ip,
+    userId: req.user?.id || 'anonymous',
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
+  
+  next(err);
 };
 
-// Error logging middleware
-const errorHandler = (error, req, res, next) => {
-  const errorLogEntry = `${new Date().toISOString()} - ERROR: ${error.message} - ${req.method} ${req.url} - ${req.ip} - Stack: ${error.stack}\n`;
-  fs.appendFileSync(path.join(logsDir, 'errors.log'), errorLogEntry);
+// ==========================================
+// FUNCIONES DE LOGGING ESPECIALIZADAS
+// ==========================================
 
-  next(error);
-};
-
-// Log rotation function
-const rotateLogs = () => {
-  const logFiles = [
-    'access.log',
-    'error.log',
-    'combined.log',
-    'performance.log',
-    'security.log',
-    'slow-requests.log',
-    'errors.log',
-  ];
-
-  logFiles.forEach(filename => {
-    const logPath = path.join(logsDir, filename);
-
-    if (fs.existsSync(logPath)) {
-      const stats = fs.statSync(logPath);
-      const fileSizeInMB = stats.size / (1024 * 1024);
-
-      // Rotate if file is larger than 10MB
-      if (fileSizeInMB > 10) {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const rotatedPath = path.join(logsDir, `${filename}.${timestamp}`);
-
-        try {
-          fs.renameSync(logPath, rotatedPath);
-          console.log(`Log rotated: ${filename} -> ${filename}.${timestamp}`);
-        } catch (error) {
-          console.error(`Error rotating log ${filename}:`, error);
-        }
-      }
-    }
+// Log de autenticación
+const logAuth = (action, userId, ip, success, details = {}) => {
+  const level = success ? 'info' : 'warn';
+  
+  securityLogger.log(level, `Autenticación: ${action}`, {
+    userId,
+    ip,
+    success,
+    ...details,
+    timestamp: new Date().toISOString()
   });
 };
 
-// Schedule log rotation (daily at midnight)
-const scheduleLogRotation = () => {
-  const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-
-  const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-
-  setTimeout(() => {
-    rotateLogs();
-    // Schedule next rotation
-    setInterval(rotateLogs, 24 * 60 * 60 * 1000);
-  }, timeUntilMidnight);
+// Log de autorización
+const logAuthz = (action, userId, resource, success, details = {}) => {
+  const level = success ? 'info' : 'warn';
+  
+  securityLogger.log(level, `Autorización: ${action}`, {
+    userId,
+    resource,
+    success,
+    ...details,
+    timestamp: new Date().toISOString()
+  });
 };
 
-// Initialize log rotation
-scheduleLogRotation();
+// Log de operaciones críticas
+const logCriticalOperation = (operation, userId, details = {}) => {
+  logger.warn(`Operación crítica: ${operation}`, {
+    userId,
+    ...details,
+    timestamp: new Date().toISOString()
+  });
+};
 
-// Export middleware functions
+// Log de performance
+const logPerformance = (operation, duration, details = {}) => {
+  const level = duration > 1000 ? 'warn' : 'info';
+  
+  logger.log(level, `Performance: ${operation}`, {
+    duration: `${duration}ms`,
+    ...details,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Log de base de datos
+const logDatabase = (operation, collection, duration, success, details = {}) => {
+  const level = success ? 'info' : 'error';
+  
+  logger.log(level, `Base de datos: ${operation}`, {
+    collection,
+    duration: `${duration}ms`,
+    success,
+    ...details,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// ==========================================
+// MONITOREO Y MÉTRICAS
+// ==========================================
+
+// Contador de requests
+let requestCount = 0;
+let errorCount = 0;
+let startTime = Date.now();
+
+// Incrementar contadores
+const incrementRequestCount = () => requestCount++;
+const incrementErrorCount = () => errorCount++;
+
+// Obtener métricas
+const getMetrics = () => {
+  const uptime = Date.now() - startTime;
+  const requestsPerMinute = (requestCount / (uptime / 60000)).toFixed(2);
+  const errorRate = ((errorCount / requestCount) * 100).toFixed(2);
+  
+  return {
+    uptime: `${Math.floor(uptime / 1000)}s`,
+    totalRequests: requestCount,
+    totalErrors: errorCount,
+    requestsPerMinute,
+    errorRate: `${errorRate}%`,
+    timestamp: new Date().toISOString()
+  };
+};
+
+// Log de métricas cada 5 minutos
+setInterval(() => {
+  const metrics = getMetrics();
+  logger.info('Métricas del sistema', metrics);
+}, 5 * 60 * 1000);
+
+// ==========================================
+// MANEJO DE ERRORES NO CAPTURADOS
+// ==========================================
+
+// Capturar errores no manejados
+process.on('uncaughtException', (error) => {
+  errorLogger.error('Excepción no capturada', {
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString()
+  });
+  
+  // En producción, cerrar la aplicación
+  if (process.env.NODE_ENV === 'production') {
+    process.exit(1);
+  }
+});
+
+// Capturar promesas rechazadas no manejadas
+process.on('unhandledRejection', (reason, promise) => {
+  errorLogger.error('Promesa rechazada no manejada', {
+    reason: reason?.message || reason,
+    stack: reason?.stack,
+    promise: promise.toString(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ==========================================
+// EXPORTACIÓN
+// ==========================================
+
 module.exports = {
-  // Morgan loggers
-  devLogger,
-  prodLogger,
-  errorLogger,
-  combinedLogger,
-  jsonLogger,
-
-  // Custom loggers
-  requestLogger,
-  responseLogger,
-  performanceMonitor,
+  // Logger principal
+  logger,
+  
+  // Loggers especializados
+  accessLogger,
   securityLogger,
-  errorHandler,
-
-  // Utility functions
-  rotateLogs,
-  scheduleLogRotation,
+  errorLogger,
+  
+  // Middleware
+  requestLogger,
+  errorLoggerMiddleware,
+  
+  // Funciones de logging
+  logAuth,
+  logAuthz,
+  logCriticalOperation,
+  logPerformance,
+  logDatabase,
+  
+  // Métricas
+  incrementRequestCount,
+  incrementErrorCount,
+  getMetrics
 };

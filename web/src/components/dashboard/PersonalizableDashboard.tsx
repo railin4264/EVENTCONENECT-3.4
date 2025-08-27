@@ -1,569 +1,690 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { 
-  PlusIcon,
-  CogIcon,
-  XMarkIcon,
-  CalendarIcon,
-  MapPinIcon,
-  UserGroupIcon,
-  ChartBarIcon,
-  HeartIcon,
-  BellIcon,
-  SparklesIcon,
-  ArrowTrendingUpIcon
-} from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/Button';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
-import { LoadingSpinner } from '@/components/ui/Loading';
-import { useTheme } from '@/contexts/ThemeContext';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Settings, Save, X, GripVertical, Maximize2, Minimize2 } from 'lucide-react';
 
-// ===== INTERFACES =====
-interface DashboardWidget {
+// ==========================================
+// COMPONENTES LAZY LOADED PARA PERFORMANCE
+// ==========================================
+
+// Lazy load de widgets para mejorar performance
+const EventosWidget = lazy(() => import('./widgets/EventosWidget'));
+const CalendarioWidget = lazy(() => import('./widgets/CalendarioWidget'));
+const TribusWidget = lazy(() => import('./widgets/TribusWidget'));
+const ActividadWidget = lazy(() => import('./widgets/ActividadWidget'));
+const EstadisticasWidget = lazy(() => import('./widgets/EstadisticasWidget'));
+const NotificacionesWidget = lazy(() => import('./widgets/NotificacionesWidget'));
+const MapaWidget = lazy(() => import('./widgets/MapaWidget'));
+const ChatWidget = lazy(() => import('./widgets/ChatWidget'));
+
+// ==========================================
+// TIPOS Y INTERFACES
+// ==========================================
+
+interface Widget {
   id: string;
-  type: 'events' | 'stats' | 'map' | 'notifications' | 'tribes' | 'shortcuts' | 'trending' | 'calendar';
+  type: string;
   title: string;
-  size: 'small' | 'medium' | 'large';
   position: { x: number; y: number };
+  size: { width: number; height: number };
+  isMinimized: boolean;
+  isMaximized: boolean;
   settings: Record<string, any>;
-  visible: boolean;
 }
 
 interface DashboardLayout {
   id: string;
   name: string;
-  widgets: DashboardWidget[];
+  widgets: Widget[];
   createdAt: Date;
-  isDefault: boolean;
+  updatedAt: Date;
 }
 
-// ===== PERSONALIZABLE DASHBOARD COMPONENT =====
-export const PersonalizableDashboard: React.FC = () => {
-  const { theme } = useTheme();
+// ==========================================
+// CONFIGURACIÓN DE WIDGETS
+// ==========================================
+
+const AVAILABLE_WIDGETS = [
+  {
+    type: 'eventos',
+    title: 'Próximos Eventos',
+    defaultSize: { width: 400, height: 300 },
+    minSize: { width: 300, height: 200 },
+    maxSize: { width: 600, height: 500 },
+    icon: '🎉',
+    description: 'Muestra tus próximos eventos y recordatorios',
+    category: 'events'
+  },
+  {
+    type: 'calendario',
+    title: 'Calendario',
+    defaultSize: { width: 350, height: 400 },
+    minSize: { width: 300, height: 300 },
+    maxSize: { width: 500, height: 600 },
+    icon: '📅',
+    description: 'Vista de calendario con eventos y fechas importantes',
+    category: 'events'
+  },
+  {
+    type: 'tribus',
+    title: 'Mis Tribus',
+    defaultSize: { width: 380, height: 280 },
+    minSize: { width: 300, height: 200 },
+    maxSize: { width: 550, height: 400 },
+    icon: '👥',
+    description: 'Gestiona y visualiza tus tribus y comunidades',
+    category: 'social'
+  },
+  {
+    type: 'actividad',
+    title: 'Actividad Reciente',
+    defaultSize: { width: 400, height: 250 },
+    minSize: { width: 300, height: 200 },
+    maxSize: { width: 600, height: 400 },
+    icon: '📊',
+    description: 'Actividad reciente y notificaciones del sistema',
+    category: 'activity'
+  },
+  {
+    type: 'estadisticas',
+    title: 'Estadísticas',
+    defaultSize: { width: 350, height: 300 },
+    minSize: { width: 300, height: 250 },
+    maxSize: { width: 500, height: 450 },
+    icon: '📈',
+    description: 'Estadísticas personales y métricas de uso',
+    category: 'analytics'
+  },
+  {
+    type: 'notificaciones',
+    title: 'Notificaciones',
+    defaultSize: { width: 320, height: 280 },
+    minSize: { width: 250, height: 200 },
+    maxSize: { width: 450, height: 400 },
+    icon: '🔔',
+    description: 'Centro de notificaciones y mensajes',
+    category: 'communication'
+  },
+  {
+    type: 'mapa',
+    title: 'Mapa de Eventos',
+    defaultSize: { width: 450, height: 350 },
+    minSize: { width: 350, height: 250 },
+    maxSize: { width: 700, height: 500 },
+    icon: '🗺️',
+    description: 'Mapa interactivo con eventos cercanos',
+    category: 'location'
+  },
+  {
+    type: 'chat',
+    title: 'Chat Rápido',
+    defaultSize: { width: 300, height: 400 },
+    minSize: { width: 250, height: 300 },
+    maxSize: { width: 450, height: 600 },
+    icon: '💬',
+    description: 'Chat rápido con contactos y tribus',
+    category: 'communication'
+  }
+];
+
+// ==========================================
+// COMPONENTE PRINCIPAL
+// ==========================================
+
+const PersonalizableDashboard: React.FC = () => {
+  // ==========================================
+  // ESTADOS CON OPTIMIZACIÓN
+  // ==========================================
+  
+  const [widgets, setWidgets] = useState<Widget[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedWidget, setSelectedWidget] = useState<string | null>(null);
   const [showWidgetSelector, setShowWidgetSelector] = useState(false);
-  const [selectedLayout, setSelectedLayout] = useState<string>('default');
+  const [layouts, setLayouts] = useState<DashboardLayout[]>([]);
+  const [currentLayout, setCurrentLayout] = useState<string>('default');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
 
-  // ===== INITIAL WIDGETS =====
-  const [widgets, setWidgets] = useState<DashboardWidget[]>([
-    {
-      id: 'upcoming-events',
-      type: 'events',
-      title: 'Próximos Eventos',
-      size: 'large',
-      position: { x: 0, y: 0 },
-      settings: { limit: 5, showImages: true },
-      visible: true
-    },
-    {
-      id: 'my-stats',
-      type: 'stats',
-      title: 'Mis Estadísticas',
-      size: 'medium',
-      position: { x: 2, y: 0 },
-      settings: { showGrowth: true, period: '30d' },
-      visible: true
-    },
-    {
-      id: 'event-map',
-      type: 'map',
-      title: 'Eventos Cerca',
-      size: 'medium',
-      position: { x: 0, y: 1 },
-      settings: { radius: 25, showFilters: false },
-      visible: true
-    },
-    {
-      id: 'notifications',
-      type: 'notifications',
-      title: 'Notificaciones',
-      size: 'small',
-      position: { x: 2, y: 1 },
-      settings: { showUnreadOnly: true, limit: 3 },
-      visible: true
+  // ==========================================
+  // MEMOIZACIÓN PARA PERFORMANCE
+  // ==========================================
+
+  // Memoizar widgets por categoría para evitar re-renders
+  const widgetsByCategory = useMemo(() => {
+    return AVAILABLE_WIDGETS.reduce((acc, widget) => {
+      if (!acc[widget.category]) {
+        acc[widget.category] = [];
+      }
+      acc[widget.category].push(widget);
+      return acc;
+    }, {} as Record<string, typeof AVAILABLE_WIDGETS>);
+  }, []);
+
+  // Memoizar widgets activos para evitar re-renders innecesarios
+  const activeWidgets = useMemo(() => {
+    return widgets.filter(widget => !widget.isMinimized);
+  }, [widgets]);
+
+  // ==========================================
+  // EFECTOS CON OPTIMIZACIÓN
+  // ==========================================
+
+  // Cargar layout guardado al montar el componente
+  useEffect(() => {
+    const savedLayouts = localStorage.getItem('dashboard-layouts');
+    if (savedLayouts) {
+      try {
+        const parsed = JSON.parse(savedLayouts);
+        setLayouts(parsed);
+        
+        // Cargar layout por defecto
+        const defaultLayout = parsed.find((l: DashboardLayout) => l.id === 'default');
+        if (defaultLayout) {
+          setWidgets(defaultLayout.widgets);
+        }
+      } catch (error) {
+        console.error('Error cargando layouts:', error);
+        // Crear layout por defecto si hay error
+        createDefaultLayout();
+      }
+    } else {
+      createDefaultLayout();
     }
-  ]);
+  }, []);
 
-  // ===== AVAILABLE WIDGET TYPES =====
-  const availableWidgets = [
-    {
-      type: 'events',
-      title: 'Próximos Eventos',
-      description: 'Lista de eventos a los que asistirás',
-      icon: CalendarIcon,
-      color: 'from-cyan-500 to-blue-600',
-      defaultSize: 'large'
-    },
-    {
-      type: 'stats',
-      title: 'Estadísticas',
-      description: 'Métricas de tu actividad',
-      icon: ChartBarIcon,
-      color: 'from-purple-500 to-pink-600',
-      defaultSize: 'medium'
-    },
-    {
-      type: 'map',
-      title: 'Mapa de Eventos',
-      description: 'Eventos cercanos en mapa',
-      icon: MapPinIcon,
-      color: 'from-green-500 to-emerald-600',
-      defaultSize: 'medium'
-    },
-    {
-      type: 'notifications',
-      title: 'Notificaciones',
-      description: 'Alertas y mensajes',
-      icon: BellIcon,
-      color: 'from-orange-500 to-red-600',
-      defaultSize: 'small'
-    },
-    {
-      type: 'tribes',
-      title: 'Mis Comunidades',
-      description: 'Tribus a las que perteneces',
-      icon: UserGroupIcon,
-      color: 'from-indigo-500 to-purple-600',
-      defaultSize: 'medium'
-    },
-    {
-      type: 'shortcuts',
-      title: 'Accesos Rápidos',
-      description: 'Acciones frecuentes',
-      icon: SparklesIcon,
-      color: 'from-pink-500 to-rose-600',
-      defaultSize: 'small'
-    },
-    {
-      type: 'trending',
-      title: 'Tendencias',
-      description: 'Eventos populares',
-      icon: ArrowTrendingUpIcon,
-      color: 'from-yellow-500 to-orange-600',
-      defaultSize: 'medium'
-    },
-    {
-      type: 'calendar',
-      title: 'Calendario',
-      description: 'Vista de calendario compacta',
-      icon: CalendarIcon,
-      color: 'from-teal-500 to-cyan-600',
-      defaultSize: 'large'
+  // Guardar layouts automáticamente cuando cambien
+  useEffect(() => {
+    if (layouts.length > 0) {
+      localStorage.setItem('dashboard-layouts', JSON.stringify(layouts));
     }
-  ];
+  }, [layouts]);
 
-  // ===== HANDLERS =====
-  const handleAddWidget = (widgetType: string) => {
-    const widgetConfig = availableWidgets.find(w => w.type === widgetType);
+  // ==========================================
+  // FUNCIONES OPTIMIZADAS CON USECALLBACK
+  // ==========================================
+
+  // Crear layout por defecto
+  const createDefaultLayout = useCallback(() => {
+    const defaultWidgets: Widget[] = [
+      {
+        id: 'eventos-default',
+        type: 'eventos',
+        title: 'Próximos Eventos',
+        position: { x: 20, y: 20 },
+        size: { width: 400, height: 300 },
+        isMinimized: false,
+        isMaximized: false,
+        settings: {}
+      },
+      {
+        id: 'calendario-default',
+        type: 'calendario',
+        title: 'Calendario',
+        position: { x: 440, y: 20 },
+        size: { width: 350, height: 400 },
+        isMinimized: false,
+        isMaximized: false,
+        settings: {}
+      }
+    ];
+
+    const defaultLayout: DashboardLayout = {
+      id: 'default',
+      name: 'Layout por Defecto',
+      widgets: defaultWidgets,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setLayouts([defaultLayout]);
+    setWidgets(defaultWidgets);
+  }, []);
+
+  // Agregar widget
+  const addWidget = useCallback((widgetType: string) => {
+    const widgetConfig = AVAILABLE_WIDGETS.find(w => w.type === widgetType);
     if (!widgetConfig) return;
 
-    const newWidget: DashboardWidget = {
+    const newWidget: Widget = {
       id: `${widgetType}-${Date.now()}`,
-      type: widgetType as any,
+      type: widgetType,
       title: widgetConfig.title,
-      size: widgetConfig.defaultSize as any,
-      position: { x: 0, y: widgets.length },
-      settings: {},
-      visible: true
+      position: { x: 50 + Math.random() * 100, y: 50 + Math.random() * 100 },
+      size: { ...widgetConfig.defaultSize },
+      isMinimized: false,
+      isMaximized: false,
+      settings: {}
     };
 
     setWidgets(prev => [...prev, newWidget]);
     setShowWidgetSelector(false);
-  };
+    
+    // Actualizar layout actual
+    updateCurrentLayout([...widgets, newWidget]);
+  }, [widgets]);
 
-  const handleRemoveWidget = (widgetId: string) => {
+  // Remover widget
+  const removeWidget = useCallback((widgetId: string) => {
     setWidgets(prev => prev.filter(w => w.id !== widgetId));
-  };
-
-  const handleWidgetReorder = (newOrder: DashboardWidget[]) => {
-    setWidgets(newOrder);
-  };
-
-  const handleSaveLayout = async () => {
-    setIsLoading(true);
+    setSelectedWidget(null);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsEditMode(false);
-    setIsLoading(false);
-  };
+    // Actualizar layout actual
+    updateCurrentLayout(widgets.filter(w => w.id !== widgetId));
+  }, [widgets]);
 
-  const handleResetLayout = () => {
-    // Reset to default layout
-    setWidgets([
-      {
-        id: 'upcoming-events',
-        type: 'events',
-        title: 'Próximos Eventos',
-        size: 'large',
-        position: { x: 0, y: 0 },
-        settings: { limit: 5, showImages: true },
-        visible: true
-      },
-      {
-        id: 'my-stats',
-        type: 'stats',
-        title: 'Mis Estadísticas',
-        size: 'medium',
-        position: { x: 2, y: 0 },
-        settings: { showGrowth: true, period: '30d' },
-        visible: true
+  // Actualizar layout actual
+  const updateCurrentLayout = useCallback((newWidgets: Widget[]) => {
+    setLayouts(prev => prev.map(layout => 
+      layout.id === currentLayout 
+        ? { ...layout, widgets: newWidgets, updatedAt: new Date() }
+        : layout
+    ));
+  }, [currentLayout]);
+
+  // Guardar layout
+  const saveLayout = useCallback((name: string) => {
+    const newLayout: DashboardLayout = {
+      id: `layout-${Date.now()}`,
+      name,
+      widgets: [...widgets],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    setLayouts(prev => [...prev, newLayout]);
+    setCurrentLayout(newLayout.id);
+  }, [widgets]);
+
+  // Cargar layout
+  const loadLayout = useCallback((layoutId: string) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    if (layout) {
+      setWidgets(layout.widgets);
+      setCurrentLayout(layoutId);
+    }
+  }, [layouts]);
+
+  // ==========================================
+  // MANEJO DE DRAG & DROP OPTIMIZADO
+  // ==========================================
+
+  // Iniciar drag
+  const handleDragStart = useCallback((e: React.MouseEvent, widgetId: string) => {
+    if (!isEditMode) return;
+    
+    setIsDragging(true);
+    setSelectedWidget(widgetId);
+    setDragStart({
+      x: e.clientX,
+      y: e.clientY
+    });
+  }, [isEditMode]);
+
+  // Manejar drag
+  const handleDrag = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !selectedWidget) return;
+
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+
+    setWidgets(prev => prev.map(widget =>
+      widget.id === selectedWidget
+        ? {
+            ...widget,
+            position: {
+              x: Math.max(0, widget.position.x + deltaX),
+              y: Math.max(0, widget.position.y + deltaY)
+            }
+          }
+        : widget
+    ));
+
+    setDragStart({ x: e.clientX, y: e.clientY });
+  }, [isDragging, selectedWidget, dragStart]);
+
+  // Finalizar drag
+  const handleDragEnd = useCallback(() => {
+    if (isDragging) {
+      setIsDragging(false);
+      setSelectedWidget(null);
+      updateCurrentLayout(widgets);
+    }
+  }, [isDragging, widgets, updateCurrentLayout]);
+
+  // ==========================================
+  // MANEJO DE RESIZE OPTIMIZADO
+  // ==========================================
+
+  // Iniciar resize
+  const handleResizeStart = useCallback((e: React.MouseEvent, widgetId: string) => {
+    if (!isEditMode) return;
+    
+    const widget = widgets.find(w => w.id === widgetId);
+    if (!widget) return;
+
+    setIsResizing(true);
+    setSelectedWidget(widgetId);
+    setResizeStart({
+      x: e.clientX,
+      y: e.clientY,
+      width: widget.size.width,
+      height: widget.size.height
+    });
+  }, [isEditMode, widgets]);
+
+  // Manejar resize
+  const handleResize = useCallback((e: React.MouseEvent) => {
+    if (!isResizing || !selectedWidget) return;
+
+    const deltaX = e.clientX - resizeStart.x;
+    const deltaY = e.clientY - resizeStart.y;
+
+    setWidgets(prev => prev.map(widget =>
+      widget.id === selectedWidget
+        ? {
+            ...widget,
+            size: {
+              width: Math.max(200, resizeStart.width + deltaX),
+              height: Math.max(150, resizeStart.height + deltaY)
+            }
+          }
+        : widget
+    ));
+  }, [isResizing, selectedWidget, resizeStart]);
+
+  // Finalizar resize
+  const handleResizeEnd = useCallback(() => {
+    if (isResizing) {
+      setIsResizing(false);
+      setSelectedWidget(null);
+      updateCurrentLayout(widgets);
+    }
+  }, [isResizing, widgets, updateCurrentLayout]);
+
+  // ==========================================
+  // FUNCIONES DE WIDGET
+  // ==========================================
+
+  // Minimizar widget
+  const toggleMinimize = useCallback((widgetId: string) => {
+    setWidgets(prev => prev.map(widget =>
+      widget.id === widgetId
+        ? { ...widget, isMinimized: !widget.isMinimized }
+        : widget
+    ));
+  }, []);
+
+  // Maximizar widget
+  const toggleMaximize = useCallback((widgetId: string) => {
+    setWidgets(prev => prev.map(widget =>
+      widget.id === widgetId
+        ? { ...widget, isMaximized: !widget.isMaximized }
+        : widget
+    ));
+  }, []);
+
+  // ==========================================
+  // RENDERIZADO DE WIDGETS CON SUSPENSE
+  // ==========================================
+
+  const renderWidget = useCallback((widget: Widget) => {
+    const widgetConfig = AVAILABLE_WIDGETS.find(w => w.type === widget.type);
+    if (!widgetConfig) return null;
+
+    const widgetProps = {
+      key: widget.id,
+      widget,
+      onRemove: () => removeWidget(widget.id),
+      onMinimize: () => toggleMinimize(widget.id),
+      onMaximize: () => toggleMaximize(widget.id),
+      onSettingsChange: (settings: Record<string, any>) => {
+        setWidgets(prev => prev.map(w =>
+          w.id === widget.id ? { ...w, settings } : w
+        ));
       }
-    ]);
-  };
+    };
 
-  // ===== WIDGET COMPONENTS =====
-  const EvensWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="space-y-4">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600"></div>
-          <div className="flex-1">
-            <h4 className="text-white font-medium">Evento de Ejemplo {i}</h4>
-            <p className="text-gray-400 text-sm">Mañana a las 19:00</p>
-          </div>
+    // Renderizar widget con Suspense para lazy loading
+    return (
+      <Suspense key={widget.id} fallback={
+        <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-      ))}
-    </div>
-  );
+      }>
+        {widget.type === 'eventos' && <EventosWidget {...widgetProps} />}
+        {widget.type === 'calendario' && <CalendarioWidget {...widgetProps} />}
+        {widget.type === 'tribus' && <TribusWidget {...widgetProps} />}
+        {widget.type === 'actividad' && <ActividadWidget {...widgetProps} />}
+        {widget.type === 'estadisticas' && <EstadisticasWidget {...widgetProps} />}
+        {widget.type === 'notificaciones' && <NotificacionesWidget {...widgetProps} />}
+        {widget.type === 'mapa' && <MapaWidget {...widgetProps} />}
+        {widget.type === 'chat' && <ChatWidget {...widgetProps} />}
+      </Suspense>
+    );
+  }, [removeWidget, toggleMinimize, toggleMaximize]);
 
-  const StatsWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="grid grid-cols-2 gap-4">
-      <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
-        <div className="text-2xl font-bold text-cyan-400">12</div>
-        <div className="text-sm text-gray-400">Eventos</div>
-      </div>
-      <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
-        <div className="text-2xl font-bold text-purple-400">5</div>
-        <div className="text-sm text-gray-400">Tribus</div>
-      </div>
-      <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
-        <div className="text-2xl font-bold text-green-400">89%</div>
-        <div className="text-sm text-gray-400">Asistencia</div>
-      </div>
-      <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
-        <div className="text-2xl font-bold text-orange-400">4.8</div>
-        <div className="text-sm text-gray-400">Rating</div>
-      </div>
-    </div>
-  );
-
-  const MapWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="h-48 rounded-lg bg-gradient-to-br from-green-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center">
-      <div className="text-center">
-        <MapPinIcon className="w-12 h-12 text-green-400 mx-auto mb-2" />
-        <p className="text-gray-300">Mapa Interactivo</p>
-        <p className="text-gray-400 text-sm">15 eventos cerca</p>
-      </div>
-    </div>
-  );
-
-  const NotificationsWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="space-y-3">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="flex items-center space-x-3 p-2 rounded-lg bg-white/5 border border-white/10">
-          <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-          <div className="flex-1">
-            <p className="text-white text-sm">Nueva notificación {i}</p>
-            <p className="text-gray-400 text-xs">Hace 2 min</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const TribesWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="space-y-3">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600"></div>
-          <div className="flex-1">
-            <h4 className="text-white font-medium">Tribu {i}</h4>
-            <p className="text-gray-400 text-sm">250 miembros</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const ShortcutsWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="grid grid-cols-2 gap-2">
-      {[
-        { label: 'Crear Evento', icon: PlusIcon, color: 'cyan' },
-        { label: 'Buscar', icon: SparklesIcon, color: 'purple' },
-        { label: 'Mi Perfil', icon: UserGroupIcon, color: 'green' },
-        { label: 'Configuración', icon: CogIcon, color: 'orange' }
-      ].map((shortcut, i) => (
-        <button
-          key={i}
-          className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-        >
-          <shortcut.icon className={`w-6 h-6 text-${shortcut.color}-400 mx-auto mb-1`} />
-          <p className="text-xs text-gray-300">{shortcut.label}</p>
-        </button>
-      ))}
-    </div>
-  );
-
-  const TrendingWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="space-y-3">
-      {[1, 2, 3].map(i => (
-        <div key={i} className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 border border-white/10">
-          <ArrowTrendingUpIcon className="w-6 h-6 text-yellow-400" />
-          <div className="flex-1">
-            <h4 className="text-white font-medium">Evento Trending {i}</h4>
-            <p className="text-gray-400 text-sm">+{i * 50}% popularidad</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const CalendarWidget = ({ widget }: { widget: DashboardWidget }) => (
-    <div className="h-48 rounded-lg bg-white/5 border border-white/10 p-4">
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400 mb-2">
-        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
-          <div key={day} className="p-1">{day}</div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1">
-        {Array.from({ length: 35 }, (_, i) => (
-          <div
-            key={i}
-            className={`
-              aspect-square flex items-center justify-center text-xs rounded
-              ${i % 7 === 5 || i % 7 === 6 ? 'text-gray-500' : 'text-gray-300'}
-              ${i === 15 ? 'bg-cyan-500 text-white' : ''}
-              ${[12, 18, 25].includes(i) ? 'bg-cyan-500/20 text-cyan-400' : ''}
-            `}
-          >
-            {i - 5 > 0 ? i - 5 : ''}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  const renderWidget = (widget: DashboardWidget) => {
-    switch (widget.type) {
-      case 'events': return <EvensWidget widget={widget} />;
-      case 'stats': return <StatsWidget widget={widget} />;
-      case 'map': return <MapWidget widget={widget} />;
-      case 'notifications': return <NotificationsWidget widget={widget} />;
-      case 'tribes': return <TribesWidget widget={widget} />;
-      case 'shortcuts': return <ShortcutsWidget widget={widget} />;
-      case 'trending': return <TrendingWidget widget={widget} />;
-      case 'calendar': return <CalendarWidget widget={widget} />;
-      default: return <div>Widget desconocido</div>;
-    }
-  };
-
-  const getWidgetGridClass = (size: string) => {
-    switch (size) {
-      case 'small': return 'col-span-1 row-span-1';
-      case 'medium': return 'col-span-1 md:col-span-2 row-span-2';
-      case 'large': return 'col-span-1 md:col-span-3 row-span-2';
-      default: return 'col-span-1';
-    }
-  };
+  // ==========================================
+  // RENDERIZADO DEL COMPONENTE
+  // ==========================================
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            Mi Dashboard
-          </h1>
-          <p className="text-gray-400 mt-1">
-            Personaliza tu vista de EventConnect
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6">
+      {/* Header del Dashboard */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Dashboard Personalizable
+            </h1>
+            <p className="text-gray-600">
+              Organiza y personaliza tu espacio de trabajo
+            </p>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            {/* Selector de Layout */}
+            <select
+              value={currentLayout}
+              onChange={(e) => loadLayout(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {layouts.map(layout => (
+                <option key={layout.id} value={layout.id}>
+                  {layout.name}
+                </option>
+              ))}
+            </select>
 
-        <div className="flex items-center space-x-3">
-          <Button
-            variant={isEditMode ? "secondary" : "ghost"}
-            onClick={() => setIsEditMode(!isEditMode)}
-            className="flex items-center space-x-2"
-          >
-            <CogIcon className="w-5 h-5" />
-            <span>{isEditMode ? 'Ver Dashboard' : 'Personalizar'}</span>
-          </Button>
+            {/* Botón de Edición */}
+            <button
+              onClick={() => setIsEditMode(!isEditMode)}
+              className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                isEditMode
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isEditMode ? (
+                <>
+                  <Save className="w-4 h-4 inline mr-2" />
+                  Guardar
+                </>
+              ) : (
+                <>
+                  <Settings className="w-4 h-4 inline mr-2" />
+                  Editar
+                </>
+              )}
+            </button>
 
-          {isEditMode && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => setShowWidgetSelector(true)}
-                className="flex items-center space-x-2"
-              >
-                <PlusIcon className="w-5 h-5" />
-                <span>Agregar Widget</span>
-              </Button>
-
-              <Button
-                variant="primary"
-                onClick={handleSaveLayout}
-                disabled={isLoading}
-                className="flex items-center space-x-2"
-              >
-                {isLoading ? (
-                  <LoadingSpinner size="sm" variant="neon" />
-                ) : (
-                  'Guardar'
-                )}
-              </Button>
-            </>
-          )}
+            {/* Botón de Agregar Widget */}
+            <button
+              onClick={() => setShowWidgetSelector(true)}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors duration-200"
+            >
+              <Plus className="w-4 h-4 inline mr-2" />
+              Agregar Widget
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Edit Mode Notice */}
-      <AnimatePresence>
-        {isEditMode && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20"
-          >
-            <div className="flex items-center space-x-3">
-              <SparklesIcon className="w-6 h-6 text-cyan-400" />
-              <div>
-                <h3 className="text-cyan-400 font-medium">Modo de Edición Activado</h3>
-                <p className="text-gray-300 text-sm">
-                  Arrastra los widgets para reordenarlos o elimínalos usando el botón X
-                </p>
+      {/* Área de Widgets */}
+      <div 
+        className="relative min-h-[600px] bg-white/50 rounded-xl p-6 backdrop-blur-sm border border-white/20"
+        onMouseMove={isDragging ? handleDrag : isResizing ? handleResize : undefined}
+        onMouseUp={isDragging ? handleDragEnd : isResizing ? handleResizeEnd : undefined}
+        onMouseLeave={isDragging ? handleDragEnd : isResizing ? handleResizeEnd : undefined}
+      >
+        <AnimatePresence>
+          {activeWidgets.map(widget => (
+            <motion.div
+              key={widget.id}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className={`absolute ${widget.isMaximized ? 'z-50' : 'z-10'}`}
+              style={{
+                left: widget.position.x,
+                top: widget.position.y,
+                width: widget.isMaximized ? 'calc(100% - 48px)' : widget.size.width,
+                height: widget.isMaximized ? 'calc(100% - 48px)' : widget.size.height,
+              }}
+            >
+              {/* Header del Widget */}
+              <div 
+                className={`bg-white rounded-t-lg border-b border-gray-200 p-3 flex items-center justify-between ${
+                  isEditMode ? 'cursor-move' : ''
+                }`}
+                onMouseDown={isEditMode ? (e) => handleDragStart(e, widget.id) : undefined}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className="text-lg">{widgetConfig?.icon}</span>
+                  <h3 className="font-medium text-gray-900">{widget.title}</h3>
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  {/* Botón Minimizar */}
+                  <button
+                    onClick={() => toggleMinimize(widget.id)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                    title="Minimizar"
+                  >
+                    <Minimize2 className="w-4 h-4 text-gray-600" />
+                  </button>
+                  
+                  {/* Botón Maximizar */}
+                  <button
+                    onClick={() => toggleMaximize(widget.id)}
+                    className="p-1 hover:bg-gray-100 rounded transition-colors duration-150"
+                    title="Maximizar"
+                  >
+                    <Maximize2 className="w-4 h-4 text-gray-600" />
+                  </button>
+                  
+                  {/* Botón Cerrar (solo en modo edición) */}
+                  {isEditMode && (
+                    <button
+                      onClick={() => removeWidget(widget.id)}
+                      className="p-1 hover:bg-red-100 rounded transition-colors duration-150"
+                      title="Eliminar Widget"
+                    >
+                      <X className="w-4 h-4 text-red-600" />
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Contenido del Widget */}
+              <div className="bg-white rounded-b-lg h-full overflow-hidden">
+                {renderWidget(widget)}
+              </div>
+
+              {/* Handle de Resize (solo en modo edición) */}
+              {isEditMode && !widget.isMaximized && (
+                <div
+                  className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize bg-blue-500 rounded-tl"
+                  onMouseDown={(e) => handleResizeStart(e, widget.id)}
+                  title="Redimensionar"
+                />
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {/* Mensaje cuando no hay widgets */}
+        {widgets.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+            <div className="text-6xl mb-4">📊</div>
+            <h3 className="text-xl font-medium mb-2">No hay widgets configurados</h3>
+            <p className="text-gray-400 text-center max-w-md">
+              Comienza agregando widgets para personalizar tu dashboard
+            </p>
+            <button
+              onClick={() => setShowWidgetSelector(true)}
+              className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
+            >
+              <Plus className="w-4 h-4 inline mr-2" />
+              Agregar Primer Widget
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Selector de Widgets Modal */}
+      {showWidgetSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Agregar Widget</h2>
+              <button
+                onClick={() => setShowWidgetSelector(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-150"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(widgetsByCategory).map(([category, categoryWidgets]) => (
+                <div key={category} className="space-y-3">
+                  <h3 className="font-semibold text-gray-700 capitalize">{category}</h3>
+                  <div className="space-y-2">
+                    {categoryWidgets.map(widget => (
+                      <button
+                        key={widget.type}
+                        onClick={() => addWidget(widget.type)}
+                        className="w-full p-4 text-left border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 group"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <span className="text-2xl">{widget.icon}</span>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 group-hover:text-blue-700">
+                              {widget.title}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">
+                              {widget.description}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Dashboard Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 auto-rows-min">
-        <AnimatePresence>
-          {isEditMode ? (
-            <Reorder.Group
-              values={widgets}
-              onReorder={handleWidgetReorder}
-              className="contents"
-            >
-              {widgets.filter(w => w.visible).map((widget) => (
-                <Reorder.Item
-                  key={widget.id}
-                  value={widget}
-                  className={getWidgetGridClass(widget.size)}
-                >
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className="relative group"
-                  >
-                    {/* Remove Button */}
-                    <button
-                      onClick={() => handleRemoveWidget(widget.id)}
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center"
-                    >
-                      <XMarkIcon className="w-4 h-4" />
-                    </button>
-
-                    <Card variant="glass" className="h-full cursor-move">
-                      <CardHeader>
-                        <CardTitle className="text-lg">{widget.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {renderWidget(widget)}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </Reorder.Item>
-              ))}
-            </Reorder.Group>
-          ) : (
-            widgets.filter(w => w.visible).map((widget) => (
-              <motion.div
-                key={widget.id}
-                layout
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className={getWidgetGridClass(widget.size)}
-              >
-                <Card variant="glass" className="h-full">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{widget.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {renderWidget(widget)}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Widget Selector Modal */}
-      <AnimatePresence>
-        {showWidgetSelector && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowWidgetSelector(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-slate-900 rounded-2xl border border-white/20 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Agregar Widget</h2>
-                <button
-                  onClick={() => setShowWidgetSelector(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <XMarkIcon className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {availableWidgets.map((widget) => (
-                  <motion.button
-                    key={widget.type}
-                    onClick={() => handleAddWidget(widget.type)}
-                    className="p-4 rounded-xl border border-white/20 bg-white/5 hover:bg-white/10 transition-colors text-left"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${widget.color} flex items-center justify-center`}>
-                        <widget.icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-white font-semibold">{widget.title}</h3>
-                        <p className="text-gray-400 text-sm mt-1">{widget.description}</p>
-                        <span className="inline-block mt-2 px-2 py-1 rounded text-xs bg-white/10 text-gray-300">
-                          {widget.defaultSize}
-                        </span>
-                      </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 };

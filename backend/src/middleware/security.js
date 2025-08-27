@@ -6,65 +6,95 @@ const slowDown = require('express-slow-down');
 const helmet = require('helmet');
 const hpp = require('hpp');
 const xss = require('xss-clean');
+const validator = require('validator');
 
-// CORS configuration
-const corsOptions = {
-  origin(origin, callback) {
-    try {
-      // Allow all origins in development to simplify local testing across ports
-      if (process.env.NODE_ENV === 'development') {
-        return callback(null, true);
-      }
-      if (!origin) return callback(null, true);
+// ==========================================
+// VALIDACIÓN DE ENTRADA CRÍTICA
+// ==========================================
 
-      // Build allowlist from env plus defaults
-      const envOrigins = (process.env.CORS_ORIGIN || '')
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
-      const allowedOrigins = new Set([
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
-        ...envOrigins,
-        'https://eventconnect.com',
-        'https://www.eventconnect.com',
-        'https://app.eventconnect.com',
-      ]);
-
-      if (allowedOrigins.has(origin)) return callback(null, true);
-      return callback(new Error('No permitido por CORS'));
-    } catch (e) {
-      return callback(new Error('No permitido por CORS'));
+// Sanitización de entrada
+const sanitizeInput = (req, res, next) => {
+  try {
+    // Sanitizar body
+    if (req.body) {
+      Object.keys(req.body).forEach(key => {
+        if (typeof req.body[key] === 'string') {
+          req.body[key] = validator.escape(validator.trim(req.body[key]));
+        }
+      });
     }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Origin',
-    'X-Requested-With',
-    'Content-Type',
-    'Accept',
-    'Authorization',
-    'X-API-Key',
-    'Cache-Control',
-    'Pragma',
-  ],
-  exposedHeaders: [
-    'X-Total-Count',
-    'X-Page-Count',
-    'X-Current-Page',
-    'X-Per-Page',
-    'X-Total-Pages',
-  ],
-  maxAge: 86400, // 24 hours
+
+    // Sanitizar query params
+    if (req.query) {
+      Object.keys(req.query).forEach(key => {
+        if (typeof req.query[key] === 'string') {
+          req.query[key] = validator.escape(validator.trim(req.query[key]));
+        }
+      });
+    }
+
+    // Sanitizar URL params
+    if (req.params) {
+      Object.keys(req.params).forEach(key => {
+        if (typeof req.params[key] === 'string') {
+          req.params[key] = validator.escape(validator.trim(req.params[key]));
+        }
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error sanitizing input:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Entrada inválida detectada'
+    });
+  }
 };
 
-// Rate limiting configuration
+// Validación de tipos de contenido
+const validateContentType = (req, res, next) => {
+  const allowedTypes = ['application/json', 'multipart/form-data'];
+  
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    const contentType = req.get('Content-Type');
+    
+    if (!contentType || !allowedTypes.some(type => contentType.includes(type))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tipo de contenido no permitido'
+      });
+    }
+  }
+  
+  next();
+};
+
+// Validación de tamaño de request
+const validateRequestSize = (req, res, next) => {
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  
+  if (req.headers['content-length'] && parseInt(req.headers['content-length']) > maxSize) {
+    return res.status(413).json({
+      success: false,
+      message: 'Request demasiado grande'
+    });
+  }
+  
+  next();
+};
+
+// ==========================================
+// RATE LIMITING AVANZADO
+// ==========================================
+
+// Crear rate limiter con configuración avanzada
 const createRateLimit = (
   windowMs = 15 * 60 * 1000,
   max = 100,
-  message = 'Demasiadas solicitudes desde esta IP'
+  message = 'Demasiadas solicitudes, intenta de nuevo en 15 minutos',
+  skipSuccessfulRequests = false,
+  skipFailedRequests = false
 ) => {
   return rateLimit({
     windowMs,
@@ -76,364 +106,238 @@ const createRateLimit = (
     },
     standardHeaders: true,
     legacyHeaders: false,
+    skipSuccessfulRequests,
+    skipFailedRequests,
     handler: (req, res) => {
       res.status(429).json({
         success: false,
         message,
         retryAfter: Math.ceil(windowMs / 1000),
+        timestamp: new Date().toISOString(),
       });
     },
   });
 };
 
-// Speed limiting configuration
+// Crear speed limiter
 const createSpeedLimit = (
   windowMs = 15 * 60 * 1000,
   delayAfter = 50,
-  delayMs = 100
+  delayMs = 500
 ) => {
   return slowDown({
     windowMs,
     delayAfter,
-    delayMs,
-    skip: req => {
-      // Skip speed limiting for certain routes
-      return (
-        req.path.startsWith('/api/health') ||
-        req.path.startsWith('/api/status') ||
-        req.path.startsWith('/api/metrics')
-      );
+    delayMs: () => delayMs,
+    maxDelayMs: 20000,
+    skipSuccessfulRequests: true,
+    skipFailedRequests: false,
+    keyGenerator: (req) => {
+      return req.ip || req.headers['x-forwarded-for'] || 'unknown';
     },
   });
 };
 
-// Specific rate limiters
+// ==========================================
+// CONFIGURACIONES ESPECÍFICAS
+// ==========================================
+
+// Rate limiters específicos
 const authRateLimit = createRateLimit(
-  15 * 60 * 1000,
-  5,
-  'Demasiados intentos de autenticación. Intente de nuevo en 15 minutos'
-);
-const apiRateLimit = createRateLimit(
-  15 * 60 * 1000,
-  100,
-  'Demasiadas solicitudes a la API. Intente de nuevo en 15 minutos'
-);
-const uploadRateLimit = createRateLimit(
-  15 * 60 * 1000,
-  10,
-  'Demasiadas subidas de archivos. Intente de nuevo en 15 minutos'
-);
-const searchRateLimit = createRateLimit(
-  1 * 60 * 1000,
-  30,
-  'Demasiadas búsquedas. Intente de nuevo en 1 minuto'
+  15 * 60 * 1000, // 15 minutos
+  5, // 5 intentos
+  'Demasiados intentos de autenticación, intenta de nuevo en 15 minutos',
+  false,
+  true
 );
 
-// Helmet configuration for security headers
-const helmetConfig = {
+const apiRateLimit = createRateLimit(
+  15 * 60 * 1000, // 15 minutos
+  100, // 100 requests
+  'Demasiadas solicitudes a la API, intenta de nuevo en 15 minutos',
+  true,
+  false
+);
+
+const uploadRateLimit = createRateLimit(
+  60 * 1000, // 1 minuto
+  5, // 5 uploads
+  'Demasiadas subidas de archivos, espera 1 minuto',
+  false,
+  true
+);
+
+const searchRateLimit = createRateLimit(
+  60 * 1000, // 1 minuto
+  30, // 30 búsquedas
+  'Demasiadas búsquedas, espera 1 minuto',
+  true,
+  false
+);
+
+// Speed limiters
+const authSpeedLimit = createSpeedLimit(15 * 60 * 1000, 3, 1000);
+const apiSpeedLimit = createSpeedLimit(15 * 60 * 1000, 50, 500);
+
+// ==========================================
+// MIDDLEWARE DE SEGURIDAD
+// ==========================================
+
+// Configuración de Helmet
+const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-      fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      connectSrc: ["'self'", 'https:', 'wss:'],
-      frameSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      scriptSrc: ["'self'", "https:"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "wss:", "https:"],
+      fontSrc: ["'self'", "https:"],
       objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      manifestSrc: ["'self'"],
+      mediaSrc: ["'self'", "https:"],
+      frameSrc: ["'none'"],
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
-};
-
-// HPP configuration to prevent HTTP Parameter Pollution
-const hppConfig = {
-  whitelist: [
-    'tags',
-    'categories',
-    'interests',
-    'coordinates',
-    'location',
-    'date',
-    'time',
-    'price',
-    'capacity',
-  ],
-};
-
-// Security middleware stack
-const securityMiddleware = [
-  // Parse cookies
-  cookieParser(process.env.COOKIE_SECRET || 'eventconnect-cookie-secret'),
-
-  // CORS
-  cors(corsOptions),
-
-  // Security headers
-  helmet(helmetConfig),
-
-  // Prevent XSS attacks
-  xss(),
-
-  // Prevent NoSQL injection
-  mongoSanitize(),
-
-  // Prevent HTTP Parameter Pollution
-  hpp(hppConfig),
-
-  // Rate limiting
-  apiRateLimit,
-
-  // Speed limiting
-  createSpeedLimit(),
-
-  // Trust proxy for accurate IP addresses
-  (req, res, next) => {
-    req.ip =
-      req.headers['x-forwarded-for'] ||
-      req.headers['x-real-ip'] ||
-      req.connection.remoteAddress ||
-      req.socket.remoteAddress;
-    next();
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
   },
-];
+});
 
-// Route-specific security middleware
-const routeSecurity = {
-  auth: [authRateLimit],
-  upload: [uploadRateLimit],
-  search: [searchRateLimit],
-  api: [apiRateLimit],
-};
+// Configuración de CORS
+const corsConfig = cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:19006',
+      process.env.CLIENT_URL,
+      process.env.WEB_URL,
+      process.env.MOBILE_URL,
+    ].filter(Boolean);
 
-// IP whitelist middleware
-const ipWhitelist = (allowedIPs = []) => {
-  return (req, res, next) => {
-    const clientIP = req.ip;
-
-    if (allowedIPs.length === 0 || allowedIPs.includes(clientIP)) {
-      next();
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
     } else {
-      res.status(403).json({
-        success: false,
-        message: 'IP no autorizada',
-      });
+      callback(new Error('Origen no permitido por CORS'));
     }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-API-Key',
+    'X-Client-Version',
+  ],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+  maxAge: 86400, // 24 horas
+});
+
+// ==========================================
+// MONITOREO DE SEGURIDAD
+// ==========================================
+
+// Detector de ataques
+const attackDetector = (req, res, next) => {
+  const suspiciousPatterns = [
+    /(<script[\s\S]*?>[\s\S]*?<\/script>)/gi,
+    /(javascript:)/gi,
+    /(onload=|onerror=|onclick=)/gi,
+    /(union.*select|select.*from|drop.*table|insert.*into)/gi,
+    /(eval\s*\()/gi,
+    /(document\.cookie)/gi,
+    /(window\.location)/gi,
+  ];
+
+  const checkData = (data) => {
+    if (!data) return false;
+    const dataStr = JSON.stringify(data);
+    return suspiciousPatterns.some(pattern => pattern.test(dataStr));
   };
+
+  if (checkData(req.body) || checkData(req.query) || checkData(req.params)) {
+    console.error('🚨 Ataque detectado:', {
+      ip: req.ip,
+      method: req.method,
+      url: req.originalUrl,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString(),
+    });
+
+    return res.status(400).json({
+      success: false,
+      message: 'Solicitud maliciosa detectada',
+      code: 'SECURITY_VIOLATION',
+    });
+  }
+
+  next();
 };
 
-// Request size limiting middleware
-const requestSizeLimit = (maxSize = '10mb') => {
-  return (req, res, next) => {
-    const contentLength = parseInt(req.get('Content-Length') || '0');
-    const maxSizeBytes = parseSize(maxSize);
-
-    if (contentLength > maxSizeBytes) {
-      return res.status(413).json({
-        success: false,
-        message: 'Solicitud demasiado grande',
-      });
-    }
-
-    next();
-  };
-};
-
-// Parse size string to bytes
-const parseSize = size => {
-  const units = {
-    b: 1,
-    kb: 1024,
-    mb: 1024 * 1024,
-    gb: 1024 * 1024 * 1024,
+// Logger de seguridad
+const securityLogger = (req, res, next) => {
+  const securityData = {
+    timestamp: new Date().toISOString(),
+    ip: req.ip || req.connection.remoteAddress,
+    method: req.method,
+    url: req.originalUrl,
+    userAgent: req.get('User-Agent'),
+    referer: req.get('Referer'),
+    userId: req.user?.id || 'anonymous',
+    headers: {
+      'x-forwarded-for': req.get('X-Forwarded-For'),
+      'x-real-ip': req.get('X-Real-IP'),
+      'x-client-ip': req.get('X-Client-IP'),
+    },
   };
 
-  const match = size.toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)$/);
-  if (!match) return 1024 * 1024; // Default to 1MB
+  // Log requests sospechosos
+  if (req.get('User-Agent')?.includes('bot') || 
+      req.get('User-Agent')?.includes('crawler') ||
+      req.get('User-Agent')?.length > 500) {
+    console.warn('⚠️ Request sospechoso:', securityData);
+  }
 
-  const value = parseFloat(match[1]);
-  const unit = match[2];
+  // Log requests de seguridad
+  if (req.method === 'POST' && (req.originalUrl.includes('/auth') || req.originalUrl.includes('/login'))) {
+    console.log('🔐 Request de autenticación:', securityData);
+  }
 
-  return value * units[unit];
+  next();
 };
 
-// Content type validation middleware
-const validateContentType = (allowedTypes = ['application/json']) => {
-  return (req, res, next) => {
-    if (req.method === 'GET' || req.method === 'DELETE') {
-      return next();
-    }
+// ==========================================
+// EXPORTACIÓN
+// ==========================================
 
-    const contentType = req.get('Content-Type');
-    if (!contentType) {
-      return res.status(400).json({
-        success: false,
-        message: 'Content-Type header requerido',
-      });
-    }
-
-    const isValidType = allowedTypes.some(type => contentType.includes(type));
-
-    if (!isValidType) {
-      return res.status(415).json({
-        success: false,
-        message: `Content-Type no soportado. Tipos permitidos: ${allowedTypes.join(', ')}`,
-      });
-    }
-
-    next();
-  };
-};
-
-// Method validation middleware
-const validateMethod = (
-  allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
-) => {
-  return (req, res, next) => {
-    if (allowedMethods.includes(req.method)) {
-      next();
-    } else {
-      res.status(405).json({
-        success: false,
-        message: `Método ${req.method} no permitido. Métodos permitidos: ${allowedMethods.join(', ')}`,
-      });
-    }
-  };
-};
-
-// Referrer validation middleware
-const validateReferrer = (allowedDomains = []) => {
-  return (req, res, next) => {
-    if (allowedDomains.length === 0) {
-      return next();
-    }
-
-    const referrer = req.get('Referrer');
-    if (!referrer) {
-      return next();
-    }
-
-    try {
-      const referrerUrl = new URL(referrer);
-      const isValidReferrer = allowedDomains.some(
-        domain =>
-          referrerUrl.hostname === domain ||
-          referrerUrl.hostname.endsWith(`.${domain}`)
-      );
-
-      if (!isValidReferrer) {
-        return res.status(403).json({
-          success: false,
-          message: 'Referrer no autorizado',
-        });
-      }
-    } catch (error) {
-      // Invalid referrer URL, continue
-    }
-
-    next();
-  };
-};
-
-// User agent validation middleware
-const validateUserAgent = (blockedPatterns = []) => {
-  return (req, res, next) => {
-    const userAgent = req.get('User-Agent');
-
-    if (!userAgent) {
-      return res.status(400).json({
-        success: false,
-        message: 'User-Agent header requerido',
-      });
-    }
-
-    const isBlocked = blockedPatterns.some(pattern =>
-      userAgent.toLowerCase().includes(pattern.toLowerCase())
-    );
-
-    if (isBlocked) {
-      return res.status(403).json({
-        success: false,
-        message: 'User-Agent no autorizado',
-      });
-    }
-
-    next();
-  };
-};
-
-// Request frequency monitoring
-const requestFrequencyMonitor = () => {
-  const requests = new Map();
-
-  return (req, res, next) => {
-    const clientIP = req.ip;
-    const now = Date.now();
-    const windowMs = 60 * 1000; // 1 minute
-
-    if (!requests.has(clientIP)) {
-      requests.set(clientIP, []);
-    }
-
-    const clientRequests = requests.get(clientIP);
-
-    // Remove old requests outside the window
-    const validRequests = clientRequests.filter(
-      timestamp => now - timestamp < windowMs
-    );
-
-    // Check frequency
-    if (validRequests.length > 60) {
-      // More than 60 requests per minute
-      console.warn(`High request frequency detected from IP: ${clientIP}`);
-
-      // Log to security log
-      const securityLogEntry = `${new Date().toISOString()} - FREQUENCY: ${clientIP} - ${validRequests.length} requests in 1 minute\n`;
-      // This would be written to a security log file
-    }
-
-    // Add current request
-    validRequests.push(now);
-    requests.set(clientIP, validRequests);
-
-    next();
-  };
-};
-
-// Export all security middleware
 module.exports = {
-  // Main security stack
-  securityMiddleware,
-
-  // Route-specific security
-  routeSecurity,
-
-  // Individual middleware
-  cors: cors(corsOptions),
-  helmet: helmet(helmetConfig),
-  rateLimit: createRateLimit(),
-  speedLimit: createSpeedLimit(),
-
-  // Specific rate limiters
+  // Rate limiting
+  createRateLimit,
+  createSpeedLimit,
   authRateLimit,
   apiRateLimit,
   uploadRateLimit,
   searchRateLimit,
+  authSpeedLimit,
+  apiSpeedLimit,
 
-  // Utility middleware
-  ipWhitelist,
-  requestSizeLimit,
-  validateContentType,
-  validateMethod,
-  validateReferrer,
-  validateUserAgent,
-  requestFrequencyMonitor,
-
-  // Configuration
-  corsOptions,
+  // Security middleware
   helmetConfig,
-  hppConfig,
+  corsConfig,
+  sanitizeInput,
+  validateContentType,
+  validateRequestSize,
+  attackDetector,
+  securityLogger,
+
+  // Rate limiting
+  apiRateLimit,
+  authRateLimit,
+  uploadRateLimit,
+  searchRateLimit,
 };
