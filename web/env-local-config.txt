@@ -1,11 +1,16 @@
-# CONFIGURACIÓN PARA .env.local DEL FRONTEND
-# Copia y pega todo esto en tu archivo web/.env.local
+# API Configuration
+NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_APP_ENV=development
 
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
-NODE_ENV=development
+# Google Maps Configuration
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
 
-# Google Maps API Key (reemplaza con tu key real)
-NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=TU_GOOGLE_MAPS_API_KEY_AQUI
+# PWA Configuration
+NEXT_PUBLIC_ENABLE_PWA=true
+NEXT_PUBLIC_APP_VERSION=2.0.0
+
+# VAPID Keys for Push Notifications
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key_here
 
 # Configuración de geolocalización
 NEXT_PUBLIC_DEFAULT_LAT=40.4168
