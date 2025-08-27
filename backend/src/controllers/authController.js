@@ -1,12 +1,11 @@
 const bcrypt = require('bcryptjs');
-
-const { jwt, redis } = require('../config');
-const { AppError, asyncHandler } = require('../middleware/errorHandler');
-const {
-  validateUserRegistration,
-  validateUserLogin,
-} = require('../middleware/validation');
-const { User } = require('../models');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { validateUserRegistration, validateUserLogin } = require('../config/validation');
+const { logger } = require('../utils/logger');
+const { sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
+const { generateVerificationToken, verifyToken } = require('../config/jwt');
+const { redisClient } = require('../config/redis');
 
 class AuthController {
   // Register new user
@@ -119,7 +118,7 @@ class AuthController {
   // Login user
   login = asyncHandler(async (req, res, next) => {
     try {
-      const { email, password, rememberMe } = req.body;
+      const { email, password } = req.body;
 
       // Find user by email or username
       const user = await User.findOne({

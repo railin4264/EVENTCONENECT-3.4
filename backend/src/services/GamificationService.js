@@ -203,7 +203,7 @@ class GamificationService {
       const badges = [];
 
       // Badges basados en actividad
-      const activityBadges = {
+      // const activityBadges = {
         daily_login: {
           title: 'Consistente',
           description: 'Login diario por 7 días',
@@ -216,7 +216,7 @@ class GamificationService {
           title: 'Colaborador',
           description: 'Has contribuido 10 veces a tribus',
         },
-      };
+      }; // Variable no utilizada
 
       // Verificar badges específicos
       if (action === 'daily_login') {

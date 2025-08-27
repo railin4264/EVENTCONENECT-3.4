@@ -1,4 +1,4 @@
-const { Event, User, Tribe, UserInteraction } = require('../models');
+const { Event, User, Tribe } = require('../models');
 
 class AIRecommendationService {
   constructor() {
@@ -485,11 +485,11 @@ class AIRecommendationService {
       );
 
       // Simular llamada a API de ML
-      // const response = await fetch(`${this.MLModelEndpoint}/update`, {
+      // // const response = await fetch(`${this.MLModelEndpoint}/update`, {
       //   method: 'POST',
       //   headers: { 'Content-Type': 'application/json' },
       //   body: JSON.stringify({ userId, feedback: feedbackData })
-      // });
+      // }); // Variable no utilizada
     } catch (error) {
       console.error('Error updating ML model:', error);
     }
@@ -517,7 +517,7 @@ class AIRecommendationService {
     if (!diversityField || items.length <= limit) return items;
 
     const diverse = [];
-    const seenValues = new Set();
+    // const seenValues = new Set(); // Variable no utilizada
     const maxPerCategory = Math.ceil(limit / 3);
     const categoryCount = {};
 

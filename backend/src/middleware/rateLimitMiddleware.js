@@ -135,6 +135,20 @@ const externalApiLimiter = rateLimit({
 });
 
 /**
+ * Rate limiter para AI recommendations
+ */
+const aiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutos
+  max: 20, // máximo 20 requests por 5 minutos
+  message: {
+    success: false,
+    message: 'Has alcanzado el límite de requests de IA por 5 minutos',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * Middleware para aplicar rate limits según la ruta
  * @param req
  * @param res
@@ -186,5 +200,6 @@ module.exports = {
   uploadLimiter,
   notificationLimiter,
   externalApiLimiter,
+  aiLimiter,
   applyRateLimits,
 };

@@ -1,4 +1,4 @@
-const { User, Notification, InAppNotification } = require('../models');
+const { User, Notification } = require('../models');
 const NotificationService = require('../services/NotificationService');
 
 // Extend existing controller with enhanced push notifications

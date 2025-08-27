@@ -1,5 +1,5 @@
 const cloudinary = require('../config/cloudinary');
-const { Event, User, Tribe } = require('../models');
+const { Event, User } = require('../models');
 const GamificationService = require('../services/GamificationService');
 
 class EventController {

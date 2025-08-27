@@ -1,10 +1,4 @@
-const {
-  User,
-  Achievement,
-  Badge,
-  Leaderboard,
-  UserProgress,
-} = require('../models');
+const { User, Achievement, Badge,  } = require('../models');
 const GamificationService = require('../services/GamificationService');
 
 class GamificationController {

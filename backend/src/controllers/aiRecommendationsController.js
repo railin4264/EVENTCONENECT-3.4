@@ -1,4 +1,4 @@
-const { User, Event, Tribe, UserInteraction } = require('../models');
+const { User, Event, UserInteraction } = require('../models');
 const AIRecommendationService = require('../services/AIRecommendationService');
 
 class AIRecommendationsController {

@@ -1,4 +1,4 @@
-const { Review, Event, User } = require('../models');
+const { Review, Event } = require('../models');
 
 class ReviewController {
   // ==========================================

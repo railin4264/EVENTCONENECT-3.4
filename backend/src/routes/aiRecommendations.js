@@ -2,8 +2,8 @@ const express = require('express');
 
 const router = express.Router();
 const aiRecommendationsController = require('../controllers/aiRecommendationsController');
-const authMiddleware = require('../middleware/authMiddleware');
-const rateLimits = require('../middleware/rateLimitMiddleware');
+const { authenticateToken } = require('../middleware/authMiddleware');
+const { aiLimiter } = require('../middleware/rateLimitMiddleware');
 
 // ==========================================
 // RECOMENDACIONES PERSONALIZADAS
@@ -12,7 +12,7 @@ const rateLimits = require('../middleware/rateLimitMiddleware');
 // Obtener recomendaciones personalizadas
 router.get(
   '/recommendations',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.getPersonalizedRecommendations
 );
@@ -20,7 +20,7 @@ router.get(
 // Enviar feedback de recomendaciones
 router.post(
   '/feedback',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.submitRecommendationFeedback
 );
@@ -32,7 +32,7 @@ router.post(
 // Obtener contenido trending
 router.get(
   '/trending',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.getTrendingRecommendations
 );
@@ -44,7 +44,7 @@ router.get(
 // Obtener elementos similares
 router.get(
   '/similar',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.getSimilarItems
 );
@@ -56,7 +56,7 @@ router.get(
 // Obtener insights de recomendaciones
 router.get(
   '/insights',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.getRecommendationInsights
 );
@@ -68,7 +68,7 @@ router.get(
 // Actualizar preferencias de IA
 router.put(
   '/preferences',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.updateAIPreferences
 );
@@ -80,7 +80,7 @@ router.put(
 // Obtener notificaciones inteligentes
 router.get(
   '/smart-notifications',
-  authMiddleware,
+  authenticateToken,
   rateLimits.ai,
   aiRecommendationsController.getSmartNotifications
 );

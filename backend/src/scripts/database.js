@@ -2,15 +2,7 @@ require('dotenv').config();
 
 const mongoose = require('mongoose');
 
-const {
-  Event,
-  User,
-  Tribe,
-  Post,
-  Review,
-  Chat,
-  Notification,
-} = require('../models');
+const { User,  } = require('../models');
 
 /**
  * Database management script for EventConnect
