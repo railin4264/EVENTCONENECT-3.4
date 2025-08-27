@@ -17,7 +17,7 @@ const connectDB = databaseConfig.connectDB;
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
-const { rateLimits } = require('./middleware/advancedSecurity');
+const { rateLimits } = require('./middleware/security');
 
 // Import routes
 const {
@@ -161,24 +161,24 @@ app.use(slowDown({
 // ==========================================
 
 io.on('connection', (socket) => {
-          console.log(`User connected: ${socket.id}`);
+  console.log(`User connected: ${socket.id}`);
 
   // Join user to their personal room
   socket.on('join', (userId) => {
     socket.join(`user_${userId}`);
-            console.log(`User ${userId} joined personal room`);
+    console.log(`User ${userId} joined personal room`);
   });
 
   // Join event room
   socket.on('joinEvent', (eventId) => {
     socket.join(`event_${eventId}`);
-            console.log(`Socket ${socket.id} joined event ${eventId}`);
+    console.log(`Socket ${socket.id} joined event ${eventId}`);
   });
 
   // Leave event room
   socket.on('leaveEvent', (eventId) => {
     socket.leave(`event_${eventId}`);
-            console.log(`Socket ${socket.id} left event ${eventId}`);
+    console.log(`Socket ${socket.id} left event ${eventId}`);
   });
 
   // Handle real-time event updates
