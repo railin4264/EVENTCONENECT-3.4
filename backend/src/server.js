@@ -32,6 +32,9 @@ const {
   gamificationRoutes,
 } = require('./routes');
 
+// Import mock routes for development
+const mockRoutes = require('./routes/mock');
+
 // ==========================================
 // APPLICATION SETUP
 // ==========================================
@@ -49,10 +52,20 @@ const io = socketIo(server, {
 });
 
 // ==========================================
-// DATABASE CONNECTION
+// DATABASE CONNECTION (OPTIONAL FOR DEV)
 // ==========================================
 
-connectDB();
+// Try to connect to MongoDB, but don't fail if it's not available
+if (process.env.NODE_ENV === 'development') {
+  try {
+    connectDB();
+    console.log('✅ MongoDB connected successfully');
+  } catch (error) {
+    console.log('⚠️ MongoDB not available, running in development mode with mock data');
+  }
+} else {
+  connectDB();
+}
 
 // ==========================================
 // SECURITY MIDDLEWARE
@@ -189,16 +202,23 @@ io.on('connection', (socket) => {
 app.set('io', io);
 
 // ==========================================
-// HEALTH CHECK ROUTES
+// BASIC ROUTES
 // ==========================================
 
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Server is running',
+    message: 'EventConnect Server is running!',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: process.env.APP_VERSION || '1.0.0'
+    environment: process.env.NODE_ENV || 'development',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    endpoints: {
+      mock: '/api/mock',
+      api: '/api',
+      health: '/health'
+    }
   });
 });
 
@@ -255,31 +275,20 @@ app.get('/health/system', (req, res) => {
 });
 
 // ==========================================
-// API ROUTES
+// ROUTES
 // ==========================================
 
-// Authentication routes
-app.use('/api/auth', rateLimits.auth, authRoutes);
+// Mock routes for development (without database)
+app.use('/api/mock', mockRoutes);
 
-// User routes
-app.use('/api/users', rateLimits.general, userRoutes);
-
-// Event routes
-app.use('/api/events', eventRoutes); // Rate limits applied per route
-
-// Tribe routes
-app.use('/api/tribes', rateLimits.general, tribeRoutes);
-
-// Notification routes
-app.use('/api/notifications', rateLimits.general, notificationRoutes);
-
-// Theme routes
-app.use('/api/themes', rateLimits.general, themeRoutes);
-
-// AI Recommendations routes
-app.use('/api/ai', aiRecommendationRoutes); // Rate limits applied per route
-
-// Gamification routes
+// Main API routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/tribes', tribeRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/themes', themeRoutes);
+app.use('/api/ai', aiRecommendationRoutes);
 app.use('/api/gamification', gamificationRoutes); // Rate limits applied per route
 
 // ==========================================
