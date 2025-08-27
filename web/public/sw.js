@@ -1,1 +1,519 @@
-if(!self.define){let e,s={};const a=(a,t)=>(a=new URL(a+".js",t).href,s[a]||new Promise(s=>{if("document"in self){const e=document.createElement("script");e.src=a,e.onload=s,document.head.appendChild(e)}else e=a,importScripts(a),s()}).then(()=>{let e=s[a];if(!e)throw new Error(`Module ${a} didn’t register its module`);return e}));self.define=(t,n)=>{const i=e||("document"in self?document.currentScript.src:"")||location.href;if(s[i])return;let c={};const r=e=>a(e,i),d={module:{uri:i},exports:c,require:r};s[i]=Promise.all(t.map(e=>d[e]||r(e))).then(e=>(n(...e),c))}}define(["./workbox-860c9203"],function(e){"use strict";importScripts("fallback-K0UBXtwDiUz6_8cu0dHwf.js"),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/app-build-manifest.json",revision:"511f7ad4c7522ea98f6f50e76d1802ce"},{url:"/_next/static/K0UBXtwDiUz6_8cu0dHwf/_buildManifest.js",revision:"fe4c0bb2f0aac69a536605b524ea8a70"},{url:"/_next/static/K0UBXtwDiUz6_8cu0dHwf/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/690-19ec28dbfd778970.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/app/_not-found-be3c8b1475d807d1.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/app/events/page-3ad957d328baa6f3.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/app/layout-9eaab2a192fdbc48.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/app/offline/page-921ef531c71bfa46.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/app/page-80bd3d3837ee9c25.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/app/status/page-64abcc3d13b73258.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/commons-7da9410a7390355c.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/framework-df171e8e3ef10094.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/main-a44cf85b070598cf.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/main-app-612df6914907aa48.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/pages/_app-9879ea071f84e779.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/pages/_error-22bf4f1cc8e2e549.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/chunks/polyfills-c67a75d1b6f99dc8.js",revision:"837c0df77fd5009c9e46d446188ecfd0"},{url:"/_next/static/chunks/webpack-dcaacc0ce2ae8594.js",revision:"K0UBXtwDiUz6_8cu0dHwf"},{url:"/_next/static/css/35eaaeb926599be9.css",revision:"35eaaeb926599be9"},{url:"/_next/static/css/a04b83c410836f0e.css",revision:"a04b83c410836f0e"},{url:"/_next/static/media/26a46d62cd723877-s.woff2",revision:"befd9c0fdfa3d8a645d5f95717ed6420"},{url:"/_next/static/media/55c55f0601d81cf3-s.woff2",revision:"43828e14271c77b87e3ed582dbff9f74"},{url:"/_next/static/media/581909926a08bbc8-s.woff2",revision:"f0b86e7c24f455280b8df606b89af891"},{url:"/_next/static/media/8e9860b6e62d6359-s.woff2",revision:"01ba6c2a184b8cba08b0d57167664d75"},{url:"/_next/static/media/97e0cb1ae144a2a9-s.woff2",revision:"e360c61c5bd8d90639fd4503c829c2dc"},{url:"/_next/static/media/df0a9ae256c0569c-s.woff2",revision:"d54db44de5ccb18886ece2fda72bdfe0"},{url:"/_next/static/media/e4af272ccee01ff0-s.p.woff2",revision:"65850a373e258f1c897a2b3d75eb74de"},{url:"/index.html",revision:"5a6db9948bb15f06383a145ec98d748c"},{url:"/manifest.json",revision:"c6de6e9c2fe9025f6789c1a3fe2c4f5c"},{url:"/offline",revision:"K0UBXtwDiUz6_8cu0dHwf"}],{ignoreURLParametersMatching:[]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:async({request:e,response:s,event:a,state:t})=>s&&"opaqueredirect"===s.type?new Response(s.body,{status:200,statusText:"OK",headers:s.headers}):s},{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.googleapis\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts-cache",plugins:[new e.ExpirationPlugin({maxEntries:10,maxAgeSeconds:31536e3}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.gstatic\.com\/.*/i,new e.CacheFirst({cacheName:"gstatic-fonts-cache",plugins:[new e.ExpirationPlugin({maxEntries:10,maxAgeSeconds:31536e3}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,new e.StaleWhileRevalidate({cacheName:"static-font-assets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:604800}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.StaleWhileRevalidate({cacheName:"static-image-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\/_next\/image\?url=.+$/i,new e.StaleWhileRevalidate({cacheName:"next-image",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\.(?:mp3|wav|ogg)$/i,new e.CacheFirst({cacheName:"static-audio-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\.(?:mp4)$/i,new e.CacheFirst({cacheName:"static-video-assets",plugins:[new e.RangeRequestsPlugin,new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\.(?:js)$/i,new e.StaleWhileRevalidate({cacheName:"static-js-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\.(?:css|less)$/i,new e.StaleWhileRevalidate({cacheName:"static-style-assets",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\/_next\/static\/chunks\/.*/i,new e.StaleWhileRevalidate({cacheName:"next-js-chunks",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\/_next\/static\/.*/i,new e.CacheFirst({cacheName:"next-static",plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/\/api\/.*$/i,new e.NetworkFirst({cacheName:"apis",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:16,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET"),e.registerRoute(/.*/i,new e.NetworkFirst({cacheName:"others",networkTimeoutSeconds:10,plugins:[new e.ExpirationPlugin({maxEntries:32,maxAgeSeconds:86400}),{handlerDidError:async({request:e})=>self.fallback(e)}]}),"GET")});
+// ==========================================
+// SERVICE WORKER AVANZADO PARA EVENTCONNECT
+// ==========================================
+
+const CACHE_NAME = 'eventconnect-v1.0.0';
+const STATIC_CACHE = 'eventconnect-static-v1.0.0';
+const DYNAMIC_CACHE = 'eventconnect-dynamic-v1.0.0';
+const API_CACHE = 'eventconnect-api-v1.0.0';
+
+// ==========================================
+// ESTRATEGIAS DE CACHE
+// ==========================================
+
+// Archivos estáticos críticos
+const STATIC_ASSETS = [
+  '/',
+  '/dashboard',
+  '/events',
+  '/tribes',
+  '/profile',
+  '/static/js/bundle.js',
+  '/static/css/main.css',
+  '/manifest.json',
+  '/favicon.ico',
+  '/logo192.png',
+  '/logo512.png'
+];
+
+// Recursos de terceros para cache
+const THIRD_PARTY_ASSETS = [
+  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+  'https://cdn.jsdelivr.net/npm/lucide-react@latest/dist/umd/lucide.min.js',
+  'https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places'
+];
+
+// ==========================================
+// INSTALACIÓN DEL SERVICE WORKER
+// ==========================================
+
+self.addEventListener('install', (event) => {
+  console.log('🚀 Service Worker instalando...');
+  
+  event.waitUntil(
+    Promise.all([
+      // Cache de archivos estáticos
+      caches.open(STATIC_CACHE).then(cache => {
+        console.log('📦 Cacheando archivos estáticos...');
+        return cache.addAll(STATIC_ASSETS);
+      }),
+      
+      // Cache de recursos de terceros
+      caches.open(STATIC_CACHE).then(cache => {
+        console.log('🌐 Cacheando recursos de terceros...');
+        return cache.addAll(THIRD_PARTY_ASSETS);
+      })
+    ]).then(() => {
+      console.log('✅ Service Worker instalado correctamente');
+      return self.skipWaiting();
+    }).catch(error => {
+      console.error('❌ Error durante la instalación:', error);
+    })
+  );
+});
+
+// ==========================================
+// ACTIVACIÓN DEL SERVICE WORKER
+// ==========================================
+
+self.addEventListener('activate', (event) => {
+  console.log('🔄 Service Worker activando...');
+  
+  event.waitUntil(
+    Promise.all([
+      // Limpiar caches antiguos
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== STATIC_CACHE && 
+                cacheName !== DYNAMIC_CACHE && 
+                cacheName !== API_CACHE) {
+              console.log('🗑️ Eliminando cache antiguo:', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      
+      // Tomar control inmediatamente
+      self.clients.claim()
+    ]).then(() => {
+      console.log('✅ Service Worker activado correctamente');
+    })
+  );
+});
+
+// ==========================================
+// INTERCEPTACIÓN DE REQUESTS
+// ==========================================
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  const url = new URL(request.url);
+  
+  // Solo procesar requests HTTP/HTTPS
+  if (!request.url.startsWith('http')) {
+    return;
+  }
+  
+  // Estrategia de cache según el tipo de request
+  if (isStaticAsset(request)) {
+    event.respondWith(cacheFirst(request, STATIC_CACHE));
+  } else if (isApiRequest(request)) {
+    event.respondWith(networkFirst(request, API_CACHE));
+  } else if (isImageRequest(request)) {
+    event.respondWith(cacheFirst(request, DYNAMIC_CACHE));
+  } else {
+    event.respondWith(networkFirst(request, DYNAMIC_CACHE));
+  }
+});
+
+// ==========================================
+// ESTRATEGIAS DE CACHE
+// ==========================================
+
+// Cache First: Para archivos estáticos
+async function cacheFirst(request, cacheName) {
+  try {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    console.error('Error en cacheFirst:', error);
+    return new Response('Error de conexión', { status: 503 });
+  }
+}
+
+// Network First: Para APIs y contenido dinámico
+async function networkFirst(request, cacheName) {
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse.ok) {
+      const cache = await caches.open(cacheName);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    console.log('🌐 Red no disponible, usando cache...');
+    
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Fallback para diferentes tipos de request
+    return getFallbackResponse(request);
+  }
+}
+
+// ==========================================
+// DETECCIÓN DE TIPOS DE REQUEST
+// ==========================================
+
+function isStaticAsset(request) {
+  const url = new URL(request.url);
+  return STATIC_ASSETS.includes(url.pathname) ||
+         request.destination === 'style' ||
+         request.destination === 'script' ||
+         request.destination === 'font';
+}
+
+function isApiRequest(request) {
+  const url = new URL(request.url);
+  return url.pathname.startsWith('/api/') ||
+         url.hostname === 'api.eventconnect.com';
+}
+
+function isImageRequest(request) {
+  return request.destination === 'image' ||
+         /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(request.url);
+}
+
+// ==========================================
+// RESPONSES DE FALLBACK
+// ==========================================
+
+function getFallbackResponse(request) {
+  const url = new URL(request.url);
+  
+  // Fallback para páginas
+  if (request.destination === 'document') {
+    return caches.match('/offline.html');
+  }
+  
+  // Fallback para imágenes
+  if (request.destination === 'image') {
+    return caches.match('/offline-image.png');
+  }
+  
+  // Fallback para APIs
+  if (isApiRequest(request)) {
+    return new Response(JSON.stringify({
+      error: 'No hay conexión a internet',
+      message: 'Los datos mostrados pueden no estar actualizados',
+      timestamp: new Date().toISOString()
+    }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  
+  // Fallback genérico
+  return new Response('Contenido no disponible offline', { status: 503 });
+}
+
+// ==========================================
+// NOTIFICACIONES PUSH
+// ==========================================
+
+self.addEventListener('push', (event) => {
+  console.log('📱 Notificación push recibida:', event);
+  
+  if (!event.data) {
+    return;
+  }
+  
+  try {
+    const data = event.data.json();
+    const options = {
+      body: data.body || 'Nueva notificación de EventConnect',
+      icon: '/logo192.png',
+      badge: '/badge.png',
+      image: data.image,
+      data: data.data || {},
+      actions: data.actions || [],
+      requireInteraction: data.requireInteraction || false,
+      silent: data.silent || false,
+      tag: data.tag || 'eventconnect-notification',
+      renotify: data.renotify || true,
+      vibrate: data.vibrate || [200, 100, 200],
+      timestamp: Date.now()
+    };
+    
+    // Verificar si es hora silenciosa
+    if (isQuietHours()) {
+      options.silent = true;
+      options.body = '🔇 Notificación silenciosa: ' + options.body;
+    }
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'EventConnect', options)
+    );
+    
+  } catch (error) {
+    console.error('Error procesando notificación push:', error);
+    
+    // Notificación de fallback
+    event.waitUntil(
+      self.registration.showNotification('EventConnect', {
+        body: 'Nueva notificación disponible',
+        icon: '/logo192.png'
+      })
+    );
+  }
+});
+
+// ==========================================
+// CLICK EN NOTIFICACIONES
+// ==========================================
+
+self.addEventListener('notificationclick', (event) => {
+  console.log('👆 Notificación clickeada:', event);
+  
+  event.notification.close();
+  
+  if (event.action) {
+    // Manejar acciones específicas
+    handleNotificationAction(event.action, event.notification.data);
+  } else {
+    // Comportamiento por defecto
+    event.waitUntil(
+      clients.openWindow('/dashboard')
+    );
+  }
+});
+
+// ==========================================
+// CIERRE DE NOTIFICACIONES
+// ==========================================
+
+self.addEventListener('notificationclose', (event) => {
+  console.log('❌ Notificación cerrada:', event);
+  
+  // Enviar métricas de engagement
+  if (event.notification.data && event.notification.data.notificationId) {
+    sendNotificationMetrics(event.notification.data.notificationId, 'closed');
+  }
+});
+
+// ==========================================
+// MANEJO DE ACCIONES DE NOTIFICACIÓN
+// ==========================================
+
+function handleNotificationAction(action, data) {
+  switch (action) {
+    case 'view_event':
+      if (data.eventId) {
+        clients.openWindow(`/events/${data.eventId}`);
+      }
+      break;
+      
+    case 'join_tribe':
+      if (data.tribeId) {
+        clients.openWindow(`/tribes/${data.tribeId}`);
+      }
+      break;
+      
+    case 'reply_message':
+      if (data.chatId) {
+        clients.openWindow(`/chat/${data.chatId}`);
+      }
+      break;
+      
+    default:
+      clients.openWindow('/dashboard');
+  }
+}
+
+// ==========================================
+// FUNCIONES DE UTILIDAD
+// ==========================================
+
+// Verificar si es hora silenciosa
+function isQuietHours() {
+  const now = new Date();
+  const hour = now.getHours();
+  const quietStart = 22; // 10 PM
+  const quietEnd = 8;    // 8 AM
+  
+  return hour >= quietStart || hour < quietEnd;
+}
+
+// Enviar métricas de notificaciones
+async function sendNotificationMetrics(notificationId, action) {
+  try {
+    const response = await fetch('/api/notifications/metrics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        notificationId,
+        action,
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    if (!response.ok) {
+      console.warn('No se pudieron enviar métricas de notificación');
+    }
+  } catch (error) {
+    console.error('Error enviando métricas:', error);
+  }
+}
+
+// ==========================================
+// SINCRONIZACIÓN EN BACKGROUND
+// ==========================================
+
+self.addEventListener('sync', (event) => {
+  console.log('🔄 Sincronización en background:', event.tag);
+  
+  switch (event.tag) {
+    case 'background-sync-events':
+      event.waitUntil(syncEvents());
+      break;
+      
+    case 'background-sync-notifications':
+      event.waitUntil(syncNotifications());
+      break;
+      
+    case 'background-sync-user-data':
+      event.waitUntil(syncUserData());
+      break;
+      
+    default:
+      console.log('Tag de sincronización no reconocido:', event.tag);
+  }
+});
+
+// Sincronizar eventos
+async function syncEvents() {
+  try {
+    const cache = await caches.open(DYNAMIC_CACHE);
+    const requests = await cache.keys();
+    const eventRequests = requests.filter(req => 
+      req.url.includes('/api/events')
+    );
+    
+    for (const request of eventRequests) {
+      try {
+        const response = await fetch(request);
+        if (response.ok) {
+          await cache.put(request, response);
+        }
+      } catch (error) {
+        console.error('Error sincronizando evento:', error);
+      }
+    }
+    
+    console.log('✅ Eventos sincronizados correctamente');
+  } catch (error) {
+    console.error('Error en sincronización de eventos:', error);
+  }
+}
+
+// Sincronizar notificaciones
+async function syncNotifications() {
+  try {
+    // Sincronizar preferencias de notificación
+    const response = await fetch('/api/notifications/preferences', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const preferences = await response.json();
+      await updateNotificationPreferences(preferences);
+    }
+    
+    console.log('✅ Notificaciones sincronizadas correctamente');
+  } catch (error) {
+    console.error('Error en sincronización de notificaciones:', error);
+  }
+}
+
+// Sincronizar datos del usuario
+async function syncUserData() {
+  try {
+    // Sincronizar perfil del usuario
+    const response = await fetch('/api/user/profile', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const profile = await response.json();
+      await updateUserProfile(profile);
+    }
+    
+    console.log('✅ Datos de usuario sincronizados correctamente');
+  } catch (error) {
+    console.error('Error en sincronización de datos de usuario:', error);
+  }
+}
+
+// ==========================================
+// ACTUALIZACIÓN DE DATOS LOCALES
+// ==========================================
+
+async function updateNotificationPreferences(preferences) {
+  try {
+    const cache = await caches.open(DYNAMIC_CACHE);
+    const response = new Response(JSON.stringify(preferences), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    await cache.put('/api/notifications/preferences', response);
+  } catch (error) {
+    console.error('Error actualizando preferencias:', error);
+  }
+}
+
+async function updateUserProfile(profile) {
+  try {
+    const cache = await caches.open(DYNAMIC_CACHE);
+    const response = new Response(JSON.stringify(profile), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    await cache.put('/api/user/profile', response);
+  } catch (error) {
+    console.error('Error actualizando perfil:', error);
+  }
+}
+
+// ==========================================
+// MANEJO DE ERRORES
+// ==========================================
+
+self.addEventListener('error', (event) => {
+  console.error('❌ Error en Service Worker:', event.error);
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('❌ Promesa rechazada no manejada:', event.reason);
+});
+
+// ==========================================
+// LOGS DE DEBUG
+// ==========================================
+
+// Log de estado del Service Worker
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({
+      version: '1.0.0',
+      cacheNames: [STATIC_CACHE, DYNAMIC_CACHE, API_CACHE],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+console.log('🚀 Service Worker de EventConnect cargado correctamente');

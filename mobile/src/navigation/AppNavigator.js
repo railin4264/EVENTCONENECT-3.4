@@ -19,6 +19,7 @@ import ChatScreen from '../screens/main/ChatScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import SearchScreen from '../screens/SearchScreen';
+import DashboardScreen from '../screens/main/DashboardScreen';
 
 // Detail Screens
 import ChatDetailScreen from '../screens/main/ChatDetailScreen';
@@ -61,8 +62,8 @@ const MainTabs = () => {
             iconName = focused ? 'map' : 'map-outline';
           } else if (route.name === 'Chat') {
             iconName = focused ? 'chatbubbles' : 'chatbubbles-outline';
-          } else if (route.name === 'Notifications') {
-            iconName = focused ? 'notifications' : 'notifications-outline';
+          } else if (route.name === 'Dashboard') {
+            iconName = focused ? 'grid' : 'grid-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -129,11 +130,10 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Notifications"
-        component={NotificationsScreen}
+        name="Dashboard"
+        component={DashboardScreen}
         options={{
-          tabBarLabel: 'Notificaciones',
-          tabBarBadge: 5, // TODO: Get from notifications store
+          tabBarLabel: 'Dashboard',
         }}
       />
       <Tab.Screen
@@ -158,6 +158,7 @@ const MainStack = () => (
     <Stack.Screen name="TribeDetail" component={TribeDetailScreen} />
     <Stack.Screen name="EventDetail" component={EventDetailScreen} />
     <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+    <Stack.Screen name="Notifications" component={NotificationsScreen} />
   </Stack.Navigator>
 );
 

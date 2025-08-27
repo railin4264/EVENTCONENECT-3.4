@@ -74,6 +74,7 @@ const Navbar = () => {
   const navigation = [
     { name: 'Eventos', href: '/events', icon: CalendarDaysIcon },
     { name: 'Tribus', href: '/tribes', icon: UsersIcon },
+    { name: 'Dashboard', href: '/dashboard', icon: Cog6ToothIcon },
     { name: 'Feed', href: '/feed', icon: HeartIcon },
     { name: 'Mapa', href: '/map', icon: MapPinIcon },
     { name: 'Chat', href: '/chat', icon: ChatBubbleLeftIcon },

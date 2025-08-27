@@ -50,7 +50,7 @@
       ],
       "config": {
         "googleMaps": {
-          "apiKey": "your-google-maps-api-key-here"
+          "apiKey": "your_google_maps_api_key_here"
         }
       }
     },

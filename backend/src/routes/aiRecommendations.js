@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const aiRecommendationsController = require('../controllers/aiRecommendationsController');
-const authMiddleware = require('../middleware/authMiddleware');
-const rateLimits = require('../middleware/rateLimitMiddleware');
+const { protect } = require('../middleware/auth');
+const { rateLimits } = require('../middleware/advancedSecurity');
 
 // ==========================================
 // RECOMENDACIONES PERSONALIZADAS
@@ -11,7 +11,7 @@ const rateLimits = require('../middleware/rateLimitMiddleware');
 // Obtener recomendaciones personalizadas
 router.get(
   '/recommendations',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.getPersonalizedRecommendations
 );
@@ -19,7 +19,7 @@ router.get(
 // Enviar feedback de recomendaciones
 router.post(
   '/feedback',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.submitRecommendationFeedback
 );
@@ -31,7 +31,7 @@ router.post(
 // Obtener contenido trending
 router.get(
   '/trending',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.getTrendingRecommendations
 );
@@ -43,7 +43,7 @@ router.get(
 // Obtener elementos similares
 router.get(
   '/similar',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.getSimilarItems
 );
@@ -55,7 +55,7 @@ router.get(
 // Obtener insights de recomendaciones
 router.get(
   '/insights',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.getRecommendationInsights
 );
@@ -67,7 +67,7 @@ router.get(
 // Actualizar preferencias de IA
 router.put(
   '/preferences',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.updateAIPreferences
 );
@@ -79,7 +79,7 @@ router.put(
 // Obtener notificaciones inteligentes
 router.get(
   '/smart-notifications',
-  authMiddleware,
+  protect,
   rateLimits.ai,
   aiRecommendationsController.getSmartNotifications
 );
