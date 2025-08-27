@@ -1,53 +1,378 @@
-const { User, Notification, InAppNotification } = require('../models');
-const NotificationService = require('../services/NotificationService');
+const { User, Notification } = require('../models');
 
-// Extend existing controller with enhanced push notifications
-class EnhancedNotificationController {
+class NotificationController {
   
   // ==========================================
-  // CONFIGURAR NOTIFICACIONES PUSH VISUALES
+  // NOTIFICACIONES IN-APP
   // ==========================================
   
-  async updatePushSettings(req, res) {
+  async getInAppNotifications(req, res) {
     try {
       const userId = req.user.id;
-      const {
-        enabled,
-        richNotifications,
-        actionButtons,
-        grouping,
-        locationBased,
-        customSounds,
-        quietHours,
-        categories
-      } = req.body;
+      const notifications = await Notification.find({ 
+        recipient: userId,
+        type: 'in-app'
+      })
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean();
+
+      res.json({
+        success: true,
+        data: { notifications }
+      });
+    } catch (error) {
+      console.error('Error getting in-app notifications:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async getUnreadNotifications(req, res) {
+    try {
+      const userId = req.user.id;
+      const notifications = await Notification.find({ 
+        recipient: userId,
+        read: false,
+        type: 'in-app'
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      res.json({
+        success: true,
+        data: { notifications }
+      });
+    } catch (error) {
+      console.error('Error getting unread notifications:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async getNotificationStats(req, res) {
+    try {
+      const userId = req.user.id;
+      const total = await Notification.countDocuments({ 
+        recipient: userId,
+        type: 'in-app'
+      });
+      const unread = await Notification.countDocuments({ 
+        recipient: userId,
+        read: false,
+        type: 'in-app'
+      });
+
+      res.json({
+        success: true,
+        data: {
+          total,
+          unread,
+          read: total - unread
+        }
+      });
+    } catch (error) {
+      console.error('Error getting notification stats:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async markNotificationAsRead(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const notification = await Notification.findOneAndUpdate(
+        { _id: id, recipient: userId },
+        { read: true, readAt: new Date() },
+        { new: true }
+      );
+
+      if (!notification) {
+        return res.status(404).json({
+          success: false,
+          message: 'Notificación no encontrada'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Notificación marcada como leída',
+        data: { notification }
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async markAllNotificationsAsRead(req, res) {
+    try {
+      const userId = req.user.id;
+
+      await Notification.updateMany(
+        { recipient: userId, read: false },
+        { read: true, readAt: new Date() }
+      );
+
+      res.json({
+        success: true,
+        message: 'Todas las notificaciones marcadas como leídas'
+      });
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async deleteNotification(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const notification = await Notification.findOneAndDelete({
+        _id: id,
+        recipient: userId
+      });
+
+      if (!notification) {
+        return res.status(404).json({
+          success: false,
+          message: 'Notificación no encontrada'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Notificación eliminada'
+      });
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async deleteAllNotifications(req, res) {
+    try {
+      const userId = req.user.id;
+
+      await Notification.deleteMany({ recipient: userId });
+
+      res.json({
+        success: true,
+        message: 'Todas las notificaciones eliminadas'
+      });
+    } catch (error) {
+      console.error('Error deleting all notifications:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  // ==========================================
+  // NOTIFICACIONES PROGRAMADAS
+  // ==========================================
+  
+  async getScheduledNotifications(req, res) {
+    try {
+      const userId = req.user.id;
+      const notifications = await Notification.find({ 
+        recipient: userId,
+        type: 'scheduled',
+        scheduledFor: { $gte: new Date() }
+      })
+        .sort({ scheduledFor: 1 })
+        .lean();
+
+      res.json({
+        success: true,
+        data: { notifications }
+      });
+    } catch (error) {
+      console.error('Error getting scheduled notifications:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async scheduleNotification(req, res) {
+    try {
+      const userId = req.user.id;
+      const notificationData = req.body;
+
+      const notification = new Notification({
+        ...notificationData,
+        recipient: userId,
+        type: 'scheduled',
+        createdAt: new Date()
+      });
+
+      await notification.save();
+
+      res.status(201).json({
+        success: true,
+        message: 'Notificación programada exitosamente',
+        data: { notification }
+      });
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async updateScheduledNotification(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
+
+      const notification = await Notification.findOneAndUpdate(
+        { _id: id, recipient: userId, type: 'scheduled' },
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+
+      if (!notification) {
+        return res.status(404).json({
+          success: false,
+          message: 'Notificación programada no encontrada'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Notificación programada actualizada',
+        data: { notification }
+      });
+    } catch (error) {
+      console.error('Error updating scheduled notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async cancelScheduledNotification(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      const notification = await Notification.findOneAndDelete({
+        _id: id,
+        recipient: userId,
+        type: 'scheduled'
+      });
+
+      if (!notification) {
+        return res.status(404).json({
+          success: false,
+          message: 'Notificación programada no encontrada'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Notificación programada cancelada'
+      });
+    } catch (error) {
+      console.error('Error canceling scheduled notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async cancelAllScheduledNotifications(req, res) {
+    try {
+      const userId = req.user.id;
+
+      await Notification.deleteMany({ 
+        recipient: userId,
+        type: 'scheduled'
+      });
+
+      res.json({
+        success: true,
+        message: 'Todas las notificaciones programadas canceladas'
+      });
+    } catch (error) {
+      console.error('Error canceling all scheduled notifications:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  // ==========================================
+  // PREFERENCIAS DE NOTIFICACIONES
+  // ==========================================
+  
+  async getUserPreferences(req, res) {
+    try {
+      const userId = req.user.id;
+      const user = await User.findById(userId).select('notificationPreferences');
+
+      res.json({
+        success: true,
+        data: {
+          preferences: user.notificationPreferences || {}
+        }
+      });
+    } catch (error) {
+      console.error('Error getting user preferences:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async updateUserPreferences(req, res) {
+    try {
+      const userId = req.user.id;
+      const preferences = req.body;
 
       const user = await User.findByIdAndUpdate(
         userId,
-        {
-          $set: {
-            'notificationPreferences.push.enabled': enabled,
-            'notificationPreferences.push.richNotifications': richNotifications,
-            'notificationPreferences.push.actionButtons': actionButtons,
-            'notificationPreferences.push.grouping': grouping,
-            'notificationPreferences.push.locationBased': locationBased,
-            'notificationPreferences.push.customSounds': customSounds,
-            'notificationPreferences.push.quietHours': quietHours,
-            'notificationPreferences.push.categories': categories,
-          }
-        },
+        { $set: { notificationPreferences: preferences } },
         { new: true, runValidators: true }
       );
 
       res.json({
         success: true,
-        message: 'Configuración de notificaciones push actualizada',
+        message: 'Preferencias actualizadas',
         data: {
-          pushSettings: user.notificationPreferences.push
+          preferences: user.notificationPreferences
         }
       });
     } catch (error) {
-      console.error('Error updating push settings:', error);
+      console.error('Error updating user preferences:', error);
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor'
@@ -56,436 +381,84 @@ class EnhancedNotificationController {
   }
 
   // ==========================================
-  // ENVIAR NOTIFICACIÓN PUSH ENRIQUECIDA
+  // TOKENS DE PUSH
   // ==========================================
-
-  async sendRichPushNotification(req, res) {
+  
+  async registerPushToken(req, res) {
     try {
-      const {
+      const userId = req.user.id;
+      const { token, platform } = req.body;
+
+      const user = await User.findByIdAndUpdate(
         userId,
-        title,
-        body,
-        data,
-        image,
-        actions,
-        category,
-        sound,
-        badge,
-        priority,
-        groupId,
-        locationTrigger
-      } = req.body;
-
-      // Validar usuario
-      const user = await User.findById(userId);
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'Usuario no encontrado'
-        });
-      }
-
-      // Verificar preferencias de usuario
-      const pushPrefs = user.notificationPreferences?.push;
-      if (!pushPrefs?.enabled) {
-        return res.status(400).json({
-          success: false,
-          message: 'Notificaciones push deshabilitadas para este usuario'
-        });
-      }
-
-      // Verificar categoría específica
-      if (category && pushPrefs.categories && !pushPrefs.categories[category]?.enabled) {
-        return res.status(400).json({
-          success: false,
-          message: `Notificaciones de categoría ${category} deshabilitadas`
-        });
-      }
-
-      // Verificar horas silenciosas
-      if (this.isInQuietHours(pushPrefs.quietHours)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Usuario en horas silenciosas'
-        });
-      }
-
-      // Construir notificación enriquecida
-      const richNotification = {
-        to: user.pushTokens.map(token => token.token),
-        title,
-        body,
-        data: {
-          ...data,
-          category,
-          timestamp: new Date().toISOString(),
-          userId: userId
-        },
-        android: {
-          priority: priority || 'high',
-          notification: {
-            channelId: category || 'default',
-            color: '#06b6d4',
-            sound: sound || 'default',
-            largeIcon: image,
-            style: image ? {
-              type: 'bigPicture',
-              picture: image
-            } : undefined,
-            actions: actions || []
-          },
-          data: {
-            groupId: groupId || category,
-            ...data
+        { 
+          $addToSet: { 
+            'notificationPreferences.pushTokens': { token, platform }
           }
         },
-        ios: {
-          aps: {
-            alert: {
-              title,
-              body
-            },
-            badge: badge || 1,
-            sound: sound || 'default',
-            category: category || 'default',
-            'mutable-content': 1,
-            'content-available': 1
-          },
-          data: {
-            image,
-            actions: JSON.stringify(actions || []),
-            groupId: groupId || category,
-            ...data
-          }
-        },
-        web: {
-          notification: {
-            title,
-            body,
-            icon: '/icons/icon-192x192.png',
-            image,
-            badge: '/icons/badge-72x72.png',
-            tag: groupId || category,
-            data: {
-              actions: actions || [],
-              ...data
-            },
-            actions: actions?.map(action => ({
-              action: action.id,
-              title: action.title,
-              icon: action.icon
-            })) || []
-          }
-        }
-      };
-
-      // Enviar notificación
-      const result = await NotificationService.sendRichPushNotification(
-        user.pushTokens,
-        richNotification
+        { new: true }
       );
 
-      // Guardar en base de datos
-      const notification = new Notification({
+      res.json({
+        success: true,
+        message: 'Token de push registrado',
+        data: {
+          pushTokens: user.notificationPreferences.pushTokens
+        }
+      });
+    } catch (error) {
+      console.error('Error registering push token:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async unregisterPushToken(req, res) {
+    try {
+      const userId = req.user.id;
+      const { token } = req.params;
+
+      const user = await User.findByIdAndUpdate(
         userId,
-        type: category || 'general',
-        title,
-        message: body,
-        data: {
-          ...data,
-          image,
-          actions,
-          groupId
-        },
-        deliveryMethod: ['push'],
-        status: result.success ? 'sent' : 'failed',
-        metadata: {
-          pushResult: result,
-          richContent: true,
-          platform: 'all'
-        }
-      });
-
-      await notification.save();
-
-      res.json({
-        success: true,
-        message: 'Notificación push enriquecida enviada',
-        data: {
-          notificationId: notification._id,
-          deliveryResult: result,
-          recipients: user.pushTokens.length
-        }
-      });
-    } catch (error) {
-      console.error('Error sending rich push notification:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor'
-      });
-    }
-  }
-
-  // ==========================================
-  // NOTIFICACIONES GRUPALES
-  // ==========================================
-
-  async sendGroupedNotification(req, res) {
-    try {
-      const {
-        groupId,
-        title,
-        body,
-        data,
-        participants,
-        category,
-        collapseKey,
-        summaryText
-      } = req.body;
-
-      const results = [];
-      
-      for (const userId of participants) {
-        const user = await User.findById(userId);
-        if (!user || !user.notificationPreferences?.push?.enabled) {
-          continue;
-        }
-
-        // Construir notificación grupal
-        const groupNotification = {
-          to: user.pushTokens.map(token => token.token),
-          title,
-          body,
-          data: {
-            ...data,
-            groupId,
-            userId
-          },
-          android: {
-            collapseKey: collapseKey || groupId,
-            notification: {
-              channelId: category || 'group',
-              tag: groupId,
-              group: groupId,
-              groupSummary: participants.indexOf(userId) === 0,
-              summaryText: summaryText || `${participants.length} participantes`
-            }
-          },
-          ios: {
-            aps: {
-              'thread-id': groupId,
-              'summary-arg': user.firstName,
-              'summary-arg-count': participants.length
-            }
-          },
-          web: {
-            notification: {
-              tag: groupId,
-              renotify: true,
-              data: {
-                groupId,
-                totalMembers: participants.length
-              }
-            }
-          }
-        };
-
-        const result = await NotificationService.sendRichPushNotification(
-          user.pushTokens,
-          groupNotification
-        );
-
-        results.push({
-          userId,
-          success: result.success,
-          details: result
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Notificaciones grupales enviadas',
-        data: {
-          groupId,
-          totalRecipients: participants.length,
-          successfulDeliveries: results.filter(r => r.success).length,
-          results
-        }
-      });
-    } catch (error) {
-      console.error('Error sending grouped notifications:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor'
-      });
-    }
-  }
-
-  // ==========================================
-  // NOTIFICACIONES BASADAS EN UBICACIÓN
-  // ==========================================
-
-  async sendLocationBasedNotification(req, res) {
-    try {
-      const {
-        center,
-        radius,
-        title,
-        body,
-        data,
-        category,
-        excludeUserIds = []
-      } = req.body;
-
-      // Encontrar usuarios en el área
-      const usersInArea = await User.find({
-        _id: { $nin: excludeUserIds },
-        'notificationPreferences.push.enabled': true,
-        'notificationPreferences.push.locationBased': true,
-        location: {
-          $near: {
-            $geometry: {
-              type: 'Point',
-              coordinates: center
-            },
-            $maxDistance: radius
-          }
-        }
-      });
-
-      const results = [];
-
-      for (const user of usersInArea) {
-        const locationNotification = {
-          to: user.pushTokens.map(token => token.token),
-            title,
-            body,
-          data: {
-            ...data,
-            locationBased: true,
-            userLocation: user.location.coordinates,
-            distance: this.calculateDistance(center, user.location.coordinates)
-          },
-          android: {
-            notification: {
-              channelId: category || 'location',
-              icon: 'ic_location',
-              color: '#06b6d4'
-            }
-          },
-          ios: {
-            aps: {
-              category: category || 'location',
-              'loc-key': 'LOCATION_NOTIFICATION_BODY',
-              'loc-args': [title]
-            }
-          }
-        };
-
-        const result = await NotificationService.sendRichPushNotification(
-          user.pushTokens,
-          locationNotification
-        );
-
-        results.push({
-          userId: user._id,
-          distance: this.calculateDistance(center, user.location.coordinates),
-          success: result.success
-        });
-      }
-
-      res.json({
-        success: true,
-        message: 'Notificaciones basadas en ubicación enviadas',
-        data: {
-          center,
-          radius,
-          usersFound: usersInArea.length,
-          successfulDeliveries: results.filter(r => r.success).length,
-          results
-        }
-      });
-    } catch (error) {
-      console.error('Error sending location-based notifications:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor'
-      });
-    }
-  }
-
-  // ==========================================
-  // ANALYTICS DE NOTIFICACIONES
-  // ==========================================
-
-  async getNotificationAnalytics(req, res) {
-    try {
-      const { timeframe = '7d', category, userId } = req.query;
-      
-      const startDate = this.getStartDate(timeframe);
-      const filter = {
-        createdAt: { $gte: startDate }
-      };
-
-      if (category) filter.type = category;
-      if (userId) filter.userId = userId;
-
-      const analytics = await Notification.aggregate([
-        { $match: filter },
-        {
-          $group: {
-            _id: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-              type: '$type',
-              status: '$status'
-            },
-            count: { $sum: 1 },
-            deliveryMethods: { $push: '$deliveryMethod' }
+        { 
+          $pull: { 
+            'notificationPreferences.pushTokens': { token }
           }
         },
-        {
-          $group: {
-            _id: { date: '$_id.date', type: '$_id.type' },
-            total: { $sum: '$count' },
-            sent: {
-              $sum: {
-                $cond: [{ $eq: ['$_id.status', 'sent'] }, '$count', 0]
-              }
-            },
-            failed: {
-              $sum: {
-                $cond: [{ $eq: ['$_id.status', 'failed'] }, '$count', 0]
-              }
-            },
-            delivered: {
-              $sum: {
-                $cond: [{ $eq: ['$_id.status', 'delivered'] }, '$count', 0]
-              }
-            },
-            opened: {
-              $sum: {
-                $cond: [{ $eq: ['$_id.status', 'opened'] }, '$count', 0]
-              }
-            }
-          }
-        },
-        { $sort: { '_id.date': 1, '_id.type': 1 } }
-      ]);
+        { new: true }
+      );
+
+      res.json({
+        success: true,
+        message: 'Token de push eliminado',
+        data: {
+          pushTokens: user.notificationPreferences.pushTokens
+        }
+      });
+    } catch (error) {
+      console.error('Error unregistering push token:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  async getPushTokens(req, res) {
+    try {
+      const userId = req.user.id;
+      const user = await User.findById(userId).select('notificationPreferences.pushTokens');
 
       res.json({
         success: true,
         data: {
-          timeframe,
-          analytics,
-          summary: {
-            totalNotifications: analytics.reduce((sum, item) => sum + item.total, 0),
-            deliveryRate: this.calculateDeliveryRate(analytics),
-            openRate: this.calculateOpenRate(analytics)
-          }
+          pushTokens: user.notificationPreferences?.pushTokens || []
         }
       });
     } catch (error) {
-      console.error('Error getting notification analytics:', error);
+      console.error('Error getting push tokens:', error);
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor'
@@ -494,70 +467,62 @@ class EnhancedNotificationController {
   }
 
   // ==========================================
-  // UTILIDADES
+  // NOTIFICACIONES DEL SISTEMA
   // ==========================================
+  
+  async getSystemNotifications(req, res) {
+    try {
+      const notifications = await Notification.find({ 
+        type: 'system',
+        isActive: true
+      })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean();
 
-  isInQuietHours(quietHours) {
-    if (!quietHours?.enabled) return false;
-
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute;
-
-    const [startHour, startMinute] = quietHours.start.split(':').map(Number);
-    const [endHour, endMinute] = quietHours.end.split(':').map(Number);
-    
-    const startTime = startHour * 60 + startMinute;
-    const endTime = endHour * 60 + endMinute;
-
-    if (startTime <= endTime) {
-      return currentTime >= startTime && currentTime <= endTime;
-    } else {
-      return currentTime >= startTime || currentTime <= endTime;
+      res.json({
+        success: true,
+        data: { notifications }
+      });
+    } catch (error) {
+      console.error('Error getting system notifications:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
     }
   }
 
-  calculateDistance(point1, point2) {
-    const R = 6371e3; // Earth's radius in meters
-    const φ1 = point1[1] * Math.PI / 180;
-    const φ2 = point2[1] * Math.PI / 180;
-    const Δφ = (point2[1] - point1[1]) * Math.PI / 180;
-    const Δλ = (point2[0] - point1[0]) * Math.PI / 180;
+  async broadcastSystemNotification(req, res) {
+    try {
+      const { title, message, recipients, type } = req.body;
 
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const notifications = recipients.map(userId => ({
+        recipient: userId,
+        title,
+        message,
+        type: 'system',
+        isActive: true,
+        createdAt: new Date()
+      }));
 
-    return Math.round(R * c);
-  }
+      await Notification.insertMany(notifications);
 
-  getStartDate(timeframe) {
-    const now = new Date();
-    switch (timeframe) {
-      case '1d':
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      case '7d':
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case '30d':
-        return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      default:
-        return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      res.json({
+        success: true,
+        message: 'Notificación del sistema enviada',
+        data: {
+          sentCount: notifications.length
+        }
+      });
+    } catch (error) {
+      console.error('Error broadcasting system notification:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
     }
-  }
-
-  calculateDeliveryRate(analytics) {
-    const total = analytics.reduce((sum, item) => sum + item.total, 0);
-    const delivered = analytics.reduce((sum, item) => sum + item.delivered, 0);
-    return total > 0 ? Math.round((delivered / total) * 100) : 0;
-  }
-
-  calculateOpenRate(analytics) {
-    const delivered = analytics.reduce((sum, item) => sum + item.delivered, 0);
-    const opened = analytics.reduce((sum, item) => sum + item.opened, 0);
-    return delivered > 0 ? Math.round((opened / delivered) * 100) : 0;
   }
 }
 
-module.exports = new EnhancedNotificationController();
+module.exports = new NotificationController();

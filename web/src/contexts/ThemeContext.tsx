@@ -5,12 +5,12 @@ import { apiService } from '@/services/api';
 
 // ===== THEME TYPES =====
 export interface ThemeColors {
-  primary: string;
-  secondary: string;
-  accent: string;
-  background: string;
-  surface: string;
-  text: string;
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    surface: string;
+    text: string;
 }
 
 export interface ThemeConfig {
@@ -121,7 +121,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const applyThemeToDOM = (themeConfig: ThemeConfig) => {
     const root = document.documentElement;
     const variables = getThemeVariables(themeConfig);
-    
+
     // Apply CSS variables
     Object.entries(variables).forEach(([key, value]) => {
       root.style.setProperty(key, value);

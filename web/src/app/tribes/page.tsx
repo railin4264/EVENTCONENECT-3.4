@@ -1,368 +1,622 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, Users, MapPin, TrendingUp, Star, Calendar, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
+import { 
+  Plus, 
+  Search, 
+  Users, 
+  MapPin, 
+  Calendar, 
+  Eye, 
+  Heart, 
+  Share2, 
+  Edit, 
+  Trash2, 
+  MoreHorizontal,
+  Lock,
+  Globe,
+  Hash,
+  Star,
+  MessageCircle,
+  Bookmark
+} from 'lucide-react';
+import TribeCreateForm from '@/components/forms/TribeCreateForm';
+import { toast } from 'react-hot-toast';
 
 interface Tribe {
   id: string;
   name: string;
   description: string;
-  memberCount: number;
-  location?: string;
   category: string;
-  image: string;
+  isPrivate: boolean;
+  memberCount: number;
+  maxMembers: number;
+  image?: string;
   tags: string[];
-  isJoined: boolean;
+  rules: string[];
+  location?: string;
+  createdAt: string;
+  updatedAt: string;
+  host: {
+    id: string;
+    username: string;
+    avatar?: string;
+    isVerified: boolean;
+  };
+  isMember: boolean;
+  isHost: boolean;
   rating: number;
-  isOnline: boolean;
+  views: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
 }
 
-const TribesPage = () => {
-  const [tribes, setTribes] = useState<Tribe[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [isLoading, setIsLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+interface TribeFilters {
+  search: string;
+  category: string;
+  privacy: 'all' | 'public' | 'private';
+  sort: 'name' | 'members' | 'rating' | 'created';
+}
 
-  const categories = [
-    { id: 'all', name: 'Todos', icon: Users },
-    { id: 'tech', name: 'Tecnología', icon: Users },
-    { id: 'sports', name: 'Deportes', icon: Users },
-    { id: 'music', name: 'Música', icon: Users },
-    { id: 'art', name: 'Arte', icon: Users },
-    { id: 'travel', name: 'Viajes', icon: Users },
-    { id: 'food', name: 'Comida', icon: Users },
-    { id: 'gaming', name: 'Gaming', icon: Users },
-  ];
-
-  useEffect(() => {
-    loadTribes();
-  }, []);
-
-  const loadTribes = async () => {
-    setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setTribes([
-        {
-          id: '1',
-          name: 'Desarrolladores React',
-          description: 'Comunidad de desarrolladores apasionados por React y tecnologías modernas.',
-          memberCount: 1250,
-          location: 'Madrid, España',
-          category: 'tech',
-          image: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400',
-          tags: ['React', 'JavaScript', 'Frontend', 'Web Development'],
-          isJoined: true,
-          rating: 4.8,
-          isOnline: true,
-        },
-        {
-          id: '2',
-          name: 'Fotógrafos Urbanos',
-          description: 'Explora y captura la belleza de la ciudad junto a otros fotógrafos.',
-          memberCount: 890,
-          location: 'Barcelona, España',
-          category: 'art',
-          image: 'https://images.unsplash.com/photo-1452587925148-ce544e77e70d?w=400',
-          tags: ['Fotografía', 'Arte', 'Ciudad', 'Creatividad'],
-          isJoined: false,
-          rating: 4.6,
-          isOnline: false,
-        },
-        {
-          id: '3',
-          name: 'Runners de Madrid',
-          description: 'Grupo de running para todos los niveles. ¡Corre con nosotros!',
-          memberCount: 2100,
-          location: 'Madrid, España',
-          category: 'sports',
-          image: 'https://images.unsplash.com/photo-1544717297-fa95b6ee9643?w=400',
-          tags: ['Running', 'Deporte', 'Salud', 'Fitness'],
-          isJoined: false,
-          rating: 4.9,
-          isOnline: true,
-        },
-        {
-          id: '4',
-          name: 'Amantes del Jazz',
-          description: 'Disfruta de la mejor música jazz en conciertos y jam sessions.',
-          memberCount: 540,
-          location: 'Sevilla, España',
-          category: 'music',
-          image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400',
-          tags: ['Jazz', 'Música', 'Conciertos', 'Cultura'],
-          isJoined: false,
-          rating: 4.7,
-          isOnline: false,
-        },
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const filteredTribes = tribes.filter(tribe => {
-    const matchesSearch = tribe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         tribe.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         tribe.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = selectedCategory === 'all' || tribe.category === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
+export default function TribesPage() {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingTribe, setEditingTribe] = useState<Tribe | null>(null);
+  const [selectedTribe, setSelectedTribe] = useState<Tribe | null>(null);
+  const [filters, setFilters] = useState<TribeFilters>({
+    search: '',
+    category: '',
+    privacy: 'all',
+    sort: 'name',
   });
 
-  const handleJoinTribe = (tribeId: string) => {
-    setTribes(prev => prev.map(tribe => 
-      tribe.id === tribeId 
-        ? { 
-            ...tribe, 
-            isJoined: !tribe.isJoined,
-            memberCount: tribe.isJoined ? tribe.memberCount - 1 : tribe.memberCount + 1
-          }
-        : tribe
-    ));
+  // Fetch tribes
+  const { data: tribes, isLoading, refetch } = useQuery({
+    queryKey: ['tribes', filters],
+    queryFn: () => api.tribes.getTribes(filters),
+  });
+
+  // Handle tribe actions
+  const handleJoin = async (tribeId: string) => {
+    try {
+      await api.tribes.joinTribe(tribeId);
+      refetch();
+      toast.success('Te has unido a la tribu');
+    } catch (error) {
+      toast.error('Error al unirse a la tribu');
+    }
   };
 
-  const TribeCard = ({ tribe }: { tribe: Tribe }) => (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer">
-      <div className="relative">
-        <img 
-          src={tribe.image} 
-          alt={tribe.name}
-          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        <div className="absolute top-4 left-4">
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-            tribe.isOnline 
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${tribe.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-            {tribe.isOnline ? 'En línea' : 'Offline'}
-          </div>
-        </div>
-        <div className="absolute top-4 right-4">
-          <div className="flex items-center gap-1 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
-            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-            {tribe.rating}
-          </div>
-        </div>
+  const handleLeave = async (tribeId: string) => {
+    try {
+      await api.tribes.leaveTribe(tribeId);
+      refetch();
+      toast.success('Has abandonado la tribu');
+    } catch (error) {
+      toast.error('Error al abandonar la tribu');
+    }
+  };
+
+  const handleLike = async (tribeId: string) => {
+    try {
+      await api.tribes.likeTribe(tribeId);
+      refetch();
+      toast.success('Tribu marcada como favorita');
+    } catch (error) {
+      toast.error('Error al marcar tribu');
+    }
+  };
+
+  const handleBookmark = async (tribeId: string) => {
+    try {
+      await api.tribes.bookmarkTribe(tribeId);
+      refetch();
+      toast.success('Tribu agregada a favoritos');
+    } catch (error) {
+      toast.error('Error al agregar a favoritos');
+    }
+  };
+
+  const handleShare = async (tribe: Tribe) => {
+    try {
+      await navigator.share({
+        title: tribe.name,
+        text: tribe.description,
+        url: window.location.href,
+      });
+    } catch (error) {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Enlace copiado al portapapeles');
+    }
+  };
+
+  const handleDelete = async (tribeId: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar esta tribu?')) {
+      try {
+        await api.tribes.deleteTribe(tribeId);
+        refetch();
+        toast.success('Tribu eliminada correctamente');
+      } catch (error) {
+        toast.error('Error al eliminar tribu');
+      }
+    }
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      'tecnologia': 'bg-blue-100 text-blue-800',
+      'musica': 'bg-purple-100 text-purple-800',
+      'deportes': 'bg-green-100 text-green-800',
+      'arte': 'bg-pink-100 text-pink-800',
+      'negocios': 'bg-gray-100 text-gray-800',
+      'educacion': 'bg-yellow-100 text-yellow-800',
+      'social': 'bg-red-100 text-red-800',
+      'gaming': 'bg-indigo-100 text-indigo-800',
+      'fitness': 'bg-orange-100 text-orange-800',
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
-      
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-              {tribe.name}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2 mb-3">
-              {tribe.description}
-            </p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-        </div>
-
-        <div className="flex items-center gap-4 mb-4 text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-1">
-            <Users className="w-4 h-4" />
-            <span>{tribe.memberCount.toLocaleString()} miembros</span>
-          </div>
-          {tribe.location && (
-            <div className="flex items-center gap-1">
-              <MapPin className="w-4 h-4" />
-              <span>{tribe.location}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-1 mb-4">
-          {tribe.tags.slice(0, 3).map((tag, index) => (
-            <Badge key={index} variant="secondary" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-          {tribe.tags.length > 3 && (
-            <Badge variant="outline" className="text-xs">
-              +{tribe.tags.length - 3}
-            </Badge>
-          )}
-        </div>
-
-        <Button
-          onClick={() => handleJoinTribe(tribe.id)}
-          variant={tribe.isJoined ? "outline" : "default"}
-          className="w-full"
-        >
-          {tribe.isJoined ? 'Miembro' : 'Unirse'}
-        </Button>
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between mb-8">
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">👥 Tribus</h1>
+            <p className="text-gray-600">Conecta con comunidades que comparten tus intereses</p>
+          </div>
+          
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Crear Tribu</span>
+          </button>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  placeholder="Buscar tribus..."
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            </div>
+
+            {/* Category Filter */}
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Descubre Tribus
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                Únete a comunidades con intereses similares y conoce personas increíbles
-              </p>
-            </div>
-            <Button onClick={() => setShowCreateModal(true)} className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              Crear Tribu
-            </Button>
-          </div>
-
-          {/* Search and Filters */}
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input
-                type="text"
-                placeholder="Buscar tribus por nombre, descripción o tags..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12"
-              />
-            </div>
-            <Button variant="outline" size="lg" className="flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filtros
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Categories */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {categories.map((category) => (
-              <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category.id)}
-                className="whitespace-nowrap flex items-center gap-2"
+              <select
+                value={filters.category}
+                onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <category.icon className="w-4 h-4" />
-                {category.name}
-              </Button>
-            ))}
+                <option value="">Todas las categorías</option>
+                <option value="tecnologia">Tecnología</option>
+                <option value="musica">Música</option>
+                <option value="deportes">Deportes</option>
+                <option value="arte">Arte</option>
+                <option value="negocios">Negocios</option>
+                <option value="educacion">Educación</option>
+                <option value="social">Social</option>
+                <option value="gaming">Gaming</option>
+                <option value="fitness">Fitness</option>
+              </select>
+            </div>
+
+            {/* Privacy Filter */}
+            <div>
+              <select
+                value={filters.privacy}
+                onChange={(e) => setFilters(prev => ({ ...prev, privacy: e.target.value as any }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="all">Todas las privacidades</option>
+                <option value="public">Públicas</option>
+                <option value="private">Privadas</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+      {/* Tribes Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {tribes?.map((tribe) => (
+          <div
+            key={tribe.id}
+            className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+          >
+            {/* Tribe Image */}
+            <div className="relative h-48 bg-gradient-to-br from-green-500 to-blue-600">
+              {tribe.image ? (
+                <img
+                  src={tribe.image}
+                  alt={tribe.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
+                  {tribe.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              
+              {/* Privacy Badge */}
+              <div className="absolute top-4 left-4">
+                {tribe.isPrivate ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center space-x-1">
+                    <Lock className="w-3 h-3" />
+                    <span>Privada</span>
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center space-x-1">
+                    <Globe className="w-3 h-3" />
+                    <span>Pública</span>
+                  </span>
+                )}
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Tribus</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {tribes.length.toLocaleString()}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+              {/* Category Badge */}
+              <div className="absolute top-4 right-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(tribe.category)}`}>
+                  {tribe.category}
+                </span>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Tribus Activas</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {tribes.filter(t => t.isOnline).length}
-                </p>
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                <Calendar className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Mis Tribus</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {tribes.filter(t => t.isJoined).length}
-                </p>
-              </div>
+              {/* Action Menu */}
+              {(tribe.isHost || tribe.isMember) && (
+                <div className="absolute top-4 right-4">
+                  <div className="relative">
+                    <button className="p-2 bg-white bg-opacity-90 rounded-full text-gray-600 hover:text-gray-800">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                      <div className="py-2">
+                        {tribe.isHost && (
+                          <button
+                            onClick={() => setEditingTribe(tribe)}
+                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span>Editar</span>
+                          </button>
+                        )}
+                        {tribe.isHost && (
+                          <button
+                            onClick={() => handleDelete(tribe.id)}
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span>Eliminar</span>
+                          </button>
+                        )}
+                        {tribe.isMember && !tribe.isHost && (
+                          <button
+                            onClick={() => handleLeave(tribe.id)}
+                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                          >
+                            <Users className="w-4 h-4" />
+                            <span>Abandonar</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900 rounded-lg">
-                <Star className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Rating Promedio</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {(tribes.reduce((acc, t) => acc + t.rating, 0) / tribes.length).toFixed(1)}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tribes Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden">
-                <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 animate-pulse" />
-                <div className="p-6 space-y-3">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3" />
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2" />
+            {/* Tribe Content */}
+            <div className="p-6">
+              {/* Title and Host */}
+              <div className="mb-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{tribe.name}</h3>
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {tribe.host.avatar ? (
+                      <img src={tribe.host.avatar} alt={tribe.host.username} className="w-6 h-6 rounded-full" />
+                    ) : (
+                      tribe.host.username.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <span className="text-sm text-gray-600">Creada por {tribe.host.username}</span>
+                  {tribe.host.isVerified && (
+                    <span className="text-blue-600 text-sm">✓</span>
+                  )}
                 </div>
               </div>
-            ))}
+
+              {/* Description */}
+              <p className="text-gray-600 mb-4 line-clamp-2">{tribe.description}</p>
+
+              {/* Tribe Details */}
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <Users className="w-4 h-4" />
+                  <span>{tribe.memberCount}/{tribe.maxMembers} miembros</span>
+                </div>
+                
+                {tribe.location && (
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <MapPin className="w-4 h-4" />
+                    <span>{tribe.location}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <Calendar className="w-4 h-4" />
+                  <span>Creada {formatDate(tribe.createdAt)}</span>
+                </div>
+              </div>
+
+              {/* Tags */}
+              {tribe.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tribe.tags.slice(0, 3).map((tag, index) => (
+                    <span
+                      key={index}
+                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                  {tribe.tags.length > 3 && (
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      +{tribe.tags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                <div className="flex items-center space-x-4">
+                  <span className="flex items-center space-x-1">
+                    <Star className="w-4 h-4 text-yellow-500" />
+                    <span>{tribe.rating.toFixed(1)}</span>
+                  </span>
+                  <span className="flex items-center space-x-1">
+                    <Eye className="w-4 h-4" />
+                    <span>{tribe.views}</span>
+                  </span>
+                </div>
+                <span>{formatDate(tribe.updatedAt)}</span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleLike(tribe.id)}
+                    className={`p-2 rounded-full ${
+                      tribe.isLiked ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                    } transition-colors duration-200`}
+                  >
+                    <Heart className={`w-5 h-5 ${tribe.isLiked ? 'fill-current' : ''}`} />
+                  </button>
+                  
+                  <button
+                    onClick={() => handleBookmark(tribe.id)}
+                    className={`p-2 rounded-full ${
+                      tribe.isBookmarked ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    } transition-colors duration-200`}
+                  >
+                    <Bookmark className={`w-5 h-5 ${tribe.isBookmarked ? 'fill-current' : ''}`} />
+                  </button>
+                  
+                  <button
+                    onClick={() => handleShare(tribe)}
+                    className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors duration-200"
+                  >
+                    <Share2 className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                {tribe.isMember ? (
+                  <button
+                    onClick={() => setSelectedTribe(tribe)}
+                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200"
+                  >
+                    Ver Tribu
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleJoin(tribe.id)}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+                  >
+                    Unirse
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        ) : filteredTribes.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              No se encontraron tribus
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Intenta con otros términos de búsqueda o ajusta los filtros
-            </p>
-            <Button onClick={() => setShowCreateModal(true)} variant="outline">
-              <Plus className="w-4 h-4 mr-2" />
-              Crear nueva tribu
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredTribes.map((tribe) => (
-              <TribeCard key={tribe.id} tribe={tribe} />
-            ))}
-          </div>
-        )}
+        ))}
       </div>
+
+      {(!tribes || tribes.length === 0) && (
+        <div className="text-center py-12">
+          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No hay tribus disponibles</h3>
+          <p className="text-gray-600">
+            {filters.search || filters.category || filters.privacy !== 'all'
+              ? 'No hay tribus que coincidan con los filtros aplicados'
+              : 'Sé el primero en crear una tribu en tu comunidad'
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Create Tribe Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Crear Nueva Tribu</h2>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <TribeCreateForm
+                onSuccess={() => {
+                  setShowCreateForm(false);
+                  refetch();
+                  toast.success('Tribu creada correctamente');
+                }}
+                onCancel={() => setShowCreateForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Tribe Modal */}
+      {editingTribe && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Editar Tribu</h2>
+                <button
+                  onClick={() => setEditingTribe(null)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <TribeCreateForm
+                tribe={editingTribe}
+                onSuccess={() => {
+                  setEditingTribe(null);
+                  refetch();
+                  toast.success('Tribu actualizada correctamente');
+                }}
+                onCancel={() => setEditingTribe(null)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tribe Details Modal */}
+      {selectedTribe && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Detalles de la Tribu</h2>
+                <button
+                  onClick={() => setSelectedTribe(null)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Tribe Image */}
+                {selectedTribe.image && (
+                  <img
+                    src={selectedTribe.image}
+                    alt={selectedTribe.name}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                )}
+                
+                {/* Tribe Info */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedTribe.name}</h3>
+                  <p className="text-gray-600 mb-4">{selectedTribe.description}</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div>
+                      <span className="font-medium text-gray-700">Categoría:</span>
+                      <p className="text-gray-600 capitalize">{selectedTribe.category}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Privacidad:</span>
+                      <p className="text-gray-600">
+                        {selectedTribe.isPrivate ? 'Privada' : 'Pública'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Miembros:</span>
+                      <p className="text-gray-600">{selectedTribe.memberCount}/{selectedTribe.maxMembers}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Creada:</span>
+                      <p className="text-gray-600">{formatDate(selectedTribe.createdAt)}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Rules */}
+                  {selectedTribe.rules.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-gray-700 mb-2">Reglas de la Tribu:</h4>
+                      <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
+                        {selectedTribe.rules.map((rule, index) => (
+                          <li key={index}>{rule}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Actions */}
+                <div className="flex space-x-3">
+                  <button className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
+                    Ver Miembros
+                  </button>
+                  <button
+                    onClick={() => handleShare(selectedTribe)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Compartir
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}
 
-export default TribesPage;
+
 
 
 

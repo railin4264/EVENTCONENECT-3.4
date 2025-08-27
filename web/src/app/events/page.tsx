@@ -1,1126 +1,847 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { useApi, getMockEvents } from '@/lib/api';
-import { InterestFilterBar } from '@/components/filters/InterestFilterBar';
-import { EventMap } from '@/components/map/EventMap';
-import { EventIcon } from '@/lib/eventIcons';
-import {
-  Search,
-  MapPin,
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  Bookmark, 
+  MoreHorizontal,
+  Edit,
+  Trash2,
   Calendar,
+  MapPin,
   Users,
-  Star,
-  Heart,
-  Share,
   Clock,
-  ArrowRight,
+  Eye,
   TrendingUp,
-  Grid,
-  List,
-  Map,
-  LayoutGrid,
-  Filter as FilterIcon,
-  SlidersHorizontal
+  Star,
+  Tag,
+  ExternalLink,
+  Image as ImageIcon,
+  Video,
+  FileText,
+  User,
+  CheckCircle,
+  AlertCircle,
+  HelpCircle,
+  Award,
+  Zap,
+  Globe,
+  Lock,
+  Camera,
+  Music,
+  Gamepad2,
+  Utensils,
+  Car,
+  Plane,
+  GraduationCap,
+  Briefcase,
+  Heart as HeartIcon,
+  ShoppingBag,
+  Home,
+  Palette,
+  Dumbbell,
+  BookOpen,
+  Coffee,
+  TreePine
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardTitle, CardBadge } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Dropdown } from '@/components/ui/Dropdown';
+import EventCreateForm from '@/components/forms/EventCreateForm';
+import { toast } from 'react-hot-toast';
 
-// ===== EVENT INTERFACE =====
 interface Event {
   id: string;
   title: string;
   description: string;
-  date: string;
-  time: string;
-  location: string;
   category: string;
-  attendees: number;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+  location: {
+    address: string;
+    city: string;
+    state: string;
+    country: string;
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  };
+  venue: string;
+  isOnline: boolean;
+  onlineUrl?: string;
+  isFree: boolean;
+  price?: number;
+  currency?: string;
   maxAttendees: number;
-  price: string;
-  image: string;
-  isLiked: boolean;
-  isTrending: boolean;
+  currentAttendees: number;
+  isPrivate: boolean;
+  isRecurring: boolean;
+  recurrencePattern?: string;
   tags: string[];
-  organizer: string;
+  image?: string;
+  gallery?: string[];
+  host: {
+    id: string;
+    username: string;
+    avatar?: string;
+    isVerified: boolean;
+    isHost: boolean;
+  };
+  coHosts?: {
+    id: string;
+    username: string;
+    avatar?: string;
+  }[];
+  createdAt: string;
+  updatedAt: string;
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
+  views: number;
+  likes: number;
+  shares: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  isShared: boolean;
+  isAttending: boolean;
+  isHost: boolean;
+  isCoHost: boolean;
   rating: number;
+  reviewCount: number;
 }
 
-// ===== FILTER INTERFACE =====
-interface FilterState {
+interface EventFilters {
+  search: string;
   category: string;
+  dateRange: 'all' | 'today' | 'tomorrow' | 'week' | 'month' | 'year';
   location: string;
-  date: string;
-  price: string;
-  attendees: string;
+  price: 'all' | 'free' | 'paid';
+  type: 'all' | 'online' | 'offline' | 'hybrid';
+  sort: 'date' | 'popularity' | 'rating' | 'price' | 'distance';
 }
 
-// ===== SAMPLE EVENTS DATA =====
-const sampleEvents: Event[] = [
-  {
-    id: '1',
-    title: 'Tech Meetup Barcelona 2024',
-    description:
-      'Únete a desarrolladores y entusiastas de la tecnología para una noche de networking y charlas inspiradoras sobre el futuro del desarrollo web, IA y blockchain.',
-    date: '15 Dic 2024',
-    time: '19:00',
-    location: 'Barcelona, España',
-    category: 'Tecnología',
-    attendees: 45,
-    maxAttendees: 80,
-    price: 'Gratis',
-    image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600',
-    isLiked: true,
-    isTrending: true,
-    tags: ['Web Development', 'AI', 'Networking'],
-    organizer: 'TechBarcelona',
-    rating: 4.8,
-  },
-  {
-    id: '2',
-    title: 'Festival de Música Urbana Madrid',
-    description:
-      'Celebra la cultura urbana con los mejores artistas del momento. Una noche llena de ritmo, baile y energía positiva que no te puedes perder.',
-    date: '20 Dic 2024',
-    time: '22:00',
-    location: 'Madrid, España',
-    category: 'Música',
-    attendees: 120,
-    maxAttendees: 200,
-    price: '€25',
-    image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=600',
-    isLiked: false,
-    isTrending: false,
-    tags: ['Hip Hop', 'Reggaeton', 'Dance'],
-    organizer: 'UrbanFest',
-    rating: 4.6,
-  },
-  {
-    id: '3',
-    title: 'Workshop de Arte Digital Avanzado',
-    description:
-      'Aprende técnicas avanzadas de arte digital con herramientas modernas como Procreate, Photoshop y Blender. Perfecto para artistas que quieren expandir sus habilidades.',
-    date: '22 Dic 2024',
-    time: '16:00',
-    location: 'Valencia, España',
-    category: 'Arte',
-    attendees: 18,
-    maxAttendees: 25,
-    price: '€45',
-    image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=600',
-    isLiked: false,
-    isTrending: true,
-    tags: ['Digital Art', 'Procreate', 'Design'],
-    organizer: 'DigitalArt Studio',
-    rating: 4.9,
-  },
-  {
-    id: '4',
-    title: 'Networking Empresarial Sevilla',
-    description:
-      'Conecta con emprendedores y profesionales del sector empresarial. Oportunidades únicas de colaboración, inversión y crecimiento para tu negocio.',
-    date: '25 Dic 2024',
-    time: '18:30',
-    location: 'Sevilla, España',
-    category: 'Negocios',
-    attendees: 35,
-    maxAttendees: 60,
-    price: '€30',
-    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=600',
-    isLiked: true,
-    isTrending: false,
-    tags: ['Business', 'Networking', 'Startups'],
-    organizer: 'Sevilla Business Club',
-    rating: 4.7,
-  },
-  {
-    id: '5',
-    title: 'Maratón Nocturna Barcelona',
-    description:
-      'Corre por las calles iluminadas de Barcelona en esta maratón nocturna única. Recorrido de 42km con vistas espectaculares de la ciudad.',
-    date: '28 Dic 2024',
-    time: '21:00',
-    location: 'Barcelona, España',
-    category: 'Deportes',
-    attendees: 85,
-    maxAttendees: 150,
-    price: '€55',
-    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600',
-    isLiked: false,
-    isTrending: true,
-    tags: ['Running', 'Marathon', 'Night Race'],
-    organizer: 'Barcelona Running Club',
-    rating: 4.5,
-  },
-  {
-    id: '6',
-    title: 'Festival Gastronómico Valencia',
-    description:
-      'Explora la rica tradición culinaria valenciana con chefs reconocidos, degustaciones exclusivas y talleres de cocina tradicional.',
-    date: '30 Dic 2024',
-    time: '14:00',
-    location: 'Valencia, España',
-    category: 'Gastronomía',
-    attendees: 65,
-    maxAttendees: 100,
-    price: '€75',
-    image: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600',
-    isLiked: true,
-    isTrending: false,
-    tags: ['Food', 'Cooking', 'Valencia'],
-    organizer: 'Valencia Food Festival',
-    rating: 4.8,
-  },
-];
+export default function EventsPage() {
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [filters, setFilters] = useState<EventFilters>({
+    search: '',
+    category: '',
+    dateRange: 'all',
+    location: '',
+    price: 'all',
+    type: 'all',
+    sort: 'date',
+  });
 
-// ===== CATEGORIES DATA =====
-const categories = [
-  { value: 'all', label: 'Todos los Eventos' },
-  { value: 'technology', label: 'Tecnología' },
-  { value: 'music', label: 'Música' },
-  { value: 'art', label: 'Arte' },
-  { value: 'business', label: 'Negocios' },
-  { value: 'sports', label: 'Deportes' },
-  { value: 'food', label: 'Gastronomía' },
-  { value: 'education', label: 'Educación' },
-  { value: 'health', label: 'Salud & Bienestar' },
-  { value: 'culture', label: 'Cultura' },
-];
+  // Fetch events
+  const { data: events, isLoading, refetch } = useQuery({
+    queryKey: ['events', filters],
+    queryFn: () => api.events.getEvents(filters),
+  });
 
-// ===== LOCATIONS DATA =====
-const locations = [
-  { value: 'all', label: 'Todas las Ubicaciones' },
-  { value: 'barcelona', label: 'Barcelona' },
-  { value: 'madrid', label: 'Madrid' },
-  { value: 'valencia', label: 'Valencia' },
-  { value: 'sevilla', label: 'Sevilla' },
-  { value: 'bilbao', label: 'Bilbao' },
-  { value: 'granada', label: 'Granada' },
-  { value: 'malaga', label: 'Málaga' },
-];
-
-// ===== PRICE RANGES =====
-const priceRanges = [
-  { value: 'all', label: 'Todos los Precios' },
-  { value: 'free', label: 'Gratis' },
-  { value: 'low', label: '€0 - €25' },
-  { value: 'medium', label: '€26 - €50' },
-  { value: 'high', label: '€51+' },
-];
-
-// ===== EVENT CARD COMPONENT =====
-const EventCard: React.FC<{
-  event: Event;
-  index: number;
-  viewMode: 'grid' | 'list' | 'map';
-}> = ({ event, index, viewMode }) => {
-  const [isLiked, setIsLiked] = useState(event.isLiked);
-
-  const handleLike = () => {
-    setIsLiked(!isLiked);
+  // Handle event actions
+  const handleLike = async (eventId: string) => {
+    try {
+      await api.events.likeEvent(eventId);
+      refetch();
+      toast.success('Evento marcado como me gusta');
+    } catch (error) {
+      toast.error('Error al marcar evento');
+    }
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
+  const handleBookmark = async (eventId: string) => {
+    try {
+      await api.events.bookmarkEvent(eventId);
+      refetch();
+      toast.success('Evento agregado a favoritos');
+    } catch (error) {
+      toast.error('Error al agregar a favoritos');
+    }
+  };
+
+  const handleShare = async (event: Event) => {
+    try {
+      await navigator.share({
         title: event.title,
         text: event.description,
         url: window.location.href,
       });
+    } catch (error) {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Enlace copiado al portapapeles');
     }
   };
 
-  if (viewMode === 'list') {
-    return (
-      <motion.div
-        initial={{ opacity: 0, x: -50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.6, delay: index * 0.1 }}
-        className='w-full'
-      >
-        <Card
-          variant='glass'
-          className='hover:scale-[1.02] transition-transform duration-300'
-        >
-          <CardContent className='p-0'>
-            <div className='flex'>
-              {/* Event Image */}
-              <div className='w-48 h-32 relative flex-shrink-0'>
-                <img
-                  src={event.image}
-                  alt={event.title}
-                  className='w-full h-full object-cover rounded-l-xl'
-                />
+  const handleDelete = async (eventId: string) => {
+    if (confirm('¿Estás seguro de que quieres eliminar este evento?')) {
+      try {
+        await api.events.deleteEvent(eventId);
+        refetch();
+        toast.success('Evento eliminado correctamente');
+      } catch (error) {
+        toast.error('Error al eliminar evento');
+      }
+    }
+  };
 
-                {/* Category Icon & Badge */}
-                <div className='absolute top-3 left-3 flex items-center space-x-2'>
-                  <EventIcon 
-                    category={event.category.toLowerCase()} 
-                    size="sm" 
-                    variant="gradient"
-                    className="shadow-lg"
+  const handleAttend = async (eventId: string) => {
+    try {
+      await api.events.attendEvent(eventId);
+      refetch();
+      toast.success('Te has registrado para el evento');
+    } catch (error) {
+      toast.error('Error al registrarse para el evento');
+    }
+  };
+
+  const handleUnattend = async (eventId: string) => {
+    try {
+      await api.events.unattendEvent(eventId);
+      refetch();
+      toast.success('Te has desregistrado del evento');
+    } catch (error) {
+      toast.error('Error al desregistrarse del evento');
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: any } = {
+      'musica': Music,
+      'deportes': Dumbbell,
+      'tecnologia': Zap,
+      'arte': Palette,
+      'gastronomia': Utensils,
+      'viajes': Plane,
+      'educacion': GraduationCap,
+      'negocios': Briefcase,
+      'social': HeartIcon,
+      'shopping': ShoppingBag,
+      'hogar': Home,
+      'gaming': Gamepad2,
+      'fitness': Dumbbell,
+      'cultura': BookOpen,
+      'networking': Users,
+      'conferencias': GraduationCap,
+      'workshops': Wrench,
+      'exposiciones': Camera,
+      'festivales': TreePine,
+      'conciertos': Music,
+    };
+    return icons[category] || Calendar;
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: { [key: string]: string } = {
+      'musica': 'bg-purple-100 text-purple-800',
+      'deportes': 'bg-green-100 text-green-800',
+      'tecnologia': 'bg-blue-100 text-blue-800',
+      'arte': 'bg-pink-100 text-pink-800',
+      'gastronomia': 'bg-orange-100 text-orange-800',
+      'viajes': 'bg-indigo-100 text-indigo-800',
+      'educacion': 'bg-yellow-100 text-yellow-800',
+      'negocios': 'bg-gray-100 text-gray-800',
+      'social': 'bg-red-100 text-red-800',
+      'shopping': 'bg-teal-100 text-teal-800',
+      'hogar': 'bg-amber-100 text-amber-800',
+      'gaming': 'bg-violet-100 text-violet-800',
+      'fitness': 'bg-emerald-100 text-emerald-800',
+      'cultura': 'bg-rose-100 text-rose-800',
+      'networking': 'bg-cyan-100 text-cyan-800',
+      'conferencias': 'bg-slate-100 text-slate-800',
+      'workshops': 'bg-lime-100 text-lime-800',
+      'exposiciones': 'bg-fuchsia-100 text-fuchsia-800',
+      'festivales': 'bg-orange-100 text-orange-800',
+      'conciertos': 'bg-purple-100 text-purple-800',
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const formatTime = (timeString: string) => {
+    return timeString;
+  };
+
+  const getEventStatus = (event: Event) => {
+    const now = new Date();
+    const eventDate = new Date(event.startDate + 'T' + event.startTime);
+    
+    if (event.status === 'cancelled') return 'cancelled';
+    if (event.status === 'completed') return 'completed';
+    if (eventDate < now) return 'past';
+    if (eventDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000) return 'today';
+    if (eventDate.getTime() - now.getTime() < 7 * 24 * 60 * 60 * 1000) return 'this-week';
+    return 'upcoming';
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: { [key: string]: string } = {
+      'cancelled': 'bg-red-100 text-red-800',
+      'completed': 'bg-gray-100 text-gray-800',
+      'past': 'bg-gray-100 text-gray-600',
+      'today': 'bg-orange-100 text-orange-800',
+      'this-week': 'bg-yellow-100 text-yellow-800',
+      'upcoming': 'bg-green-100 text-green-800',
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  const getStatusText = (status: string) => {
+    const texts: { [key: string]: string } = {
+      'cancelled': 'Cancelado',
+      'completed': 'Completado',
+      'past': 'Pasado',
+      'today': 'Hoy',
+      'this-week': 'Esta semana',
+      'upcoming': 'Próximamente',
+    };
+    return texts[status] || 'Desconocido';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">🎉 Eventos</h1>
+            <p className="text-gray-600">Descubre y crea eventos increíbles en tu comunidad</p>
+          </div>
+          
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Crear Evento</span>
+          </button>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+            {/* Search */}
+            <div className="lg:col-span-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  placeholder="Buscar eventos..."
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <select
+                value={filters.category}
+                onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Todas las categorías</option>
+                <option value="musica">Música</option>
+                <option value="deportes">Deportes</option>
+                <option value="tecnologia">Tecnología</option>
+                <option value="arte">Arte</option>
+                <option value="gastronomia">Gastronomía</option>
+                <option value="viajes">Viajes</option>
+                <option value="educacion">Educación</option>
+                <option value="negocios">Negocios</option>
+                <option value="social">Social</option>
+                <option value="shopping">Shopping</option>
+                <option value="hogar">Hogar</option>
+                <option value="gaming">Gaming</option>
+                <option value="fitness">Fitness</option>
+                <option value="cultura">Cultura</option>
+                <option value="networking">Networking</option>
+                <option value="conferencias">Conferencias</option>
+                <option value="workshops">Workshops</option>
+                <option value="exposiciones">Exposiciones</option>
+                <option value="festivales">Festivales</option>
+                <option value="conciertos">Conciertos</option>
+              </select>
+            </div>
+
+            {/* Date Range Filter */}
+            <div>
+              <select
+                value={filters.dateRange}
+                onChange={(e) => setFilters(prev => ({ ...prev, dateRange: e.target.value as any }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Todas las fechas</option>
+                <option value="today">Hoy</option>
+                <option value="tomorrow">Mañana</option>
+                <option value="week">Esta semana</option>
+                <option value="month">Este mes</option>
+                <option value="year">Este año</option>
+              </select>
+            </div>
+
+            {/* Price Filter */}
+            <div>
+              <select
+                value={filters.price}
+                onChange={(e) => setFilters(prev => ({ ...prev, price: e.target.value as any }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Todos los precios</option>
+                <option value="free">Gratis</option>
+                <option value="paid">De pago</option>
+              </select>
+            </div>
+
+            {/* Type Filter */}
+            <div>
+              <select
+                value={filters.type}
+                onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value as any }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="online">Online</option>
+                <option value="offline">Presencial</option>
+                <option value="hybrid">Híbrido</option>
+              </select>
+            </div>
+
+            {/* Sort Filter */}
+            <div>
+              <select
+                value={filters.sort}
+                onChange={(e) => setFilters(prev => ({ ...prev, sort: e.target.value as any }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="date">Por fecha</option>
+                <option value="popularity">Por popularidad</option>
+                <option value="rating">Por calificación</option>
+                <option value="price">Por precio</option>
+                <option value="distance">Por distancia</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Events Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {events?.map((event) => {
+          const eventStatus = getEventStatus(event);
+          const CategoryIcon = getCategoryIcon(event.category);
+          
+          return (
+            <div
+              key={event.id}
+              className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300"
+            >
+              {/* Event Image */}
+              <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600">
+                {event.image ? (
+                  <img
+                    src={event.image}
+                    alt={event.title}
+                    className="w-full h-full object-cover"
                   />
-                  <CardBadge variant='primary'>{event.category}</CardBadge>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
+                    {event.title.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                
+                {/* Status Badge */}
+                <div className="absolute top-4 left-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(eventStatus)}`}>
+                    {getStatusText(eventStatus)}
+                  </span>
                 </div>
 
-                {/* Trending Badge */}
-                {event.isTrending && (
-                  <div className='absolute top-3 right-3'>
-                    <CardBadge
-                      variant='accent'
-                      className='flex items-center space-x-1'
-                    >
-                      <TrendingUp className='w-3 h-3' />
-                      <span>Trending</span>
-                    </CardBadge>
+                {/* Privacy Badge */}
+                <div className="absolute top-4 right-4">
+                  {event.isPrivate ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 flex items-center space-x-1">
+                      <Lock className="w-3 h-3" />
+                      <span>Privado</span>
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 flex items-center space-x-1">
+                      <Globe className="w-3 h-3" />
+                      <span>Público</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Category Badge */}
+                <div className="absolute bottom-4 left-4">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getCategoryColor(event.category)} flex items-center space-x-1`}>
+                    <CategoryIcon className="w-3 h-3" />
+                    <span className="capitalize">{event.category}</span>
+                  </span>
+                </div>
+
+                {/* Action Menu */}
+                {(event.isHost || event.isCoHost || event.isAttending) && (
+                  <div className="absolute top-4 right-4">
+                    <div className="relative">
+                      <button className="p-2 bg-white bg-opacity-90 rounded-full text-gray-600 hover:text-gray-800">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      
+                      {/* Dropdown Menu */}
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                        <div className="py-2">
+                          {(event.isHost || event.isCoHost) && (
+                            <button
+                              onClick={() => setEditingEvent(event)}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span>Editar</span>
+                            </button>
+                          )}
+                          {(event.isHost || event.isCoHost) && (
+                            <button
+                              onClick={() => handleDelete(event.id)}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Eliminar</span>
+                            </button>
+                          )}
+                          {event.isAttending && !event.isHost && !event.isCoHost && (
+                            <button
+                              onClick={() => handleUnattend(event.id)}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                            >
+                              <Users className="w-4 h-4" />
+                              <span>Cancelar asistencia</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
 
               {/* Event Content */}
-              <div className='flex-1 p-6'>
-                <div className='flex justify-between items-start mb-4'>
-                  <div className='flex-1'>
-                    <CardTitle className='text-xl mb-2'>
-                      {event.title}
-                    </CardTitle>
-                    <p className='text-gray-300 text-sm mb-3 line-clamp-2'>
-                      {event.description}
-                    </p>
-
-                    {/* Tags */}
-                    <div className='flex flex-wrap gap-2 mb-4'>
-                      {event.tags.map((tag, tagIndex) => (
-                        <span
-                          key={tagIndex}
-                          className='px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300'
-                        >
-                          {tag}
-                        </span>
-                      ))}
+              <div className="p-6">
+                {/* Title and Host */}
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{event.title}</h3>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                      {event.host.avatar ? (
+                        <img src={event.host.avatar} alt={event.host.username} className="w-6 h-6 rounded-full" />
+                      ) : (
+                        event.host.username.charAt(0).toUpperCase()
+                      )}
                     </div>
-                  </div>
-
-                  {/* Rating */}
-                  <div className='flex items-center space-x-1 ml-4'>
-                    <Star className='w-4 h-4 text-yellow-400 fill-current' />
-                    <span className='text-sm text-gray-300'>
-                      {event.rating}
-                    </span>
+                    <span className="text-sm text-gray-600">Organizado por {event.host.username}</span>
+                    {event.host.isVerified && (
+                      <span className="text-blue-600 text-sm">✓</span>
+                    )}
                   </div>
                 </div>
+
+                {/* Description */}
+                <p className="text-gray-600 mb-4 line-clamp-2">{event.description}</p>
 
                 {/* Event Details */}
-                <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-4'>
-                  <div className='flex items-center space-x-2'>
-                    <Calendar className='w-4 h-4 text-cyan-400' />
-                    <span className='text-sm text-gray-300'>{event.date}</span>
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Calendar className="w-4 h-4" />
+                    <span>{formatDate(event.startDate)}</span>
                   </div>
-                  <div className='flex items-center space-x-2'>
-                    <Clock className='w-4 h-4 text-cyan-400' />
-                    <span className='text-sm text-gray-300'>{event.time}</span>
+                  
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Clock className="w-4 h-4" />
+                    <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
                   </div>
-                  <div className='flex items-center space-x-2'>
-                    <MapPin className='w-4 h-4 text-cyan-400' />
-                    <span className='text-sm text-gray-300'>
-                      {event.location}
-                    </span>
+                  
+                  {event.isOnline ? (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <Globe className="w-4 h-4" />
+                      <span>Evento online</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <MapPin className="w-4 h-4" />
+                      <span>{event.venue || event.location.city}</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                    <Users className="w-4 h-4" />
+                    <span>{event.currentAttendees}/{event.maxAttendees} asistentes</span>
                   </div>
-                  <div className='flex items-center space-x-2'>
-                    <Users className='w-4 h-4 text-cyan-400' />
-                    <span className='text-sm text-gray-300'>
-                      {event.attendees}/{event.maxAttendees}
-                    </span>
-                  </div>
+                  
+                  {!event.isFree && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <Tag className="w-4 h-4" />
+                      <span>{event.price} {event.currency}</span>
+                    </div>
+                  )}
                 </div>
 
-                {/* Event Footer */}
-                <div className='flex justify-between items-center'>
-                  <div className='flex items-center space-x-4'>
-                    <span className='text-sm text-gray-400'>
-                      Organizado por:
+                {/* Tags */}
+                {event.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {event.tags.slice(0, 3).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                    {event.tags.length > 3 && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        +{event.tags.length - 3}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Stats */}
+                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                  <div className="flex items-center space-x-4">
+                    <span className="flex items-center space-x-1">
+                      <Star className="w-4 h-4 text-yellow-500" />
+                      <span>{event.rating.toFixed(1)}</span>
                     </span>
-                    <span className='text-sm text-cyan-400 font-medium'>
-                      {event.organizer}
-                    </span>
-                    <span className='text-lg font-bold text-cyan-400'>
-                      {event.price}
+                    <span className="flex items-center space-x-1">
+                      <Eye className="w-4 h-4" />
+                      <span>{event.views}</span>
                     </span>
                   </div>
+                  <span>{formatDate(event.createdAt)}</span>
+                </div>
 
-                  <div className='flex items-center space-x-3'>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={handleShare}
-                      className='text-gray-400 hover:text-white'
+                {/* Actions */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleLike(event.id)}
+                      className={`p-2 rounded-full ${
+                        event.isLiked ? 'text-red-600 bg-red-50' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                      } transition-colors duration-200`}
                     >
-                      <Share className='w-4 h-4' />
-                    </Button>
-
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={handleLike}
-                      className={`${isLiked ? 'text-pink-400' : 'text-gray-400'} hover:text-pink-400`}
+                      <Heart className={`w-5 h-5 ${event.isLiked ? 'fill-current' : ''}`} />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleBookmark(event.id)}
+                      className={`p-2 rounded-full ${
+                        event.isBookmarked ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                      } transition-colors duration-200`}
                     >
-                      <Heart
-                        className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`}
-                      />
-                    </Button>
-
-                    <Button variant='primary' size='sm'>
-                      <span>Unirse</span>
-                      <ArrowRight className='w-4 h-4 ml-2' />
-                    </Button>
+                      <Bookmark className={`w-5 h-5 ${event.isBookmarked ? 'fill-current' : ''}`} />
+                    </button>
+                    
+                    <button
+                      onClick={() => handleShare(event)}
+                      className="p-2 rounded-full text-gray-400 hover:text-green-600 hover:bg-green-50 transition-colors duration-200"
+                    >
+                      <Share2 className="w-5 h-5" />
+                    </button>
                   </div>
+                  
+                  {event.isAttending ? (
+                    <button
+                      onClick={() => setSelectedEvent(event)}
+                      className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200"
+                    >
+                      Asistiendo
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleAttend(event.id)}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+                    >
+                      Asistir
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
-  }
-
-  // Grid View
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
-      className='w-full'
-    >
-      <Card
-        variant='glass'
-        className='hover:scale-105 transition-transform duration-300 h-full'
-      >
-        <CardContent className='p-0'>
-          {/* Event Image */}
-          <div className='relative h-48'>
-            <img
-              src={event.image}
-              alt={event.title}
-              className='w-full h-full object-cover rounded-t-xl'
-            />
-
-            {/* Category Icon & Badge */}
-            <div className='absolute top-3 left-3 flex items-center space-x-2'>
-              <EventIcon 
-                category={event.category.toLowerCase()} 
-                size="sm" 
-                variant="gradient"
-                className="shadow-lg"
-              />
-              <CardBadge variant='primary'>{event.category}</CardBadge>
-            </div>
-
-            {/* Trending Badge */}
-            {event.isTrending && (
-              <div className='absolute top-3 right-3'>
-                <CardBadge
-                  variant='accent'
-                  className='flex items-center space-x-1'
-                >
-                  <TrendingUp className='w-3 h-3' />
-                  <span>Trending</span>
-                </CardBadge>
-              </div>
-            )}
-
-            {/* Like Button */}
-            <button
-              onClick={handleLike}
-              className={`absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
-                isLiked
-                  ? 'bg-pink-500 text-white'
-                  : 'bg-black/60 text-white hover:bg-black/80'
-              }`}
-            >
-              <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-            </button>
-          </div>
-
-          {/* Event Content */}
-          <div className='p-4'>
-            <div className='mb-3'>
-              <CardTitle className='text-lg mb-2 line-clamp-2'>
-                {event.title}
-              </CardTitle>
-              <p className='text-gray-300 text-sm line-clamp-2 mb-3'>
-                {event.description}
-              </p>
-            </div>
-
-            {/* Event Details */}
-            <div className='space-y-2 mb-4'>
-              <div className='flex items-center space-x-2'>
-                <Calendar className='w-4 h-4 text-cyan-400' />
-                <span className='text-sm text-gray-300'>
-                  {event.date} • {event.time}
-                </span>
-              </div>
-              <div className='flex items-center space-x-2'>
-                <MapPin className='w-4 h-4 text-cyan-400' />
-                <span className='text-sm text-gray-300'>{event.location}</span>
-              </div>
-              <div className='flex items-center space-x-2'>
-                <Users className='w-4 h-4 text-cyan-400' />
-                <span className='text-sm text-gray-300'>
-                  {event.attendees}/{event.maxAttendees} asistentes
-                </span>
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className='flex flex-wrap gap-1 mb-4'>
-              {event.tags.slice(0, 2).map((tag, tagIndex) => (
-                <span
-                  key={tagIndex}
-                  className='px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300'
-                >
-                  {tag}
-                </span>
-              ))}
-              {event.tags.length > 2 && (
-                <span className='px-2 py-1 bg-white/10 rounded-full text-xs text-gray-300'>
-                  +{event.tags.length - 2}
-                </span>
-              )}
-            </div>
-
-            {/* Event Footer */}
-            <div className='flex justify-between items-center'>
-              <div className='flex items-center space-x-2'>
-                <Star className='w-4 h-4 text-yellow-400 fill-current' />
-                <span className='text-sm text-gray-300'>{event.rating}</span>
-                <span className='text-lg font-bold text-cyan-400 ml-2'>
-                  {event.price}
-                </span>
-              </div>
-
-              <Button variant='primary' size='sm'>
-                <span>Unirse</span>
-                <ArrowRight className='w-4 h-4 ml-2' />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-};
-
-// ===== MAIN EVENTS PAGE =====
-export default function EventsPage() {
-  const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'map'>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [userInterests, setUserInterests] = useState<string[]>([]);
-  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({
-    category: 'all',
-    location: 'all',
-    date: 'all',
-    price: 'all',
-    attendees: 'all',
-  });
-  
-  const api = useApi();
-
-  // ===== LOAD USER DATA & EVENTS =====
-  useEffect(() => {
-    const loadInitialData = async () => {
-      // Cargar preferencias del usuario
-      const savedInterests = localStorage.getItem('userInterests');
-      const savedLocation = localStorage.getItem('userLocation');
-      
-      if (savedInterests) {
-        const interests = JSON.parse(savedInterests);
-        setUserInterests(interests);
-      }
-      
-      if (savedLocation) {
-        const location = JSON.parse(savedLocation);
-        setUserLocation(location);
-      }
-
-      // Cargar eventos
-      await loadEvents(savedInterests ? JSON.parse(savedInterests) : [], savedLocation ? JSON.parse(savedLocation) : null);
-    };
-
-    loadInitialData();
-  }, []);
-
-  const loadEvents = async (interests: string[] = userInterests, location: {lat: number, lng: number} | null = userLocation) => {
-    setLoading(true);
-    
-    try {
-      // Intentar cargar desde backend primero con timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundo timeout
-      
-      const isBackendOnline = await api.healthCheck();
-      clearTimeout(timeoutId);
-      
-      if (isBackendOnline) {
-        const response = await api.getEvents({
-          lat: location?.lat,
-          lng: location?.lng,
-          radius: 50,
-          interests: interests,
-          limit: 50
-        });
-        
-        if (response.success && response.data) {
-          // Convertir eventos de la API al formato local con memoización
-          const apiEvents = response.data.map(event => ({
-            id: event.id,
-            title: event.title,
-            description: event.description,
-            date: new Date(event.date).toLocaleDateString('es-ES', {
-              day: 'numeric',
-              month: 'short', 
-              year: 'numeric'
-            }),
-            time: event.time,
-            location: event.location.city,
-            category: event.interests[0] || 'General',
-            attendees: event.attendees,
-            maxAttendees: event.maxAttendees || event.attendees + 50,
-            price: event.price ? `€${event.price}` : 'Gratis',
-            image: event.images[0] || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=600',
-            isLiked: false,
-            isTrending: Math.random() > 0.7,
-            tags: event.interests,
-            organizer: event.organizer.name,
-            rating: 4.0 + Math.random() * 1,
-          }));
-          
-          // Cache en localStorage para offline
-          localStorage.setItem('cached_events', JSON.stringify(apiEvents));
-          localStorage.setItem('cached_events_timestamp', Date.now().toString());
-          
-          setEvents(apiEvents);
-        } else {
-          throw new Error('Invalid API response');
-        }
-      } else {
-        throw new Error('Backend offline');
-      }
-    } catch (error) {
-      console.warn('API failed, using fallback:', error.message);
-      
-      // Intentar usar cache primero
-      const cachedEvents = localStorage.getItem('cached_events');
-      const cacheTimestamp = localStorage.getItem('cached_events_timestamp');
-      const isRecentCache = cacheTimestamp && (Date.now() - parseInt(cacheTimestamp)) < 3600000; // 1 hora
-      
-      if (cachedEvents && isRecentCache) {
-        console.log('Using cached events');
-        setEvents(JSON.parse(cachedEvents));
-        return;
-      }
-      
-      // Usar eventos mockados como último recurso
-      console.log('Using mock data with user preferences');
-      let mockEvents = [...sampleEvents];
-      
-      // Personalizar eventos basados en intereses del usuario
-      if (interests.length > 0) {
-        mockEvents = mockEvents.map(event => {
-          if (interests.some(interest => event.tags.some(tag => tag.toLowerCase().includes(interest.toLowerCase())))) {
-            return { ...event, isTrending: true };
-          }
-          return event;
-        });
-        
-        // Ordenar eventos que coinciden con intereses primero
-        mockEvents.sort((a, b) => {
-          const aMatches = a.tags.some(tag => interests.some(interest => tag.toLowerCase().includes(interest.toLowerCase())));
-          const bMatches = b.tags.some(tag => interests.some(interest => tag.toLowerCase().includes(interest.toLowerCase())));
-          return bMatches ? 1 : aMatches ? -1 : 0;
-        });
-      }
-      
-      setEvents(mockEvents);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ===== FILTER EVENTS =====
-  useEffect(() => {
-    let filtered = events;
-
-    // Interest filter (priority filter)
-    if (selectedInterests.length > 0) {
-      filtered = filtered.filter(event =>
-        selectedInterests.some(interest =>
-          event.category.toLowerCase().includes(interest.toLowerCase()) ||
-          event.tags.some(tag => tag.toLowerCase().includes(interest.toLowerCase()))
-        )
-      );
-    }
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(
-        event =>
-          event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          event.tags.some(tag =>
-            tag.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-      );
-    }
-
-    // Category filter
-    if (filters.category !== 'all') {
-      filtered = filtered.filter(
-        event => event.category.toLowerCase() === filters.category
-      );
-    }
-
-    // Location filter
-    if (filters.location !== 'all') {
-      filtered = filtered.filter(event =>
-        event.location.toLowerCase().includes(filters.location)
-      );
-    }
-
-    // Price filter
-    if (filters.price !== 'all') {
-      filtered = filtered.filter(event => {
-        const price = event.price;
-        if (filters.price === 'free') return price === 'Gratis';
-        if (filters.price === 'low')
-          return price !== 'Gratis' && parseFloat(price.replace('€', '')) <= 25;
-        if (filters.price === 'medium')
-          return (
-            price !== 'Gratis' &&
-            parseFloat(price.replace('€', '')) > 25 &&
-            parseFloat(price.replace('€', '')) <= 50
           );
-        if (filters.price === 'high')
-          return price !== 'Gratis' && parseFloat(price.replace('€', '')) > 50;
-        return true;
-      });
-    }
+        })}
+      </div>
 
-    setFilteredEvents(filtered);
-  }, [events, searchQuery, filters, selectedInterests]);
+      {(!events || events.length === 0) && (
+        <div className="text-center py-12">
+          <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No hay eventos disponibles</h3>
+          <p className="text-gray-600">
+            {filters.search || filters.category || filters.dateRange !== 'all'
+              ? 'No hay eventos que coincidan con los filtros aplicados'
+              : 'Sé el primero en crear un evento en tu comunidad'
+            }
+          </p>
+        </div>
+      )}
 
-  // ===== HANDLE FILTER CHANGE =====
-  const handleFilterChange = (key: keyof FilterState, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  // ===== INTEREST FILTER HANDLERS =====
-  const handleInterestToggle = (interestId: string) => {
-    setSelectedInterests(prev =>
-      prev.includes(interestId)
-        ? prev.filter(id => id !== interestId)
-        : [...prev, interestId]
-    );
-  };
-
-  const clearInterestFilters = () => {
-    setSelectedInterests([]);
-  };
-
-  // ===== CLEAR ALL FILTERS =====
-  const clearFilters = () => {
-    setFilters({
-      category: 'all',
-      location: 'all',
-      date: 'all',
-      price: 'all',
-      attendees: 'all',
-    });
-    setSearchQuery('');
-    setSelectedInterests([]);
-  };
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center space-y-6">
-          <div className="w-20 h-20 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold text-white">Cargando eventos increíbles...</h2>
-            <p className="text-gray-300">
-              {userInterests.length > 0 
-                ? `Buscando eventos sobre: ${userInterests.join(', ')}`
-                : 'Preparando la mejor experiencia para ti'
-              }
-            </p>
-            {userLocation && (
-              <p className="text-cyan-400 text-sm">📍 Eventos cerca de tu ubicación</p>
-            )}
+      {/* Create Event Modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Crear Nuevo Evento</h2>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <EventCreateForm
+                onSuccess={() => {
+                  setShowCreateForm(false);
+                  refetch();
+                  toast.success('Evento creado correctamente');
+                }}
+                onCancel={() => setShowCreateForm(false)}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className='min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'>
-      {/* Background Particles */}
-      <div className='fixed inset-0 overflow-hidden pointer-events-none'>
-        {Array.from({ length: 50 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className='absolute w-1 h-1 bg-cyan-400 rounded-full opacity-20'
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -100, 0],
-              opacity: [0.2, 0.6, 0.2],
-              scale: [1, 1.5, 1],
-            }}
-            transition={{
-              duration: Math.random() * 10 + 10,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Grid Pattern Overlay */}
-      <div className='fixed inset-0 bg-[linear-gradient(rgba(0,212,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] opacity-20 pointer-events-none' />
-
-      <div className='relative z-10'>
-        {/* Header Section */}
-        <section className='pt-8 pb-8'>
-          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0"
-            >
-              <div>
-                <h1 className='text-4xl md:text-5xl font-bold mb-4'>
-                  <span className='bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent'>
-                    Eventos
-                  </span>
-                  <span className='text-white'> para ti</span>
-                </h1>
-                <p className='text-lg text-gray-300 max-w-2xl'>
-                  {selectedInterests.length > 0 
-                    ? `Mostrando eventos sobre: ${selectedInterests.join(', ')}`
-                    : userLocation 
-                      ? 'Eventos cerca de tu ubicación'
-                      : 'Descubre eventos increíbles'
-                  }
-                </p>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="flex items-center space-x-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
+      {/* Edit Event Modal */}
+      {editingEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Editar Evento</h2>
+                <button
+                  onClick={() => setEditingEvent(null)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
                 >
-                  <SlidersHorizontal className="w-4 h-4 mr-2" />
-                  Filtros avanzados
-                </Button>
-                
-                {(selectedInterests.length > 0 || searchQuery) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearFilters}
-                  >
-                    Limpiar todo
-                  </Button>
-                )}
+                  ✕
+                </button>
               </div>
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Interest Filters Section */}
-        <section className='pb-8'>
-          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <InterestFilterBar
-                selectedInterests={selectedInterests}
-                onInterestToggle={handleInterestToggle}
-                onClearAll={clearInterestFilters}
-                className="mb-6"
+              
+              <EventCreateForm
+                event={editingEvent}
+                onSuccess={() => {
+                  setEditingEvent(null);
+                  refetch();
+                  toast.success('Evento actualizado correctamente');
+                }}
+                onCancel={() => setEditingEvent(null)}
               />
-            </motion.div>
-          </div>
-        </section>
-
-        {/* Advanced Filters Section */}
-        {showFilters && (
-          <section className='pb-8'>
-            <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Card variant='glass' className='backdrop-blur-2xl'>
-                  <CardContent className='p-6'>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-white">Filtros Avanzados</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowFilters(false)}
-                      >
-                        Cerrar
-                      </Button>
-                    </div>
-                    
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
-                      {/* Search Bar */}
-                      <div className="relative">
-                        <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400' />
-                        <Input
-                          type='text'
-                          placeholder='Buscar eventos...'
-                          value={searchQuery}
-                          onChange={e => setSearchQuery(e.target.value)}
-                          variant='glass'
-                          className='pl-9'
-                        />
-                      </div>
-
-                      {/* Location Filter */}
-                      <Dropdown
-                        label='Ubicación'
-                        options={locations}
-                        value={filters.location}
-                        onChange={value =>
-                          handleFilterChange('location', value)
-                        }
-                        variant='glass'
-                        placeholder='Seleccionar ubicación'
-                      />
-
-                      {/* Price Filter */}
-                      <Dropdown
-                        label='Precio'
-                        options={priceRanges}
-                        value={filters.price}
-                        onChange={value => handleFilterChange('price', value)}
-                        variant='glass'
-                        placeholder='Seleccionar precio'
-                      />
-
-                      {/* Date Filter */}
-                      <Dropdown
-                        label='Fecha'
-                        options={[
-                          { value: 'all', label: 'Todas las fechas' },
-                          { value: 'today', label: 'Hoy' },
-                          { value: 'tomorrow', label: 'Mañana' },
-                          { value: 'this_week', label: 'Esta semana' },
-                          { value: 'this_month', label: 'Este mes' },
-                        ]}
-                        value={filters.date}
-                        onChange={value => handleFilterChange('date', value)}
-                        variant='glass'
-                        placeholder='Seleccionar fecha'
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
             </div>
-          </section>
-        )}
-
-        {/* View Mode Toggle */}
-        <section className='pb-8'>
-          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.8 }}
-              className='flex justify-between items-center'
-            >
-              <div className='flex items-center space-x-4'>
-                <h2 className='text-2xl font-bold text-white'>
-                  {filteredEvents.length} Eventos Encontrados
-                </h2>
-                {Object.values(filters).some(f => f !== 'all') && (
-                  <span className='px-3 py-1 bg-cyan-500/20 text-cyan-400 text-sm rounded-full border border-cyan-400/30'>
-                    Filtros activos
-                  </span>
-                )}
-              </div>
-
-              <div className='flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-lg p-1'>
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-2 rounded-md transition-all duration-200 ${
-                    viewMode === 'grid'
-                      ? 'bg-cyan-500 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Vista de cuadrícula"
-                >
-                  <LayoutGrid className='w-5 h-5' />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-2 rounded-md transition-all duration-200 ${
-                    viewMode === 'list'
-                      ? 'bg-cyan-500 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Vista de lista"
-                >
-                  <List className='w-5 h-5' />
-                </button>
-                <button
-                  onClick={() => setViewMode('map')}
-                  className={`p-2 rounded-md transition-all duration-200 ${
-                    viewMode === 'map'
-                      ? 'bg-cyan-500 text-white'
-                      : 'text-gray-400 hover:text-white'
-                  }`}
-                  title="Vista de mapa"
-                >
-                  <Map className='w-5 h-5' />
-                </button>
-              </div>
-            </motion.div>
           </div>
-        </section>
+        </div>
+      )}
 
-        {/* Events Display */}
-        <section className='pb-20'>
-          <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-            {filteredEvents.length > 0 ? (
-              viewMode === 'map' ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="h-[600px] rounded-xl overflow-hidden"
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Detalles del Evento</h2>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
                 >
-                  <EventMap
-                    events={filteredEvents.map(event => ({
-                      id: event.id,
-                      title: event.title,
-                      category: event.category.toLowerCase(),
-                      lat: 40.4168 + (Math.random() - 0.5) * 0.1, // Simulated coordinates
-                      lng: -3.7038 + (Math.random() - 0.5) * 0.1,
-                      date: event.date,
-                      time: event.time,
-                      attendees: event.attendees,
-                      price: event.price,
-                      image: event.image
-                    }))}
-                    userLocation={userLocation}
-                    onEventSelect={(mapEvent) => {
-                      // Handle event selection from map
-                      console.log('Selected event:', mapEvent);
-                    }}
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Event Image */}
+                {selectedEvent.image && (
+                  <img
+                    src={selectedEvent.image}
+                    alt={selectedEvent.title}
+                    className="w-full h-48 object-cover rounded-lg"
                   />
-                </motion.div>
-              ) : (
-                <div
-                  className={
-                    viewMode === 'grid'
-                      ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-                      : 'space-y-6'
-                  }
-                >
-                  {filteredEvents.map((event, index) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      index={index}
-                      viewMode={viewMode}
-                    />
-                  ))}
-                </div>
-              )
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6 }}
-                className='text-center py-20'
-              >
-                <Card variant='glass' className='max-w-md mx-auto'>
-                  <CardContent className='p-8 text-center'>
-                    <div className='w-16 h-16 mx-auto mb-4 rounded-full bg-gray-500/20 flex items-center justify-center'>
-                      <Search className='w-8 h-8 text-gray-400' />
+                )}
+                
+                {/* Event Info */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedEvent.title}</h3>
+                  <p className="text-gray-600 mb-4">{selectedEvent.description}</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                    <div>
+                      <span className="font-medium text-gray-700">Categoría:</span>
+                      <p className="text-gray-600 capitalize">{selectedEvent.category}</p>
                     </div>
-                    <h3 className='text-xl font-semibold text-white mb-2'>
-                      No se encontraron eventos
-                    </h3>
-                    <p className='text-gray-300 mb-6'>
-                      Intenta cambiar los filtros o la búsqueda para encontrar
-                      más eventos
-                    </p>
-                    <Button variant='primary' onClick={clearFilters}>
-                      Limpiar Filtros
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className='pb-20'>
-          <div className='max-w-4xl mx-auto px-4 sm:px-6 lg:px-8'>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1.0 }}
-            >
-              <Card variant='neon' className='text-center'>
-                <CardContent className='p-8'>
-                  <h2 className='text-3xl font-bold text-white mb-4'>
-                    ¿No encuentras lo que buscas?
-                  </h2>
-                  <p className='text-gray-300 mb-8 text-lg'>
-                    Crea tu propio evento y reúne a tu tribu. ¡Es más fácil de
-                    lo que piensas!
-                  </p>
-                  <div className='flex flex-col sm:flex-row gap-4 justify-center'>
-                    <Button variant='primary' size='lg' glow>
-                      Crear Evento
-                    </Button>
-                    <Button variant='outline' size='lg'>
-                      Ver Tutorial
-                    </Button>
+                    <div>
+                      <span className="font-medium text-gray-700">Fecha:</span>
+                      <p className="text-gray-600">{formatDate(selectedEvent.startDate)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Hora:</span>
+                      <p className="text-gray-600">{formatTime(selectedEvent.startTime)} - {formatTime(selectedEvent.endTime)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Ubicación:</span>
+                      <p className="text-gray-600">{selectedEvent.venue || selectedEvent.location.city}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Asistentes:</span>
+                      <p className="text-gray-600">{selectedEvent.currentAttendees}/{selectedEvent.maxAttendees}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-700">Precio:</span>
+                      <p className="text-gray-600">
+                        {selectedEvent.isFree ? 'Gratis' : `${selectedEvent.price} ${selectedEvent.currency}`}
+                      </p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex space-x-3">
+                  <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    Ver Asistentes
+                  </button>
+                  <button
+                    onClick={() => handleShare(selectedEvent)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Compartir
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </section>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

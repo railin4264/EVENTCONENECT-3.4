@@ -1,12 +1,15 @@
 const authController = require('./authController');
 const chatController = require('./chatController');
 const eventController = require('./eventController');
-const NotificationController = require('./NotificationController');
+const notificationController = require('./NotificationController');
 const postController = require('./postController');
 const reviewController = require('./reviewController');
-const { SearchService } = require('../services');
+const searchController = require('./searchController');
 const tribeController = require('./tribeController');
 const userController = require('./userController');
+const themeController = require('./themeController');
+const aiRecommendationsController = require('./aiRecommendationsController');
+const gamificationController = require('./gamificationController');
 
 module.exports = {
   authController,
@@ -15,7 +18,10 @@ module.exports = {
   postController,
   reviewController,
   chatController,
-  notificationController: new NotificationController(),
-  searchController: new SearchService(),
+  notificationController,
+  searchController,
   userController,
+  themeController,
+  aiRecommendationsController,
+  gamificationController,
 };

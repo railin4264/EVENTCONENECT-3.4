@@ -1,772 +1,855 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { 
-  Settings,
-  Edit,
-  Camera,
-  MapPin,
-  Calendar,
-  Users,
-  Heart,
-  Bookmark,
-  MessageCircle,
-  Share2,
-  Star,
-  Award,
-  Activity,
-  TrendingUp,
-  Mail,
-  Phone,
-  Link,
-  Instagram,
-  Twitter,
-  Facebook,
-  Shield,
-  Crown,
-  MoreVertical,
-  Plus,
-  ChevronRight,
-  Clock,
-  Image as ImageIcon,
-  Globe
+  User, Edit, Camera, Settings, Heart, Bookmark, Calendar, Users, 
+  FileText, Star, MapPin, Globe, Mail, Phone, Link, Award, 
+  CheckCircle, Zap, Eye, Share2, Plus, Trash2, MoreHorizontal,
+  Bell, Lock, Shield, HelpCircle, LogOut, Download, Upload
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { toast } from 'react-hot-toast';
+import EventCreateForm from '@/components/forms/EventCreateForm';
+import TribeCreateForm from '@/components/forms/TribeCreateForm';
+import PostCreateForm from '@/components/forms/PostCreateForm';
+import ReviewCreateForm from '@/components/forms/ReviewCreateForm';
 
 interface UserProfile {
   id: string;
-  name: string;
   username: string;
   email: string;
-  bio: string;
-  location: string;
-  website: string;
-  profilePicture: string;
-  coverImage: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
   isVerified: boolean;
-  isPremium: boolean;
-  joinedAt: string;
+  isHost: boolean;
+  isOnline: boolean;
+  lastSeen: string;
+  followers: number;
+  following: number;
+  events: number;
+  tribes: number;
+  posts: number;
+  reviews: number;
+  rating: number;
+  badges: string[];
+  interests: string[];
+  skills: string[];
   socialLinks: {
-    instagram?: string;
     twitter?: string;
     facebook?: string;
+    instagram?: string;
+    linkedin?: string;
+    github?: string;
   };
-  stats: {
-    eventsCreated: number;
-    postsCount: number;
-    followersCount: number;
-    followingCount: number;
-    totalLikes: number;
-    profileViews: number;
-    achievementsCount: number;
-    averageRating: number;
+  privacySettings: {
+    profileVisibility: 'public' | 'private' | 'friends';
+    showEmail: boolean;
+    showPhone: boolean;
+    showLocation: boolean;
+    allowMessages: boolean;
   };
-  interests: string[];
-  achievements: Array<{
-    id: string;
-    title: string;
-    description: string;
-    icon: string;
-    unlockedAt: string;
-  }>;
-  recentActivity: Array<{
-    id: string;
-    type: 'event_created' | 'post_liked' | 'tribe_joined' | 'achievement_unlocked';
-    description: string;
-    timestamp: string;
-  }>;
-}
-
-interface Post {
-  id: string;
-  content: string;
-  image?: string;
+  notificationSettings: {
+    email: boolean;
+    push: boolean;
+    sms: boolean;
+    events: boolean;
+    messages: boolean;
+    mentions: boolean;
+  };
   createdAt: string;
-  likesCount: number;
-  commentsCount: number;
-  isLiked: boolean;
+  updatedAt: string;
 }
 
-interface Event {
-  id: string;
-  title: string;
-  date: string;
-  location: string;
-  image: string;
-  attendeesCount: number;
-  category: string;
-}
+export default function ProfilePage() {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showEventForm, setShowEventForm] = useState(false);
+  const [showTribeForm, setShowTribeForm] = useState(false);
+  const [showPostForm, setShowPostForm] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    bio: '',
+    location: '',
+    website: '',
+    phone: '',
+    interests: [] as string[],
+    skills: [] as string[],
+  });
 
-const ProfilePage = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<'posts' | 'events' | 'saved' | 'stats'>('posts');
-  const [isLoading, setIsLoading] = useState(true);
-  const [showEditModal, setShowEditModal] = useState(false);
+  // Fetch user profile
+  const { data: profile, isLoading, refetch } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: () => api.users.getProfile(),
+  });
 
-  useEffect(() => {
-    loadUserProfile();
-  }, []);
+  // Fetch user content
+  const { data: userEvents } = useQuery({
+    queryKey: ['user-events'],
+    queryFn: () => api.events.getUserEvents(),
+  });
 
-  const loadUserProfile = async () => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setUser({
-        id: '1',
-        name: 'María González',
-        username: 'mariag_dev',
-        email: 'maria@example.com',
-        bio: 'Desarrolladora Frontend apasionada por React y el diseño UX. Creadora de comunidades tech. 🚀✨ Siempre aprendiendo algo nuevo.',
-        location: 'Madrid, España',
-        website: 'https://mariagonzalez.dev',
-        profilePicture: 'https://ui-avatars.com/api/?name=Maria Gonzalez&background=67e8f9&color=fff&size=200',
-        coverImage: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1200&h=300&fit=crop',
-        isVerified: true,
-        isPremium: true,
-        joinedAt: '2023-01-15T00:00:00Z',
-        socialLinks: {
-          instagram: '@mariag_dev',
-          twitter: '@mariagonzalez',
-          facebook: 'maria.gonzalez.dev',
-        },
-        stats: {
-          eventsCreated: 12,
-          postsCount: 89,
-          followersCount: 1240,
-          followingCount: 340,
-          totalLikes: 2840,
-          profileViews: 5670,
-          achievementsCount: 8,
-          averageRating: 4.8,
-        },
-        interests: ['React', 'TypeScript', 'UI/UX', 'Fotografía', 'Viajes', 'Café', 'Música', 'Lectura'],
-        achievements: [
-          {
-            id: '1',
-            title: 'Organizador Estrella',
-            description: 'Organizó 10+ eventos exitosos',
-            icon: '🌟',
-            unlockedAt: '2024-01-10T00:00:00Z',
-          },
-          {
-            id: '2',
-            title: 'Mentor de la Comunidad',
-            description: 'Ayudó a 50+ desarrolladores',
-            icon: '👨‍🏫',
-            unlockedAt: '2024-01-05T00:00:00Z',
-          },
-          {
-            id: '3',
-            title: 'Fotógrafo del Mes',
-            description: 'Mejor foto de evento en diciembre',
-            icon: '📸',
-            unlockedAt: '2023-12-20T00:00:00Z',
-          },
-        ],
-        recentActivity: [
-          {
-            id: '1',
-            type: 'event_created',
-            description: 'Creó el evento "React Workshop Avanzado"',
-            timestamp: '2024-01-12T10:30:00Z',
-          },
-          {
-            id: '2',
-            type: 'achievement_unlocked',
-            description: 'Desbloqueó el logro "Organizador Estrella"',
-            timestamp: '2024-01-10T15:20:00Z',
-          },
-          {
-            id: '3',
-            type: 'tribe_joined',
-            description: 'Se unió a la tribu "Fotógrafos Urbanos"',
-            timestamp: '2024-01-08T09:15:00Z',
-          },
-        ],
+  const { data: userTribes } = useQuery({
+    queryKey: ['user-tribes'],
+    queryFn: () => api.tribes.getUserTribes(),
+  });
+
+  const { data: userPosts } = useQuery({
+    queryKey: ['user-posts'],
+    queryFn: () => api.posts.getUserPosts(),
+  });
+
+  const { data: userReviews } = useQuery({
+    queryKey: ['user-reviews'],
+    queryFn: () => api.reviews.getUserReviews(),
+  });
+
+  const handleEditProfile = () => {
+    if (profile) {
+      setEditForm({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        bio: profile.bio || '',
+        location: profile.location || '',
+        website: profile.website || '',
+        phone: profile.phone || '',
+        interests: profile.interests,
+        skills: profile.skills,
       });
-
-      setPosts([
-        {
-          id: '1',
-          content: '🚀 ¡Increíble sesión de coding today! Implementamos un sistema de chat en tiempo real con Socket.IO y React. La experiencia de desarrollo fue súper fluida. ¿Alguien más trabajando con WebSockets últimamente?',
-          image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=600&h=400&fit=crop',
-          createdAt: '2024-01-12T14:30:00Z',
-          likesCount: 45,
-          commentsCount: 12,
-          isLiked: true,
-        },
-        {
-          id: '2',
-          content: 'Compartiendo algunos tips de UX que he aprendido organizando eventos tech:\n\n1️⃣ La primera impresión importa muchísimo\n2️⃣ Keep it simple, but powerful\n3️⃣ Feedback inmediato es clave\n4️⃣ Accesibilidad no es opcional\n\n¿Qué otros consejos añadirían?',
-          createdAt: '2024-01-10T16:45:00Z',
-          likesCount: 67,
-          commentsCount: 23,
-          isLiked: false,
-        },
-        {
-          id: '3',
-          content: '📸 Capturando momentos increíbles en el último meetup. Hay algo mágico en ver a la comunidad conectar y compartir conocimiento. ¡Gracias a todos los que hicieron posible este evento!',
-          image: 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=600&h=400&fit=crop',
-          createdAt: '2024-01-08T19:20:00Z',
-          likesCount: 89,
-          commentsCount: 34,
-          isLiked: true,
-        },
-      ]);
-
-      setEvents([
-        {
-          id: '1',
-          title: 'React Workshop Avanzado',
-          date: '2024-02-15T18:00:00Z',
-          location: 'Madrid Tech Hub',
-          image: 'https://images.unsplash.com/photo-1517180102446-f3ece451e9d8?w=400&h=250&fit=crop',
-          attendeesCount: 85,
-          category: 'Tech',
-        },
-        {
-          id: '2',
-          title: 'Fotografía Urbana - Street Photography',
-          date: '2024-02-20T10:00:00Z',
-          location: 'Centro de Madrid',
-          image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=250&fit=crop',
-          attendeesCount: 32,
-          category: 'Arte',
-        },
-        {
-          id: '3',
-          title: 'Networking Café & Code',
-          date: '2024-02-25T17:30:00Z',
-          location: 'Café Central',
-          image: 'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=400&h=250&fit=crop',
-          attendeesCount: 56,
-          category: 'Networking',
-        },
-      ]);
-
-      setSavedPosts([
-        {
-          id: '4',
-          content: 'Interesante artículo sobre las mejores prácticas en React 18. Definitivamente vale la pena darle un vistazo si estás trabajando con concurrent features.',
-          createdAt: '2024-01-11T12:30:00Z',
-          likesCount: 124,
-          commentsCount: 28,
-          isLiked: true,
-        },
-        {
-          id: '5',
-          content: 'Tutorial paso a paso para configurar TypeScript con Next.js 14. Incluye todas las configuraciones avanzadas que necesitas.',
-          image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&h=400&fit=crop',
-          createdAt: '2024-01-09T08:15:00Z',
-          likesCount: 87,
-          commentsCount: 15,
-          isLiked: false,
-        },
-      ]);
-
-      setIsLoading(false);
-    }, 1000);
+      setIsEditing(true);
+    }
   };
 
-  const handleTabChange = (tab: 'posts' | 'events' | 'saved' | 'stats') => {
-    setActiveTab(tab);
+  const handleSaveProfile = async () => {
+    try {
+      await api.users.updateProfile(editForm);
+      refetch();
+      setIsEditing(false);
+      toast.success('Perfil actualizado correctamente');
+    } catch (error) {
+      toast.error('Error al actualizar perfil');
+    }
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+      await api.users.uploadAvatar(formData);
+      refetch();
+      toast.success('Avatar actualizado correctamente');
+    } catch (error) {
+      toast.error('Error al actualizar avatar');
+    }
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
-      weekday: 'short',
-      month: 'short',
+      year: 'numeric',
+      month: 'long',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
     });
   };
 
-  const PostCard = ({ post }: { post: Post }) => (
-    <Card className="p-6 hover:shadow-lg transition-shadow">
-      <p className="text-gray-900 dark:text-white text-sm leading-relaxed mb-4 whitespace-pre-line">
-        {post.content}
-      </p>
-      
-      {post.image && (
-        <img 
-          src={post.image} 
-          alt="Post image"
-          className="w-full h-64 object-cover rounded-xl mb-4"
-        />
-      )}
-      
-      <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
-        <span>{formatDate(post.createdAt)}</span>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1">
-            <Heart className={`w-4 h-4 ${post.isLiked ? 'text-red-500 fill-red-500' : ''}`} />
-            <span>{post.likesCount}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <MessageCircle className="w-4 h-4" />
-            <span>{post.commentsCount}</span>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-500">
-            <Heart className="w-4 h-4 mr-2" />
-            Me gusta
-          </Button>
-          <Button variant="ghost" size="sm" className="text-gray-500">
-            <MessageCircle className="w-4 h-4 mr-2" />
-            Comentar
-          </Button>
-        </div>
-        <Button variant="ghost" size="sm" className="text-gray-500">
-          <Share2 className="w-4 h-4" />
-        </Button>
-      </div>
-    </Card>
-  );
-
-  const EventCard = ({ event }: { event: Event }) => (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-      <img 
-        src={event.image} 
-        alt={event.title}
-        className="w-full h-48 object-cover"
-      />
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <Badge variant="secondary" className="text-xs">
-            {event.category}
-          </Badge>
-          <div className="flex items-center gap-1 text-sm text-gray-500">
-            <Users className="w-3 h-3" />
-            <span>{event.attendeesCount}</span>
-          </div>
-        </div>
-        
-        <h3 className="font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-          {event.title}
-        </h3>
-        
-        <div className="space-y-1 text-sm text-gray-500 dark:text-gray-400">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-3 h-3" />
-            <span>{formatDate(event.date)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="w-3 h-3" />
-            <span>{event.location}</span>
-          </div>
-        </div>
-        
-        <Button size="sm" className="w-full mt-4">
-          Ver detalles
-          <ChevronRight className="w-3 h-3 ml-1" />
-        </Button>
-      </div>
-    </Card>
-  );
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-6xl mx-auto">
-          {/* Cover skeleton */}
-          <div className="h-64 bg-gray-200 dark:bg-gray-700 animate-pulse" />
-          
-          {/* Profile skeleton */}
-          <div className="px-6 pb-6">
-            <div className="flex flex-col lg:flex-row gap-6 -mt-20">
-              <div className="lg:w-1/3">
-                <div className="w-32 h-32 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse mb-4" />
-                <div className="space-y-2">
-                  <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-2/3" />
-                </div>
-              </div>
-              
-              <div className="lg:w-2/3 space-y-4">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-3/4" />
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-1/2" />
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="text-center py-12">
+        <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Perfil no encontrado</h3>
+        <p className="text-gray-600">No se pudo cargar el perfil del usuario</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-6xl mx-auto">
-        {/* Cover Image */}
-        <div className="relative h-64 bg-gradient-to-r from-blue-500 to-purple-600">
-          <img 
-            src={user?.coverImage} 
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-black/20" />
+    <div className="max-w-7xl mx-auto p-6">
+      {/* Profile Header */}
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+        <div className="relative h-48 bg-gradient-to-r from-blue-500 to-purple-600">
+          <div className="absolute inset-0 bg-black bg-opacity-20"></div>
           
-          <div className="absolute top-4 right-4 flex items-center gap-2">
-            <Button variant="secondary" size="sm" className="bg-white/90 text-gray-900">
-              <Camera className="w-4 h-4 mr-2" />
-              Cambiar portada
-            </Button>
+          {/* Avatar */}
+          <div className="absolute bottom-4 left-6">
+            <div className="relative">
+              <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center text-4xl font-bold text-gray-600 border-4 border-white shadow-lg">
+                {profile.avatar ? (
+                  <img
+                    src={profile.avatar}
+                    alt={profile.username}
+                    className="w-32 h-32 rounded-full object-cover"
+                  />
+                ) : (
+                  profile.username.charAt(0).toUpperCase()
+                )}
+              </div>
+              
+              <button className="absolute bottom-0 right-0 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors duration-200">
+                <Camera className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="absolute top-4 right-4 flex space-x-2">
+            <button className="p-2 bg-white bg-opacity-90 text-gray-600 rounded-full hover:bg-white transition-colors duration-200">
+              <Share2 className="w-5 h-5" />
+            </button>
+            <button className="p-2 bg-white bg-opacity-90 text-gray-600 rounded-full hover:bg-white transition-colors duration-200">
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
-        {/* Profile Section */}
-        <div className="bg-white dark:bg-gray-800 px-6 pb-6">
-          <div className="flex flex-col lg:flex-row gap-6 -mt-20">
-            {/* Profile Info */}
-            <div className="lg:w-1/3">
-              <div className="relative mb-4">
-                <img 
-                  src={user?.profilePicture} 
-                  alt={user?.name}
-                  className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800"
-                />
-                <div className="absolute -bottom-2 -right-2 flex items-center gap-1">
-                  {user?.isVerified && (
-                    <div className="bg-blue-500 p-1 rounded-full">
-                      <Shield className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                  {user?.isPremium && (
-                    <div className="bg-yellow-500 p-1 rounded-full">
-                      <Crown className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                  <Button size="sm" variant="outline" className="p-1.5 bg-white">
-                    <Camera className="w-3 h-3" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {user?.name}
-                  </h1>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    @{user?.username}
-                  </p>
-                </div>
-
-                <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                  {user?.bio}
-                </p>
-
-                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                  {user?.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      <span>{user.location}</span>
-                    </div>
-                  )}
-                  
-                  {user?.website && (
-                    <div className="flex items-center gap-2">
-                      <Globe className="w-4 h-4" />
-                      <a href={user.website} className="text-blue-600 hover:underline">
-                        {user.website}
-                      </a>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>Se unió en {formatDate(user?.joinedAt || '')}</span>
-                  </div>
-                </div>
-
-                {/* Social Links */}
-                {(user?.socialLinks?.instagram || user?.socialLinks?.twitter || user?.socialLinks?.facebook) && (
-                  <div className="flex items-center gap-2">
-                    {user.socialLinks.instagram && (
-                      <Button variant="outline" size="sm" className="p-2">
-                        <Instagram className="w-4 h-4 text-pink-500" />
-                      </Button>
-                    )}
-                    {user.socialLinks.twitter && (
-                      <Button variant="outline" size="sm" className="p-2">
-                        <Twitter className="w-4 h-4 text-blue-400" />
-                      </Button>
-                    )}
-                    {user.socialLinks.facebook && (
-                      <Button variant="outline" size="sm" className="p-2">
-                        <Facebook className="w-4 h-4 text-blue-600" />
-                      </Button>
-                    )}
-                  </div>
+        <div className="p-6 pt-20">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <div className="flex items-center space-x-3 mb-2">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {profile.firstName} {profile.lastName}
+                </h1>
+                {profile.isVerified && (
+                  <CheckCircle className="w-6 h-6 text-blue-600" />
                 )}
-
-                {/* Action Buttons */}
-                <div className="flex flex-col gap-2">
-                  <Button onClick={() => setShowEditModal(true)} className="w-full">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Editar perfil
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Compartir
-                    </Button>
-                    <Button variant="outline" size="sm" className="p-2">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Interests */}
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    Intereses
-                  </h3>
-                  <div className="flex flex-wrap gap-1">
-                    {user?.interests.slice(0, 8).map((interest, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {interest}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
+                {profile.isHost && (
+                  <span className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                    Host Verificado
+                  </span>
+                )}
               </div>
+              <p className="text-xl text-gray-600">@{profile.username}</p>
+              {profile.bio && (
+                <p className="text-gray-700 mt-2">{profile.bio}</p>
+              )}
             </div>
+            
+            <button
+              onClick={handleEditProfile}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
+            >
+              <Edit className="w-4 h-4" />
+              <span>Editar Perfil</span>
+            </button>
+          </div>
 
-            {/* Main Content */}
-            <div className="lg:w-2/3">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {user?.stats.eventsCreated}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Eventos</p>
-                </Card>
-                
-                <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {user?.stats.postsCount}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Posts</p>
-                </Card>
-                
-                <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {user?.stats.followersCount}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Seguidores</p>
-                </Card>
-                
-                <Card className="p-4 text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {user?.stats.followingCount}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Siguiendo</p>
-                </Card>
-              </div>
-
-              {/* Tabs */}
-              <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-                <nav className="flex space-x-8">
-                  {[
-                    { key: 'posts', label: 'Posts', count: user?.stats.postsCount },
-                    { key: 'events', label: 'Eventos', count: user?.stats.eventsCreated },
-                    { key: 'saved', label: 'Guardados', count: savedPosts.length },
-                    { key: 'stats', label: 'Estadísticas' },
-                  ].map((tab) => (
-                    <button
-                      key={tab.key}
-                      onClick={() => handleTabChange(tab.key as any)}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                        activeTab === tab.key
-                          ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-                      }`}
-                    >
-                      {tab.label}
-                      {tab.count !== undefined && (
-                        <span className="ml-2 text-xs text-gray-400">({tab.count})</span>
-                      )}
-                    </button>
-                  ))}
-                </nav>
-              </div>
-
-              {/* Tab Content */}
-              <div className="space-y-6">
-                {activeTab === 'posts' && (
-                  posts.length === 0 ? (
-                    <div className="text-center py-12">
-                      <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                        No hay posts aún
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        Comparte tu primer post con la comunidad
-                      </p>
-                      <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Crear post
-                      </Button>
-                    </div>
-                  ) : (
-                    posts.map((post) => (
-                      <PostCard key={post.id} post={post} />
-                    ))
-                  )
-                )}
-
-                {activeTab === 'events' && (
-                  events.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Calendar className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                        No hay eventos
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        Crea tu primer evento y compártelo con la comunidad
-                      </p>
-                      <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Crear evento
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {events.map((event) => (
-                        <EventCard key={event.id} event={event} />
-                      ))}
-                    </div>
-                  )
-                )}
-
-                {activeTab === 'saved' && (
-                  savedPosts.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Bookmark className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                        No hay posts guardados
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Los posts que guardes aparecerán aquí
-                      </p>
-                    </div>
-                  ) : (
-                    savedPosts.map((post) => (
-                      <PostCard key={post.id} post={post} />
-                    ))
-                  )
-                )}
-
-                {activeTab === 'stats' && (
-                  <div className="space-y-6">
-                    {/* Advanced Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <Card className="p-6 text-center">
-                        <Activity className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {user?.stats.totalLikes}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Total Likes</p>
-                      </Card>
-                      
-                      <Card className="p-6 text-center">
-                        <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {user?.stats.profileViews}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Vistas del perfil</p>
-                      </Card>
-                      
-                      <Card className="p-6 text-center">
-                        <Award className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {user?.stats.achievementsCount}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Logros</p>
-                      </Card>
-                      
-                      <Card className="p-6 text-center">
-                        <Star className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                          {user?.stats.averageRating}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Rating promedio</p>
-                      </Card>
-                    </div>
-
-                    {/* Achievements */}
-                    <Card className="p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        Logros Recientes
-                      </h3>
-                      <div className="space-y-4">
-                        {user?.achievements.map((achievement) => (
-                          <div key={achievement.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                            <span className="text-2xl">{achievement.icon}</span>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 dark:text-white">
-                                {achievement.title}
-                              </h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {achievement.description}
-                              </p>
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {formatDate(achievement.unlockedAt)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-
-                    {/* Recent Activity */}
-                    <Card className="p-6">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        Actividad Reciente
-                      </h3>
-                      <div className="space-y-3">
-                        {user?.recentActivity.map((activity) => (
-                          <div key={activity.id} className="flex items-center gap-3 p-2">
-                            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                              <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-900 dark:text-white">
-                                {activity.description}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {formatDate(activity.timestamp)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </Card>
-                  </div>
-                )}
-              </div>
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{profile.followers}</p>
+              <p className="text-sm text-gray-600">Seguidores</p>
             </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{profile.following}</p>
+              <p className="text-sm text-gray-600">Siguiendo</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{profile.events}</p>
+              <p className="text-sm text-gray-600">Eventos</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-gray-900">{profile.rating.toFixed(1)}</p>
+              <p className="text-sm text-gray-600">Rating</p>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setShowEventForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Crear Evento</span>
+            </button>
+            <button
+              onClick={() => setShowTribeForm(true)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Crear Tribu</span>
+            </button>
+            <button
+              onClick={() => setShowPostForm(true)}
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Crear Post</span>
+            </button>
+            <button
+              onClick={() => setShowReviewForm(true)}
+              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Escribir Review</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Profile Content Tabs */}
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {[
+              { id: 'overview', label: 'Vista General', icon: Eye },
+              { id: 'events', label: 'Mis Eventos', icon: Calendar },
+              { id: 'tribes', label: 'Mis Tribus', icon: Users },
+              { id: 'posts', label: 'Mis Posts', icon: FileText },
+              { id: 'reviews', label: 'Mis Reviews', icon: Star },
+              { id: 'settings', label: 'Configuración', icon: Settings },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="p-6">
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-8">
+              {/* Personal Info */}
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Información Personal</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Mail className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-700">{profile.email}</span>
+                    </div>
+                    {profile.phone && (
+                      <div className="flex items-center space-x-3">
+                        <Phone className="w-5 h-5 text-gray-400" />
+                        <span className="text-gray-700">{profile.phone}</span>
+                      </div>
+                    )}
+                    {profile.location && (
+                      <div className="flex items-center space-x-3">
+                        <MapPin className="w-5 h-5 text-gray-400" />
+                        <span className="text-gray-700">{profile.location}</span>
+                      </div>
+                    )}
+                    {profile.website && (
+                      <div className="flex items-center space-x-3">
+                        <Link className="w-5 h-5 text-gray-400" />
+                        <a href={profile.website} className="text-blue-600 hover:text-blue-700">
+                          {profile.website}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <Calendar className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-700">
+                        Miembro desde {formatDate(profile.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Globe className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-700">
+                        {profile.privacySettings.profileVisibility === 'public' ? 'Perfil Público' : 'Perfil Privado'}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Bell className="w-5 h-5 text-gray-400" />
+                      <span className="text-gray-700">
+                        {profile.notificationSettings.push ? 'Notificaciones Activas' : 'Notificaciones Inactivas'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Interests & Skills */}
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Intereses y Habilidades</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-3">Intereses</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.interests.map((interest, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                        >
+                          {interest}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h4 className="font-semibold text-gray-700 mb-3">Habilidades</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {profile.skills.map((skill, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Badges */}
+              {profile.badges.length > 0 && (
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Insignias y Logros</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {profile.badges.map((badge, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center space-x-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg"
+                      >
+                        <Award className="w-5 h-5" />
+                        <span className="font-medium">{badge}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Events Tab */}
+          {activeTab === 'events' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Mis Eventos</h3>
+                <button
+                  onClick={() => setShowEventForm(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <Plus className="w-4 h-4 mr-2 inline" />
+                  Crear Evento
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userEvents?.map((event) => (
+                  <div key={event.id} className="bg-gray-50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">{event.title}</h4>
+                    <p className="text-sm text-gray-600 mb-4">{event.description}</p>
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatDate(event.startDate)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4" />
+                        <span>{event.venue || event.location.city}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Users className="w-4 h-4" />
+                        <span>{event.currentAttendees}/{event.maxAttendees} asistentes</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tribes Tab */}
+          {activeTab === 'tribes' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Mis Tribus</h3>
+                <button
+                  onClick={() => setShowTribeForm(true)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <Plus className="w-4 h-4 mr-2 inline" />
+                  Crear Tribu
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userTribes?.map((tribe) => (
+                  <div key={tribe.id} className="bg-gray-50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">{tribe.name}</h4>
+                    <p className="text-sm text-gray-600 mb-4">{tribe.description}</p>
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <Users className="w-4 h-4" />
+                        <span>{tribe.memberCount}/{tribe.maxMembers} miembros</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="capitalize">{tribe.category}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Posts Tab */}
+          {activeTab === 'posts' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Mis Posts</h3>
+                <button
+                  onClick={() => setShowPostForm(true)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <Plus className="w-4 h-4 mr-2 inline" />
+                  Crear Post
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userPosts?.map((post) => (
+                  <div key={post.id} className="bg-gray-50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">{post.title}</h4>
+                    <p className="text-sm text-gray-600 mb-4">{post.content}</p>
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <span className="capitalize">{post.type}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatDate(post.createdAt)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Heart className="w-4 h-4" />
+                        <span>{post.likes} me gusta</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reviews Tab */}
+          {activeTab === 'reviews' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Mis Reviews</h3>
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  <Plus className="w-4 h-4 mr-2 inline" />
+                  Escribir Review
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userReviews?.map((review) => (
+                  <div key={review.id} className="bg-gray-50 p-6 rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-2">{review.title}</h4>
+                    <p className="text-sm text-gray-600 mb-4">{review.content}</p>
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <div className="flex items-center space-x-2">
+                        <Star className="w-4 h-4 text-yellow-500" />
+                        <span>{review.rating}/5</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatDate(review.createdAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === 'settings' && (
+            <div className="space-y-8">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Configuración de Privacidad</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Visibilidad del perfil</span>
+                    <select className="px-3 py-2 border border-gray-300 rounded-lg">
+                      <option value="public">Público</option>
+                      <option value="private">Privado</option>
+                      <option value="friends">Solo amigos</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Mostrar email</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Mostrar teléfono</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Mostrar ubicación</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Configuración de Notificaciones</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Notificaciones por email</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Notificaciones push</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Notificaciones de eventos</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-700">Notificaciones de mensajes</span>
+                    <input type="checkbox" className="rounded" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Acciones de Cuenta</h3>
+                <div className="space-y-4">
+                  <button className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center justify-center space-x-2">
+                    <LogOut className="w-4 h-4" />
+                    <span>Cerrar Sesión</span>
+                  </button>
+                  <button className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 flex items-center justify-center space-x-2">
+                    <Download className="w-4 h-4" />
+                    <span>Exportar Datos</span>
+                  </button>
+                  <button className="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center justify-center space-x-2">
+                    <Trash2 className="w-4 h-4" />
+                    <span>Eliminar Cuenta</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Edit Profile Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Editar Perfil</h2>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                    <input
+                      type="text"
+                      value={editForm.firstName}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                    <input
+                      type="text"
+                      value={editForm.lastName}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Biografía</label>
+                  <textarea
+                    value={editForm.bio}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
+                    <input
+                      type="text"
+                      value={editForm.location}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sitio web</label>
+                    <input
+                      type="url"
+                      value={editForm.website}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, website: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={handleSaveProfile}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Guardar Cambios
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content Creation Modals */}
+      {showEventForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Crear Nuevo Evento</h2>
+                <button
+                  onClick={() => setShowEventForm(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <EventCreateForm
+                onSuccess={() => {
+                  setShowEventForm(false);
+                  toast.success('Evento creado correctamente');
+                }}
+                onCancel={() => setShowEventForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTribeForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Crear Nueva Tribu</h2>
+                <button
+                  onClick={() => setShowTribeForm(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <TribeCreateForm
+                onSuccess={() => {
+                  setShowTribeForm(false);
+                  toast.success('Tribu creada correctamente');
+                }}
+                onCancel={() => setShowTribeForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPostForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Crear Nuevo Post</h2>
+                <button
+                  onClick={() => setShowPostForm(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <PostCreateForm
+                onSuccess={() => {
+                  setShowPostForm(false);
+                  toast.success('Post creado correctamente');
+                }}
+                onCancel={() => setShowPostForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReviewForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Escribir Nuevo Review</h2>
+                <button
+                  onClick={() => setShowReviewForm(false)}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <ReviewCreateForm
+                onSuccess={() => {
+                  setShowReviewForm(false);
+                  toast.success('Review creado correctamente');
+                }}
+                onCancel={() => setShowReviewForm(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
+}
 
-export default ProfilePage;
+
 
 
 

@@ -12,11 +12,11 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 
 // Import configurations
-const connectDB = require('./config/database');
+const { connectDB } = require('./config/database');
 const { logger } = require('./utils/logger');
 
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
+const { errorHandler } = require('./middleware/errorHandler');
 const authMiddleware = require('./middleware/authMiddleware');
 const rateLimits = require('./middleware/rateLimitMiddleware');
 
@@ -27,9 +27,15 @@ const {
   eventRoutes,
   tribeRoutes,
   notificationRoutes,
-  themeRoutes,
+  // themeRoutes,
   aiRecommendationRoutes,
   gamificationRoutes,
+  postRoutes,
+  reviewRoutes,
+  chatRoutes,
+  searchRoutes,
+  locationRoutes,
+  watchlistRoutes,
 } = require('./routes');
 
 // ==========================================
@@ -274,13 +280,31 @@ app.use('/api/tribes', rateLimits.general, tribeRoutes);
 app.use('/api/notifications', rateLimits.general, notificationRoutes);
 
 // Theme routes
-app.use('/api/themes', rateLimits.general, themeRoutes);
+// app.use('/api/themes', rateLimits.general, themeRoutes);
 
 // AI Recommendations routes
 app.use('/api/ai', aiRecommendationRoutes); // Rate limits applied per route
 
 // Gamification routes
 app.use('/api/gamification', gamificationRoutes); // Rate limits applied per route
+
+// Post routes
+app.use('/api/posts', rateLimits.general, postRoutes);
+
+// Review routes
+app.use('/api/reviews', rateLimits.general, reviewRoutes);
+
+// Chat routes
+app.use('/api/chat', rateLimits.general, chatRoutes);
+
+// Search routes
+app.use('/api/search', rateLimits.general, searchRoutes);
+
+// Location routes
+app.use('/api/location', rateLimits.general, locationRoutes);
+
+// Watchlist routes
+app.use('/api/watchlist', rateLimits.general, watchlistRoutes);
 
 // ==========================================
 // API DOCUMENTATION ROUTE
@@ -300,7 +324,13 @@ app.get('/api', (req, res) => {
       notifications: '/api/notifications',
       themes: '/api/themes',
       ai: '/api/ai',
-      gamification: '/api/gamification'
+      gamification: '/api/gamification',
+      posts: '/api/posts',
+      reviews: '/api/reviews',
+      chat: '/api/chat',
+      search: '/api/search',
+      location: '/api/location',
+      watchlist: '/api/watchlist'
     },
     health: {
       server: '/health',

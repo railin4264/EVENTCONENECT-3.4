@@ -275,3 +275,5 @@ npm run perf         # Performance testing
 **🎯 EventConnect está ahora optimizado para ofrecer una experiencia de usuario excepcional con performance de nivel profesional.**
 
 
+
+

@@ -4,540 +4,613 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  StatusBar,
   TouchableOpacity,
+  RefreshControl,
+  Dimensions,
   Image,
   TextInput,
 } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-// import { LinearGradient } from 'expo-linear-gradient';
-import { Card, CardContent, CardTitle } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
+import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
+import { apiClient } from '../services/apiClient';
 import { 
-  Search, 
-  MapPin, 
-  Calendar, 
-  Users, 
-  Heart,
-  Share,
-  Clock,
-  ArrowRight,
-  Flame
+  Calendar, Users, MapPin, Clock, Heart, Share2, Bookmark, 
+  Plus, Search, Filter, Star, Eye, MoreHorizontal
 } from 'lucide-react-native';
-import * as Location from 'expo-location';
 
-// const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-// ===== EVENT CARD COMPONENT =====
-const EventCard: React.FC<{
-  event: {
-    id: string;
-    title: string;
-    description: string;
-    date: string;
-    time: string;
-    location: string;
-    category: string;
-    attendees: number;
-    maxAttendees: number;
-    price: string;
-    image: string;
-    isLiked: boolean;
-    isTrending: boolean;
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  venue?: string;
+  location: {
+    city: string;
+    country: string;
   };
-  index: number;
-  userLocation?: { latitude: number; longitude: number } | null;
-}> = ({ event, index }) => {
-  const translateY = useSharedValue(50);
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.9);
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      translateY.value = withSpring(0, { damping: 15, stiffness: 300 });
-      opacity.value = withTiming(1, { duration: 600 });
-      scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-    }, index * 100);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value }
-    ],
-    opacity: opacity.value,
-  }));
-
-  const distanceLabel = null; // Demo data lacks coordinates; integrate when coords are available
-
-  return (
-    <Animated.View style={[styles.eventCard, animatedStyle]}>
-      <Card variant="glass">
-        <CardContent padding="none">
-          {/* Event Image */}
-          <View style={styles.eventImageContainer}>
-            <Image
-              source={{ uri: event.image }}
-              style={styles.eventImage}
-              resizeMode="cover"
-            />
-            
-            {/* Category Badge */}
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{event.category}</Text>
-            </View>
-            
-            {/* Trending Badge */}
-            {event.isTrending && (
-              <View style={styles.trendingBadge}>
-                <Flame size={16} color="#ffffff" />
-                <Text style={styles.trendingText}>Trending</Text>
-              </View>
-            )}
-            
-            {/* Like Button */}
-            <TouchableOpacity style={styles.likeButton}>
-              <Heart 
-                size={20} 
-                color={event.isLiked ? "#ec4899" : "#ffffff"} 
-                fill={event.isLiked ? "#ec4899" : "none"}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Event Content */}
-          <View style={styles.eventContent}>
-            <View style={styles.eventHeader}>
-              <CardTitle style={{ fontSize: 16, marginBottom: 8 }}>{event.title}</CardTitle>
-              <Text style={styles.eventDescription} numberOfLines={2}>
-                {event.description}
-              </Text>
-            </View>
-
-            {/* Event Details */}
-            <View style={styles.eventDetails}>
-              <View style={styles.detailRow}>
-                <Calendar size={16} color="#06b6d4" />
-                <Text style={styles.detailText}>{event.date}</Text>
-                <Clock size={16} color="#06b6d4" />
-                <Text style={styles.detailText}>{event.time}</Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <MapPin size={16} color="#06b6d4" />
-                <Text style={styles.detailText} numberOfLines={1}>
-                  {event.location}{distanceLabel ? ` · ${distanceLabel}` : ''}
-                </Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Users size={16} color="#06b6d4" />
-                <Text style={styles.detailText}>
-                  {event.attendees}/{event.maxAttendees} asistentes
-                </Text>
-              </View>
-            </View>
-
-            {/* Event Footer */}
-            <View style={styles.eventFooter}>
-              <View style={styles.priceContainer}>
-                <Text style={styles.priceLabel}>Precio:</Text>
-                <Text style={styles.priceValue}>{event.price}</Text>
-              </View>
-              
-              <View style={styles.actionButtons}>
-                <TouchableOpacity style={styles.shareButton}>
-                  <Share size={16} color="#06b6d4" />
-                </TouchableOpacity>
-                
-                <Button 
-                  variant="primary" 
-                  size="sm"
-                >
-                  <Text style={styles.joinButtonText}>Unirse</Text>
-                  <ArrowRight size={16} style={{ marginLeft: 4 }} />
-                </Button>
-              </View>
-            </View>
-          </View>
-        </CardContent>
-      </Card>
-    </Animated.View>
-  );
-};
-
-// ===== FILTER CHIP COMPONENT =====
-const FilterChip: React.FC<{
-  label: string;
-  isActive: boolean;
-  onPress: () => void;
-}> = ({ label, isActive, onPress }) => {
-  const scale = useSharedValue(1);
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
+  currentAttendees: number;
+  maxAttendees: number;
+  category: string;
+  price: number;
+  isOnline: boolean;
+  host: {
+    username: string;
+    avatar?: string;
   };
+  tags: string[];
+  status: 'upcoming' | 'today' | 'past' | 'cancelled';
+}
 
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 300 });
-  };
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  return (
-    <Animated.View style={[animatedStyle]}>
-      <TouchableOpacity
-        style={[
-          styles.filterChip,
-          isActive && styles.filterChipActive
-        ]}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
-        <Text style={[
-          styles.filterChipText,
-          isActive && styles.filterChipTextActive
-        ]}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-// ===== MAIN EVENTS SCREEN =====
-export const EventsScreen: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
+export default function EventsScreen() {
+  const navigation = useNavigation();
+  const { colors } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [sortBy, setSortBy] = useState('recent');
 
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') return;
-        const loc = await Location.getCurrentPositionAsync({});
-        setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-      } catch {}
-    })();
-  }, []);
+  // Fetch events
+  const { data: events, isLoading, refetch } = useQuery({
+    queryKey: ['events', searchQuery, selectedCategory, sortBy],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (selectedCategory !== 'all') params.append('category', selectedCategory);
+      if (sortBy) params.append('sort', sortBy);
+      
+      const response = await apiClient.get(`/events?${params.toString()}`);
+      return response.data;
+    },
+  });
 
-  // ===== SAMPLE EVENTS DATA =====
-  const events = [
-    {
-      id: '1',
-      title: 'Fiesta de Verano',
-      description: 'Disfruta de la mejor fiesta de verano con música en vivo y baile.',
-      date: '2023-07-20',
-      time: '18:00',
-      location: 'Parque Central, Ciudad de México',
-      category: 'Fiesta',
-      attendees: 150,
-      maxAttendees: 200,
-      price: '$50',
-      image: 'https://via.placeholder.com/150',
-      isLiked: false,
-      isTrending: true,
-    },
-    {
-      id: '2',
-      title: 'Concurso de Cocina',
-      description: 'Participa en el concurso de cocina más emocionante de la ciudad.',
-      date: '2023-07-25',
-      time: '10:00',
-      location: 'Restaurante Gourmet, Zona Rosa',
-      category: 'Cocina',
-      attendees: 80,
-      maxAttendees: 100,
-      price: '$20',
-      image: 'https://via.placeholder.com/150',
-      isLiked: true,
-      isTrending: false,
-    },
-    {
-      id: '3',
-      title: 'Festival de Cine',
-      description: 'Descubre las últimas películas de cine independiente.',
-      date: '2023-07-30',
-      time: '14:00',
-      location: 'Cinepolis, Zona Sur',
-      category: 'Cine',
-      attendees: 120,
-      maxAttendees: 150,
-      price: '$15',
-      image: 'https://via.placeholder.com/150',
-      isLiked: false,
-      isTrending: true,
-    },
-    {
-      id: '4',
-      title: 'Feria de Artesanías',
-      description: 'Compra artesanías únicas y originales de diferentes artistas.',
-      date: '2023-08-05',
-      time: '11:00',
-      location: 'Mercado de Artesanías, Centro Histórico',
-      category: 'Artesanías',
-      attendees: 200,
-      maxAttendees: 250,
-      price: '$10',
-      image: 'https://via.placeholder.com/150',
-      isLiked: true,
-      isTrending: false,
-    },
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Hace unos minutos';
+    if (diffInHours < 24) return `Hace ${diffInHours} horas`;
+    if (diffInHours < 48) return 'Ayer';
+    return date.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+  };
+
+  const getEventStatus = (startDate: string, endDate: string) => {
+    const now = new Date();
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (now < start) return 'upcoming';
+    if (now >= start && now <= end) return 'today';
+    return 'past';
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'upcoming': return colors.info;
+      case 'today': return colors.success;
+      case 'past': return colors.textSecondary;
+      case 'cancelled': return colors.error;
+      default: return colors.textSecondary;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'upcoming': return 'Próximo';
+      case 'today': return 'Hoy';
+      case 'past': return 'Pasado';
+      case 'cancelled': return 'Cancelado';
+      default: return '';
+    }
+  };
+
+  const categories = [
+    { id: 'all', label: 'Todos', icon: 'grid' },
+    { id: 'music', label: 'Música', icon: 'musical-notes' },
+    { id: 'sports', label: 'Deportes', icon: 'football' },
+    { id: 'technology', label: 'Tecnología', icon: 'laptop' },
+    { id: 'business', label: 'Negocios', icon: 'briefcase' },
+    { id: 'education', label: 'Educación', icon: 'school' },
+    { id: 'entertainment', label: 'Entretenimiento', icon: 'film' },
   ];
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Eventos</Text>
-          <View style={styles.searchBar}>
-            <Search size={20} color="#6b7280" />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar eventos..."
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+  const sortOptions = [
+    { id: 'recent', label: 'Más Recientes' },
+    { id: 'popular', label: 'Más Populares' },
+    { id: 'date', label: 'Por Fecha' },
+    { id: 'price', label: 'Por Precio' },
+  ];
+
+  const renderEventCard = (event: Event) => {
+    const status = getEventStatus(event.startDate, event.endDate);
+    
+    return (
+      <TouchableOpacity
+        key={event.id}
+        style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        onPress={() => navigation.navigate('EventDetail' as never, { eventId: event.id } as never)}
+      >
+        {/* Event Header */}
+        <View style={styles.eventHeader}>
+          <View style={styles.eventTitleContainer}>
+            <Text style={[styles.eventTitle, { color: colors.text }]} numberOfLines={2}>
+              {event.title}
+            </Text>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) + '20' }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(status) }]}>
+                {getStatusText(status)}
+              </Text>
+            </View>
+          </View>
+          
+          <TouchableOpacity style={styles.moreButton}>
+            <MoreHorizontal size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Event Description */}
+        <Text style={[styles.eventDescription, { color: colors.textSecondary }]} numberOfLines={2}>
+          {event.description}
+        </Text>
+
+        {/* Event Details */}
+        <View style={styles.eventDetails}>
+          <View style={styles.eventDetail}>
+            <Calendar size={16} color={colors.textSecondary} />
+            <Text style={[styles.eventDetailText, { color: colors.textSecondary }]}>
+              {formatDate(event.startDate)}
+            </Text>
+          </View>
+          
+          <View style={styles.eventDetail}>
+            <MapPin size={16} color={colors.textSecondary} />
+            <Text style={[styles.eventDetailText, { color: colors.textSecondary }]}>
+              {event.venue || event.location.city}
+            </Text>
+          </View>
+          
+          <View style={styles.eventDetail}>
+            <Users size={16} color={colors.textSecondary} />
+            <Text style={[styles.eventDetailText, { color: colors.textSecondary }]}>
+              {event.currentAttendees}/{event.maxAttendees}
+            </Text>
           </View>
         </View>
 
-        <View style={styles.filterChips}>
-          <FilterChip
-            label="Todos"
-            isActive={selectedCategory === 'all'}
-            onPress={() => setSelectedCategory('all')}
-          />
-          <FilterChip
-            label="Fiesta"
-            isActive={selectedCategory === 'Fiesta'}
-            onPress={() => setSelectedCategory('Fiesta')}
-          />
-          <FilterChip
-            label="Cocina"
-            isActive={selectedCategory === 'Cocina'}
-            onPress={() => setSelectedCategory('Cocina')}
-          />
-          <FilterChip
-            label="Cine"
-            isActive={selectedCategory === 'Cine'}
-            onPress={() => setSelectedCategory('Cine')}
-          />
-          <FilterChip
-            label="Artesanías"
-            isActive={selectedCategory === 'Artesanías'}
-            onPress={() => setSelectedCategory('Artesanías')}
-          />
+        {/* Event Footer */}
+        <View style={styles.eventFooter}>
+          <View style={styles.eventHost}>
+            {event.host.avatar ? (
+              <Image source={{ uri: event.host.avatar }} style={styles.hostAvatar} />
+            ) : (
+              <View style={[styles.hostAvatar, { backgroundColor: colors.primary }]}>
+                <Text style={styles.hostInitial}>{event.host.username.charAt(0)}</Text>
+              </View>
+            )}
+            <Text style={[styles.hostName, { color: colors.textSecondary }]}>
+              @{event.host.username}
+            </Text>
+          </View>
+          
+          <View style={styles.eventActions}>
+            <TouchableOpacity style={styles.actionButton}>
+              <Heart size={16} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Bookmark size={16} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionButton}>
+              <Share2 size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.eventsList}>
-          {events.map((event, index) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              index={index}
-              userLocation={userLocation}
-            />
-          ))}
+        {/* Event Tags */}
+        {event.tags && event.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {event.tags.slice(0, 3).map((tag, index) => (
+              <View
+                key={index}
+                style={[styles.tag, { backgroundColor: colors.primary + '20' }]}
+              >
+                <Text style={[styles.tagText, { color: colors.primary }]}>
+                  {tag}
+                </Text>
+              </View>
+            ))}
+            {event.tags.length > 3 && (
+              <Text style={[styles.moreTagsText, { color: colors.textSecondary }]}>
+                +{event.tags.length - 3} más
+              </Text>
+            )}
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: colors.surface }]}>
+        <View style={styles.headerTop}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Eventos</Text>
+          <TouchableOpacity
+            style={[styles.createButton, { backgroundColor: colors.primary }]}
+            onPress={() => navigation.navigate('CreateEvent' as never)}
+          >
+            <Plus size={20} color="white" />
+          </TouchableOpacity>
         </View>
+
+        {/* Search Bar */}
+        <View style={[styles.searchContainer, { backgroundColor: colors.background }]}>
+          <Search size={20} color={colors.textSecondary} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Buscar eventos..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          <TouchableOpacity style={styles.filterButton}>
+            <Filter size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Categories */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesContainer}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              style={[
+                styles.categoryButton,
+                selectedCategory === category.id && { backgroundColor: colors.primary }
+              ]}
+              onPress={() => setSelectedCategory(category.id)}
+            >
+              <Ionicons
+                name={category.icon as any}
+                size={16}
+                color={selectedCategory === category.id ? 'white' : colors.textSecondary}
+              />
+              <Text style={[
+                styles.categoryButtonText,
+                { color: selectedCategory === category.id ? 'white' : colors.textSecondary }
+              ]}>
+                {category.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Sort Options */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.sortContainer}
+        >
+          {sortOptions.map((option) => (
+            <TouchableOpacity
+              key={option.id}
+              style={[
+                styles.sortButton,
+                sortBy === option.id && { backgroundColor: colors.primary }
+              ]}
+              onPress={() => setSortBy(option.id)}
+            >
+              <Text style={[
+                styles.sortButtonText,
+                { color: sortBy === option.id ? 'white' : colors.textSecondary }
+              ]}>
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Events List */}
+      <ScrollView
+        style={styles.eventsContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Cargando eventos...
+            </Text>
+          </View>
+        ) : events && events.length > 0 ? (
+          <View style={styles.eventsList}>
+            {events.map(renderEventCard)}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Calendar size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No se encontraron eventos
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+              {searchQuery || selectedCategory !== 'all' 
+                ? 'Intenta ajustar los filtros de búsqueda'
+                : 'No hay eventos disponibles en este momento'
+              }
+            </Text>
+            <TouchableOpacity
+              style={[styles.createEventButton, { backgroundColor: colors.primary }]}
+              onPress={() => navigation.navigate('CreateEvent' as never)}
+            >
+              <Plus size={20} color="white" />
+              <Text style={styles.createEventButtonText}>Crear Evento</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        
+        <View style={styles.bottomSpacing} />
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
-    paddingTop: StatusBar.currentHeight,
-  },
-  scrollViewContent: {
-    paddingBottom: 20,
   },
   header: {
+    paddingTop: 50,
+    paddingBottom: 20,
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
   },
-  title: {
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 10,
   },
-  searchBar: {
+  createButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#374151',
-    marginLeft: 10,
+    marginLeft: 12,
   },
-  filterChips: {
+  filterButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  categoriesContainer: {
+    marginBottom: 16,
+  },
+  categoryButton: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  filterChip: {
-    paddingHorizontal: 15,
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
-    marginHorizontal: 5,
-    marginVertical: 5,
+    marginRight: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  filterChipActive: {
-    backgroundColor: '#06b6d4',
-  },
-  filterChipText: {
+  categoryButtonText: {
     fontSize: 14,
-    color: '#4b5563',
+    fontWeight: '600',
+    marginLeft: 6,
   },
-  filterChipTextActive: {
-    color: '#ffffff',
+  sortContainer: {
+    marginBottom: 16,
+  },
+  sortButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sortButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  eventsContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+  },
+  loadingText: {
+    fontSize: 16,
   },
   eventsList: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
   },
   eventCard: {
-    marginBottom: 15,
-    borderRadius: 15,
-    overflow: 'hidden',
-    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
     elevation: 3,
   },
-  eventImageContainer: {
-    position: 'relative',
-    height: 180,
-  },
-  eventImage: {
-    width: '100%',
-    height: '100%',
-  },
-  categoryBadge: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  categoryText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  trendingBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#ec4899',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trendingText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 5,
-  },
-  likeButton: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    borderRadius: 15,
-    padding: 5,
-  },
-  eventContent: {
-    padding: 15,
-  },
   eventHeader: {
-    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  eventTitleContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  eventTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  moreButton: {
+    padding: 4,
   },
   eventDescription: {
     fontSize: 14,
-    color: '#4b5563',
     lineHeight: 20,
+    marginBottom: 16,
   },
   eventDetails: {
-    marginBottom: 10,
+    marginBottom: 16,
   },
-  detailRow: {
+  eventDetail: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 8,
   },
-  detailText: {
+  eventDetailText: {
     fontSize: 14,
-    color: '#4b5563',
-    marginLeft: 5,
+    marginLeft: 8,
   },
   eventFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
+    marginBottom: 16,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  priceLabel: {
-    fontSize: 14,
-    color: '#4b5563',
-    marginRight: 5,
-  },
-  priceValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  actionButtons: {
+  eventHost: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  shareButton: {
-    marginRight: 10,
+  hostAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  joinButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+  hostInitial: {
+    color: 'white',
+    fontSize: 10,
     fontWeight: 'bold',
+  },
+  hostName: {
+    fontSize: 14,
+  },
+  eventActions: {
+    flexDirection: 'row',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 4,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  moreTagsText: {
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 100,
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  createEventButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  createEventButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  bottomSpacing: {
+    height: 100,
   },
 });

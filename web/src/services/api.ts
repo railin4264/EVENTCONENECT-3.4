@@ -154,6 +154,9 @@ const eventsAPI = {
   
   getTrending: (params?: any) =>
     apiService.get('/api/events/trending', { params }),
+  
+  getFeaturedEvents: (params?: any) =>
+    apiService.get('/api/events/featured', { params }),
 };
 
 // Tribes API

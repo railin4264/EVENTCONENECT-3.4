@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useThemedStyles } from '../../contexts/ThemeContext';
 import { PullToRefresh } from '../../components/gestures/PullToRefresh';
+import { IntelligentEventBanner } from '../../components/banners/IntelligentEventBanner';
 import EventsService from '../../services/EventsService';
 
 const { width, height } = Dimensions.get('window');
@@ -621,6 +622,20 @@ export const IntelligentHomeScreen: React.FC<{ navigation: any }> = ({ navigatio
         }
       >
         {renderPersonalizedHeader()}
+        
+        {/* Intelligent Featured Events Banner */}
+        <IntelligentEventBanner
+          userId={user?.id}
+          userInterests={user?.interests}
+          location={user?.location?.coordinates ? {
+            latitude: user.location.coordinates[1],
+            longitude: user.location.coordinates[0]
+          } : undefined}
+          onEventPress={(eventId) => {
+            navigation.navigate('EventDetails', { eventId });
+          }}
+        />
+        
         {renderQuickActions()}
         {renderRecommendedEvents()}
         {renderLocalDemand()}
@@ -939,6 +954,36 @@ const componentStyles = StyleSheet.create({
   },
   followButton: {
     paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  followButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 100,
+  },
+});
+
+export default IntelligentHomeScreen;
+
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  followButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bottomSpacer: {
+    height: 100,
+  },
+});
+
+export default IntelligentHomeScreen;
+
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,

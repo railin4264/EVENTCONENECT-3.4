@@ -285,3 +285,5 @@ EventConnect tiene una **base excelente** con **diseño moderno y limpio**. Las 
 
 otra cosa segura te que nada tenga datos mokecado, al menos que no tenga conexión , pero que todo maneje data real , como debe de ser , completa el to do que estás más arriba
 
+
+

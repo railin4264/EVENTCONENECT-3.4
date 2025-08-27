@@ -382,3 +382,5 @@ ana@example.com / dev123
 
 **¡EventConnect es ahora una plataforma completa y robusta lista para conquistar el mercado de eventos!** 🎉
 
+
+

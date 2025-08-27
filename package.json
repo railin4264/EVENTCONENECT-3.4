@@ -9,7 +9,11 @@
     "mobile"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:mobile\"",
+    "dev": "node start-all.js",
+    "start": "node start-all.js",
+    "setup": "node scripts/setup-dev.js",
+    "verify": "node scripts/verify-connectivity.js",
+    "dev:concurrent": "concurrently \"npm run dev:backend\" \"npm run dev:web\" \"npm run dev:mobile\"",
     "dev:backend": "cd backend && npm run dev",
     "dev:web": "cd web && npm run dev",
     "dev:mobile": "cd mobile && npm start",
