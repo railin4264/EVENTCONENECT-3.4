@@ -1,5 +1,7 @@
+'use client';
+
 import { createContext, useContext, useEffect, useState } from 'react';
-import { authService, apiUtils } from '../services/api';
+import { authService, apiUtils } from '@/services/api';
 
 const AuthContext = createContext();
 
@@ -27,8 +29,7 @@ export const AuthProvider = ({ children }) => {
       setError(null);
 
       // Verificar si hay token
-      const isAuth = await apiUtils.isAuthenticated();
-      if (!isAuth) {
+      if (!apiUtils.isAuthenticated()) {
         setUser(null);
         return;
       }
@@ -40,7 +41,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error verificando autenticación:', error);
       setError('Error al verificar autenticación');
       // Limpiar datos de autenticación si hay error
-      await apiUtils.clearAuth();
+      apiUtils.clearAuth();
       setUser(null);
     } finally {
       setLoading(false);
@@ -98,7 +99,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Error en logout:', error);
     } finally {
       setUser(null);
-      await apiUtils.clearAuth();
+      apiUtils.clearAuth();
       setLoading(false);
     }
   };
