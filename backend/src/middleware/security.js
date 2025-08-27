@@ -1,6 +1,3 @@
-const cookieParser = require('cookie-parser');
-const cors = require('cors');
-const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
 const helmet = require('helmet');
@@ -102,20 +99,15 @@ const createRateLimit = (
     message: {
       success: false,
       message,
-      retryAfter: Math.ceil(windowMs / 1000),
+      code: 'RATE_LIMIT_EXCEEDED'
     },
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests,
     skipFailedRequests,
-    handler: (req, res) => {
-      res.status(429).json({
-        success: false,
-        message,
-        retryAfter: Math.ceil(windowMs / 1000),
-        timestamp: new Date().toISOString(),
-      });
-    },
+    keyGenerator: (req) => {
+      return req.ip || req.connection.remoteAddress || 'unknown';
+    }
   });
 };
 
@@ -123,119 +115,51 @@ const createRateLimit = (
 const createSpeedLimit = (
   windowMs = 15 * 60 * 1000,
   delayAfter = 50,
-  delayMs = 500
+  delayMs = 500,
+  maxDelayMs = 20000
 ) => {
   return slowDown({
     windowMs,
     delayAfter,
-    delayMs: () => delayMs,
-    maxDelayMs: 20000,
-    skipSuccessfulRequests: true,
-    skipFailedRequests: false,
+    delayMs,
+    maxDelayMs,
     keyGenerator: (req) => {
-      return req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    },
+      return req.ip || req.connection.remoteAddress || 'unknown';
+    }
   });
 };
 
-// ==========================================
-// CONFIGURACIONES ESPECÍFICAS
-// ==========================================
-
 // Rate limiters específicos
-const authRateLimit = createRateLimit(
-  15 * 60 * 1000, // 15 minutos
-  5, // 5 intentos
-  'Demasiados intentos de autenticación, intenta de nuevo en 15 minutos',
-  false,
-  true
-);
-
-const apiRateLimit = createRateLimit(
-  15 * 60 * 1000, // 15 minutos
-  100, // 100 requests
-  'Demasiadas solicitudes a la API, intenta de nuevo en 15 minutos',
-  true,
-  false
-);
-
-const uploadRateLimit = createRateLimit(
-  60 * 1000, // 1 minuto
-  5, // 5 uploads
-  'Demasiadas subidas de archivos, espera 1 minuto',
-  false,
-  true
-);
-
-const searchRateLimit = createRateLimit(
-  60 * 1000, // 1 minuto
-  30, // 30 búsquedas
-  'Demasiadas búsquedas, espera 1 minuto',
-  true,
-  false
-);
+const authRateLimit = createRateLimit(15 * 60 * 1000, 5, 'Demasiados intentos de login, intenta de nuevo en 15 minutos');
+const apiRateLimit = createRateLimit(15 * 60 * 1000, 100, 'Límite de API excedido');
+const uploadRateLimit = createRateLimit(15 * 60 * 1000, 10, 'Demasiadas subidas de archivos');
+const searchRateLimit = createRateLimit(1 * 60 * 1000, 30, 'Demasiadas búsquedas');
 
 // Speed limiters
-const authSpeedLimit = createSpeedLimit(15 * 60 * 1000, 3, 1000);
-const apiSpeedLimit = createSpeedLimit(15 * 60 * 1000, 50, 500);
+const authSpeedLimit = createSpeedLimit(15 * 60 * 1000, 3, 1000, 10000);
+const apiSpeedLimit = createSpeedLimit(15 * 60 * 1000, 50, 500, 20000);
 
 // ==========================================
-// MIDDLEWARE DE SEGURIDAD
+// CONFIGURACIÓN DE HELMET
 // ==========================================
 
-// Configuración de Helmet
 const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
-      scriptSrc: ["'self'", "https:"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "wss:", "https:"],
-      fontSrc: ["'self'", "https:"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'", "https:"],
-      frameSrc: ["'none'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
+      fontSrc: ["'self'", "fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:", "res.cloudinary.com"],
+      scriptSrc: ["'self'"],
+      connectSrc: ["'self'", "ws:", "wss:"],
     },
   },
   crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" },
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
     preload: true,
   },
-});
-
-// Configuración de CORS
-const corsConfig = cors({
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:19006',
-      process.env.CLIENT_URL,
-      process.env.WEB_URL,
-      process.env.MOBILE_URL,
-    ].filter(Boolean);
-
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origen no permitido por CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'X-Requested-With',
-    'X-API-Key',
-    'X-Client-Version',
-  ],
-  exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
-  maxAge: 86400, // 24 horas
 });
 
 // ==========================================
@@ -289,11 +213,6 @@ const securityLogger = (req, res, next) => {
     userAgent: req.get('User-Agent'),
     referer: req.get('Referer'),
     userId: req.user?.id || 'anonymous',
-    headers: {
-      'x-forwarded-for': req.get('X-Forwarded-For'),
-      'x-real-ip': req.get('X-Real-IP'),
-      'x-client-ip': req.get('X-Client-IP'),
-    },
   };
 
   // Log requests sospechosos
@@ -328,16 +247,9 @@ module.exports = {
 
   // Security middleware
   helmetConfig,
-  corsConfig,
   sanitizeInput,
   validateContentType,
   validateRequestSize,
   attackDetector,
   securityLogger,
-
-  // Rate limiting
-  apiRateLimit,
-  authRateLimit,
-  uploadRateLimit,
-  searchRateLimit,
 };
