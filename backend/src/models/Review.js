@@ -20,7 +20,7 @@ const reviewSchema = new mongoose.Schema(
     targetEvent: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Event',
-      required: function () {
+      required() {
         return this.reviewType === 'event';
       },
     },
@@ -28,7 +28,7 @@ const reviewSchema = new mongoose.Schema(
     targetOrganizer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: function () {
+      required() {
         return this.reviewType === 'organizer';
       },
     },
@@ -36,14 +36,14 @@ const reviewSchema = new mongoose.Schema(
     targetUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: function () {
+      required() {
         return this.reviewType === 'user';
       },
     },
 
     targetVenue: {
       type: String,
-      required: function () {
+      required() {
         return this.reviewType === 'venue';
       },
     },
@@ -62,7 +62,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'event';
         },
       },
@@ -71,7 +71,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'event';
         },
       },
@@ -80,7 +80,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'event';
         },
       },
@@ -89,7 +89,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'event';
         },
       },
@@ -99,7 +99,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'organizer';
         },
       },
@@ -108,7 +108,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'organizer';
         },
       },
@@ -117,7 +117,7 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-        required: function () {
+        required() {
           return this.reviewType === 'organizer';
         },
       },
@@ -162,7 +162,7 @@ const reviewSchema = new mongoose.Schema(
     // Información adicional
     attendedDate: {
       type: Date,
-      required: function () {
+      required() {
         return this.reviewType === 'event';
       },
     },
@@ -180,7 +180,7 @@ const reviewSchema = new mongoose.Schema(
         'photo_proof',
         'automated',
       ],
-      required: function () {
+      required() {
         return this.verified;
       },
     },
@@ -372,13 +372,13 @@ reviewSchema.virtual('reportedCount').get(function () {
 
 reviewSchema.virtual('averageRating').get(function () {
   if (!this.ratings) return 0;
-  
-  const ratings = Object.values(this.ratings).filter(rating => 
-    typeof rating === 'number' && rating > 0
+
+  const ratings = Object.values(this.ratings).filter(
+    rating => typeof rating === 'number' && rating > 0
   );
-  
+
   if (ratings.length === 0) return 0;
-  
+
   return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
 });
 
@@ -398,10 +398,20 @@ reviewSchema.pre('save', function (next) {
 
 reviewSchema.pre('save', function (next) {
   // Auto-generar tags basados en el contenido
-  if (this.isModified('content.title') || this.isModified('content.description')) {
-    const text = `${this.content.title} ${this.content.description}`.toLowerCase();
-    const commonTags = ['evento', 'organizador', 'lugar', 'experiencia', 'recomendado'];
-    
+  if (
+    this.isModified('content.title') ||
+    this.isModified('content.description')
+  ) {
+    const text =
+      `${this.content.title} ${this.content.description}`.toLowerCase();
+    const commonTags = [
+      'evento',
+      'organizador',
+      'lugar',
+      'experiencia',
+      'recomendado',
+    ];
+
     this.tags = commonTags.filter(tag => text.includes(tag));
   }
   next();
@@ -439,7 +449,9 @@ reviewSchema.methods.addHelpful = function (userId) {
 };
 
 reviewSchema.methods.removeHelpful = function (userId) {
-  this.helpful = this.helpful.filter(h => h.user.toString() !== userId.toString());
+  this.helpful = this.helpful.filter(
+    h => h.user.toString() !== userId.toString()
+  );
   return this.save();
 };
 

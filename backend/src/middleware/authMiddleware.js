@@ -1,9 +1,13 @@
 const jwt = require('jsonwebtoken');
+
 const User = require('../models/User');
 const { logger } = require('../utils/logger');
 
 /**
  * Middleware para verificar autenticación JWT
+ * @param req
+ * @param res
+ * @param next
  */
 const authenticateToken = async (req, res, next) => {
   try {
@@ -13,7 +17,7 @@ const authenticateToken = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
-        message: 'Token de acceso requerido'
+        message: 'Token de acceso requerido',
       });
     }
 
@@ -23,7 +27,7 @@ const authenticateToken = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Usuario no encontrado'
+        message: 'Usuario no encontrado',
       });
     }
 
@@ -33,27 +37,28 @@ const authenticateToken = async (req, res, next) => {
     logger.error('Error en autenticación:', error);
     return res.status(403).json({
       success: false,
-      message: 'Token inválido'
+      message: 'Token inválido',
     });
   }
 };
 
 /**
  * Middleware para verificar roles de usuario
+ * @param {...any} roles
  */
 const authorizeRoles = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Usuario no autenticado'
+        message: 'Usuario no autenticado',
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: 'No tienes permisos para realizar esta acción'
+        message: 'No tienes permisos para realizar esta acción',
       });
     }
 
@@ -63,6 +68,8 @@ const authorizeRoles = (...roles) => {
 
 /**
  * Middleware para verificar si el usuario es propietario del recurso
+ * @param resourceModel
+ * @param resourceIdParam
  */
 const authorizeOwner = (resourceModel, resourceIdParam = 'id') => {
   return async (req, res, next) => {
@@ -73,14 +80,17 @@ const authorizeOwner = (resourceModel, resourceIdParam = 'id') => {
       if (!resource) {
         return res.status(404).json({
           success: false,
-          message: 'Recurso no encontrado'
+          message: 'Recurso no encontrado',
         });
       }
 
-      if (resource.userId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      if (
+        resource.userId.toString() !== req.user._id.toString() &&
+        req.user.role !== 'admin'
+      ) {
         return res.status(403).json({
           success: false,
-          message: 'No tienes permisos para modificar este recurso'
+          message: 'No tienes permisos para modificar este recurso',
         });
       }
 
@@ -90,7 +100,7 @@ const authorizeOwner = (resourceModel, resourceIdParam = 'id') => {
       logger.error('Error en autorización de propietario:', error);
       return res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   };
@@ -98,12 +108,15 @@ const authorizeOwner = (resourceModel, resourceIdParam = 'id') => {
 
 /**
  * Middleware para verificar si el usuario está activo
+ * @param req
+ * @param res
+ * @param next
  */
 const requireActiveUser = (req, res, next) => {
   if (!req.user.isActive) {
     return res.status(403).json({
       success: false,
-      message: 'Tu cuenta está desactivada'
+      message: 'Tu cuenta está desactivada',
     });
   }
   next();
@@ -111,12 +124,15 @@ const requireActiveUser = (req, res, next) => {
 
 /**
  * Middleware para verificar si el usuario está verificado
+ * @param req
+ * @param res
+ * @param next
  */
 const requireVerifiedUser = (req, res, next) => {
   if (!req.user.isVerified) {
     return res.status(403).json({
       success: false,
-      message: 'Tu cuenta debe estar verificada para realizar esta acción'
+      message: 'Tu cuenta debe estar verificada para realizar esta acción',
     });
   }
   next();
@@ -127,5 +143,5 @@ module.exports = {
   authorizeRoles,
   authorizeOwner,
   requireActiveUser,
-  requireVerifiedUser
+  requireVerifiedUser,
 };

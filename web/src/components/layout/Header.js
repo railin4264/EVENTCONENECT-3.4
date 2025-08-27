@@ -1,236 +1,185 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWebSocket } from '@/contexts/WebSocketContext';
 
 export default function Header() {
-  const { user, isAuthenticated, logout } = useAuth();
-  const { connected: wsConnected } = useWebSocket();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Solo usar useAuth después de que el componente esté montado
+  const auth = mounted ? useAuth() : { user: null, isAuthenticated: false, logout: () => {} };
+  const { user, isAuthenticated, logout } = auth;
+
+  const handleLogin = () => {
+    router.push('/auth/login');
+  };
+
+  const handleRegister = () => {
+    router.push('/auth/register');
+  };
 
   const handleLogout = async () => {
     await logout();
-    setIsProfileMenuOpen(false);
+    setShowUserMenu(false);
+    router.push('/');
+  };
+
+  const handleProfile = () => {
+    router.push('/profile');
+    setShowUserMenu(false);
   };
 
   return (
-    <header className="bg-white shadow-sm border-b">
-      <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-xl border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-green-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
+          <div
+            className="flex items-center space-x-3 cursor-pointer"
+            onClick={() => router.push('/')}
+          >
+            <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-purple-500 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">E</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">EventConnect</span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link href="/events" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Eventos
-            </Link>
-            <Link href="/tribes" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Tribus
-            </Link>
-            <Link href="/explore" className="text-gray-600 hover:text-gray-900 transition-colors">
-              Explorar
-            </Link>
-            {isAuthenticated && (
-              <Link href="/dashboard" className="text-gray-600 hover:text-gray-900 transition-colors">
-                Dashboard
-              </Link>
-            )}
-          </nav>
-
-          {/* Desktop Actions */}
-          <div className="hidden md:flex items-center space-x-4">
-            {/* Connection Status */}
-            {isAuthenticated && (
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                <span className="text-xs text-gray-500">
-                  {wsConnected ? 'Conectado' : 'Desconectado'}
-                </span>
-              </div>
-            )}
-
-            {isAuthenticated ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
-                >
-                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                    {user?.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt={user.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-sm font-medium text-gray-600">
-                        {user?.name?.charAt(0)?.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <span className="hidden lg:block">{user?.name}</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {/* Profile Dropdown */}
-                {isProfileMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                    <Link
-                      href="/profile"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsProfileMenuOpen(false)}
-                    >
-                      Mi Perfil
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsProfileMenuOpen(false)}
-                    >
-                      Configuración
-                    </Link>
-                    <Link
-                      href="/notifications"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsProfileMenuOpen(false)}
-                    >
-                      Notificaciones
-                    </Link>
-                    <hr className="my-1" />
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                    >
-                      Cerrar Sesión
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center space-x-4">
-                <Link
-                  href="/auth/login"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  Iniciar Sesión
-                </Link>
-                <Link
-                  href="/auth/register"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Registrarse
-                </Link>
-              </div>
-            )}
+            <div>
+              <h1 className="text-xl font-bold text-white">EventConnect</h1>
+            </div>
           </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {isMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              ) : (
+          {/* Navigation - Desktop */}
+          <nav className="hidden md:flex items-center space-x-6">
+            <button
+              onClick={() => router.push('/events')}
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              Eventos
+            </button>
+            <button
+              onClick={() => router.push('/tribes')}
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              Tribus
+            </button>
+            <button
+              onClick={() => router.push('/discover')}
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              Descubrir
+            </button>
+          </nav>
+
+          {/* Auth Section */}
+          <div className="flex items-center space-x-4">
+            {isAuthenticated ? (
+              <>
+                {/* User Menu */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
+                  >
+                    <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm">
+                        {user?.name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <span className="hidden md:block">{user?.name || 'Usuario'}</span>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                      <button
+                        onClick={handleProfile}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Perfil
+                      </button>
+                      <button
+                        onClick={() => router.push('/settings')}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Configuración
+                      </button>
+                      <hr className="my-1" />
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                      >
+                        Cerrar Sesión
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLogin}
+                  className="text-gray-300 hover:text-white transition-colors"
+                >
+                  Iniciar Sesión
+                </button>
+                <button
+                  onClick={handleRegister}
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Registrarse
+                </button>
+              </>
+            )}
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="md:hidden text-gray-300 hover:text-white"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
-          </button>
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Mobile Menu */}
-        {isMenuOpen && (
-          <div className="md:hidden py-4 border-t">
-            <nav className="flex flex-col space-y-4">
-              <Link
-                href="/events"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
+        {showMobileMenu && (
+          <div className="md:hidden py-4 border-t border-white/10">
+            <nav className="flex flex-col space-y-2">
+              <button
+                onClick={() => {
+                  router.push('/events');
+                  setShowMobileMenu(false);
+                }}
+                className="text-gray-300 hover:text-white transition-colors px-4 py-2"
               >
                 Eventos
-              </Link>
-              <Link
-                href="/tribes"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
+              </button>
+              <button
+                onClick={() => {
+                  router.push('/tribes');
+                  setShowMobileMenu(false);
+                }}
+                className="text-gray-300 hover:text-white transition-colors px-4 py-2"
               >
                 Tribus
-              </Link>
-              <Link
-                href="/explore"
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
+              </button>
+              <button
+                onClick={() => {
+                  router.push('/discover');
+                  setShowMobileMenu(false);
+                }}
+                className="text-gray-300 hover:text-white transition-colors px-4 py-2"
               >
-                Explorar
-              </Link>
-              {isAuthenticated && (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="text-gray-600 hover:text-gray-900 transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/profile"
-                    className="text-gray-600 hover:text-gray-900 transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Mi Perfil
-                  </Link>
-                  <Link
-                    href="/settings"
-                    className="text-gray-600 hover:text-gray-900 transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Configuración
-                  </Link>
-                  <Link
-                    href="/notifications"
-                    className="text-gray-600 hover:text-gray-900 transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Notificaciones
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="text-left text-red-600 hover:text-red-700 transition-colors"
-                  >
-                    Cerrar Sesión
-                  </button>
-                </>
-              )}
-              {!isAuthenticated && (
-                <div className="flex flex-col space-y-2 pt-4 border-t">
-                  <Link
-                    href="/auth/login"
-                    className="text-gray-600 hover:text-gray-900 transition-colors"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Iniciar Sesión
-                  </Link>
-                  <Link
-                    href="/auth/register"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-center"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    Registrarse
-                  </Link>
-                </div>
-              )}
+                Descubrir
+              </button>
             </nav>
           </div>
         )}

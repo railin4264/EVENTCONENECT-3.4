@@ -1,5 +1,6 @@
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
+
 const { logger } = require('../utils/logger');
 
 /**
@@ -10,14 +11,14 @@ const generalLimiter = rateLimit({
   max: 1000, // máximo 1000 requests por ventana
   message: {
     success: false,
-    message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde'
+    message: 'Demasiadas solicitudes desde esta IP, intenta de nuevo más tarde',
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
+  skip: req => {
     // Saltar rate limiting para health checks
     return req.path === '/health' || req.path.startsWith('/health/');
-  }
+  },
 });
 
 /**
@@ -28,11 +29,11 @@ const authLimiter = rateLimit({
   max: 5, // máximo 5 intentos de login por ventana
   message: {
     success: false,
-    message: 'Demasiados intentos de autenticación, intenta de nuevo más tarde'
+    message: 'Demasiados intentos de autenticación, intenta de nuevo más tarde',
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true
+  skipSuccessfulRequests: true,
 });
 
 /**
@@ -43,10 +44,10 @@ const eventCreationLimiter = rateLimit({
   max: 10, // máximo 10 eventos por hora
   message: {
     success: false,
-    message: 'Has alcanzado el límite de creación de eventos por hora'
+    message: 'Has alcanzado el límite de creación de eventos por hora',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -57,10 +58,10 @@ const commentLimiter = rateLimit({
   max: 20, // máximo 20 comentarios por 5 minutos
   message: {
     success: false,
-    message: 'Has alcanzado el límite de comentarios por 5 minutos'
+    message: 'Has alcanzado el límite de comentarios por 5 minutos',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -71,10 +72,10 @@ const searchLimiter = rateLimit({
   max: 30, // máximo 30 búsquedas por minuto
   message: {
     success: false,
-    message: 'Has alcanzado el límite de búsquedas por minuto'
+    message: 'Has alcanzado el límite de búsquedas por minuto',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -85,10 +86,10 @@ const speedLimiter = slowDown({
   delayAfter: 50, // permitir 50 requests sin delay
   delayMs: 500, // agregar 500ms de delay por request después de delayAfter
   maxDelayMs: 20000, // máximo delay de 20 segundos
-  skip: (req) => {
+  skip: req => {
     // Saltar speed limiting para health checks
     return req.path === '/health' || req.path.startsWith('/health/');
-  }
+  },
 });
 
 /**
@@ -99,10 +100,10 @@ const uploadLimiter = rateLimit({
   max: 50, // máximo 50 archivos por hora
   message: {
     success: false,
-    message: 'Has alcanzado el límite de subida de archivos por hora'
+    message: 'Has alcanzado el límite de subida de archivos por hora',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -113,10 +114,10 @@ const notificationLimiter = rateLimit({
   max: 10, // máximo 10 notificaciones por 5 minutos
   message: {
     success: false,
-    message: 'Has alcanzado el límite de notificaciones por 5 minutos'
+    message: 'Has alcanzado el límite de notificaciones por 5 minutos',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
@@ -127,47 +128,50 @@ const externalApiLimiter = rateLimit({
   max: 100, // máximo 100 requests por minuto
   message: {
     success: false,
-    message: 'Has alcanzado el límite de requests a APIs externas por minuto'
+    message: 'Has alcanzado el límite de requests a APIs externas por minuto',
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 
 /**
  * Middleware para aplicar rate limits según la ruta
+ * @param req
+ * @param res
+ * @param next
  */
 const applyRateLimits = (req, res, next) => {
-  const path = req.path;
-  
+  const { path } = req;
+
   // Aplicar rate limits específicos según la ruta
   if (path.startsWith('/api/auth')) {
     return authLimiter(req, res, next);
   }
-  
+
   if (path.startsWith('/api/events') && req.method === 'POST') {
     return eventCreationLimiter(req, res, next);
   }
-  
+
   if (path.includes('/comments') || path.includes('/reviews')) {
     return commentLimiter(req, res, next);
   }
-  
+
   if (path.startsWith('/api/search')) {
     return searchLimiter(req, res, next);
   }
-  
+
   if (path.includes('/upload')) {
     return uploadLimiter(req, res, next);
   }
-  
+
   if (path.startsWith('/api/notifications')) {
     return notificationLimiter(req, res, next);
   }
-  
+
   if (path.includes('/external') || path.includes('/third-party')) {
     return externalApiLimiter(req, res, next);
   }
-  
+
   // Aplicar rate limit general para otras rutas
   return generalLimiter(req, res, next);
 };
@@ -182,5 +186,5 @@ module.exports = {
   uploadLimiter,
   notificationLimiter,
   externalApiLimiter,
-  applyRateLimits
+  applyRateLimits,
 };

@@ -8,7 +8,7 @@ import {
   ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { authAPI } from '@/services/api';
+import { authService } from '@/services/api';
 
 interface User {
   id: string;
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const res = await authAPI.getProfile();
+      const res = await authService.getProfile();
       const data = (res as any)?.data?.user || (res as any)?.user || res;
       if (data) {
         setUser(data);
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      const res = await authAPI.login({ email, password });
+      const res = await authService.login({ email, password });
       const payload = (res as any)?.data || res;
       const userData = payload?.user || payload?.data?.user || payload?.data?.user;
       const tokens = payload?.tokens || payload?.data?.tokens;
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (userData: any) => {
     try {
       setIsLoading(true);
-      const res = await authAPI.register(userData);
+      const res = await authService.register(userData);
       const payload = (res as any)?.data || res;
       const newUser = payload?.user || payload?.data?.user;
       const tokens = payload?.tokens || payload?.data?.tokens;

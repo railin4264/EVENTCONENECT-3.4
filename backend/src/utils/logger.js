@@ -1,6 +1,7 @@
-const winston = require('winston');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+
+const winston = require('winston');
 
 // Crear directorio de logs si no existe
 const logDir = path.join(__dirname, '../../logs');
@@ -11,7 +12,7 @@ if (!fs.existsSync(logDir)) {
 // Configuración de formatos
 const logFormat = winston.format.combine(
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss'
+    format: 'YYYY-MM-DD HH:mm:ss',
   }),
   winston.format.errors({ stack: true }),
   winston.format.json()
@@ -20,19 +21,19 @@ const logFormat = winston.format.combine(
 const consoleFormat = winston.format.combine(
   winston.format.colorize(),
   winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss'
+    format: 'YYYY-MM-DD HH:mm:ss',
   }),
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     let log = `${timestamp} [${level}]: ${message}`;
-    
+
     if (Object.keys(meta).length > 0) {
       log += ` ${JSON.stringify(meta)}`;
     }
-    
+
     if (stack) {
       log += `\n${stack}`;
     }
-    
+
     return log;
   })
 );
@@ -42,25 +43,25 @@ const transports = [
   // Consola
   new winston.transports.Console({
     format: consoleFormat,
-    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
+    level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
   }),
-  
+
   // Archivo de errores
   new winston.transports.File({
     filename: path.join(logDir, 'error.log'),
     level: 'error',
     format: logFormat,
     maxsize: 5242880, // 5MB
-    maxFiles: 5
+    maxFiles: 5,
   }),
-  
+
   // Archivo de logs generales
   new winston.transports.File({
     filename: path.join(logDir, 'combined.log'),
     format: logFormat,
     maxsize: 5242880, // 5MB
-    maxFiles: 5
-  })
+    maxFiles: 5,
+  }),
 ];
 
 // Agregar transporte de logs de acceso en producción
@@ -71,7 +72,7 @@ if (process.env.NODE_ENV === 'production') {
       level: 'info',
       format: logFormat,
       maxsize: 5242880, // 5MB
-      maxFiles: 5
+      maxFiles: 5,
     })
   );
 }
@@ -81,13 +82,13 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
   transports,
-  exitOnError: false
+  exitOnError: false,
 });
 
 // Función para loggear requests HTTP
 const logRequest = (req, res, next) => {
   const start = Date.now();
-  
+
   res.on('finish', () => {
     const duration = Date.now() - start;
     const logData = {
@@ -97,16 +98,16 @@ const logRequest = (req, res, next) => {
       duration: `${duration}ms`,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      userId: req.user ? req.user._id : null
+      userId: req.user ? req.user._id : null,
     };
-    
+
     if (res.statusCode >= 400) {
       logger.error('HTTP Request Error', logData);
     } else {
       logger.info('HTTP Request', logData);
     }
   });
-  
+
   next();
 };
 
@@ -117,7 +118,7 @@ const logDatabaseError = (error, operation, collection) => {
     collection,
     error: error.message,
     stack: error.stack,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -129,7 +130,7 @@ const logAuthError = (error, userId, action) => {
     error: error.message,
     ip: error.ip || 'unknown',
     userAgent: error.userAgent || 'unknown',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -138,7 +139,7 @@ const logSecurityEvent = (event, details) => {
   logger.warn('Security Event', {
     event,
     details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -148,7 +149,7 @@ const logPerformance = (operation, duration, metadata = {}) => {
     operation,
     duration: `${duration}ms`,
     ...metadata,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -158,7 +159,7 @@ const logBusinessEvent = (event, userId, details = {}) => {
     event,
     userId,
     details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -170,7 +171,7 @@ const logExternalApiError = (service, endpoint, error, metadata = {}) => {
     error: error.message,
     statusCode: error.statusCode,
     ...metadata,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -181,7 +182,7 @@ const logWebSocketEvent = (event, socketId, userId, data = {}) => {
     socketId,
     userId,
     data,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -192,7 +193,7 @@ const logCacheEvent = (operation, key, hit, duration = null) => {
     key,
     hit,
     duration: duration ? `${duration}ms` : null,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -204,9 +205,9 @@ const logUploadEvent = (userId, fileInfo, success, error = null) => {
     fileSize: fileInfo.size,
     mimetype: fileInfo.mimetype,
     success,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (error) {
     logData.error = error.message;
     logger.error('Upload Error', logData);
@@ -222,9 +223,9 @@ const logNotificationEvent = (type, userId, success, details = {}) => {
     userId,
     success,
     details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (success) {
     logger.info('Notification Sent', logData);
   } else {
@@ -239,7 +240,7 @@ const logGamificationEvent = (event, userId, points, action) => {
     userId,
     points,
     action,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
@@ -251,20 +252,25 @@ const logSearchEvent = (userId, query, filters, resultsCount, duration) => {
     filters,
     resultsCount,
     duration: `${duration}ms`,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
 
 // Función para loggear eventos de recomendaciones AI
-const logAIRecommendationEvent = (userId, recommendationType, success, details = {}) => {
+const logAIRecommendationEvent = (
+  userId,
+  recommendationType,
+  success,
+  details = {}
+) => {
   const logData = {
     userId,
     recommendationType,
     success,
     details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (success) {
     logger.info('AI Recommendation Generated', logData);
   } else {
@@ -287,5 +293,5 @@ module.exports = {
   logNotificationEvent,
   logGamificationEvent,
   logSearchEvent,
-  logAIRecommendationEvent
+  logAIRecommendationEvent,
 };

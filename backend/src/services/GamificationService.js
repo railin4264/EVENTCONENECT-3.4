@@ -1,70 +1,78 @@
-const User = require('../models/User');
-const Event = require('../models/Event');
-const Tribe = require('../models/Tribe');
 const Achievement = require('../models/Achievement');
 const Badge = require('../models/Badge');
+const Event = require('../models/Event');
+const Tribe = require('../models/Tribe');
+const User = require('../models/User');
 const { logger } = require('../utils/logger');
 
+/**
+ *
+ */
 class GamificationService {
   /**
    * Calcular puntos por acción
+   * @param action
+   * @param metadata
    */
   static calculatePoints(action, metadata = {}) {
     const pointValues = {
       // Eventos
-      'event_created': 100,
-      'event_attended': 50,
-      'event_hosted': 200,
-      'event_shared': 10,
-      'event_reviewed': 25,
-      
+      event_created: 100,
+      event_attended: 50,
+      event_hosted: 200,
+      event_shared: 10,
+      event_reviewed: 25,
+
       // Tribus
-      'tribe_joined': 30,
-      'tribe_created': 150,
-      'tribe_post_created': 20,
-      'tribe_contribution': 15,
-      
+      tribe_joined: 30,
+      tribe_created: 150,
+      tribe_post_created: 20,
+      tribe_contribution: 15,
+
       // Social
-      'profile_completed': 50,
-      'photo_uploaded': 10,
-      'review_written': 25,
-      'comment_posted': 5,
-      'like_given': 1,
-      'share_made': 5,
-      
+      profile_completed: 50,
+      photo_uploaded: 10,
+      review_written: 25,
+      comment_posted: 5,
+      like_given: 1,
+      share_made: 5,
+
       // Engagement
-      'daily_login': 5,
-      'weekly_active': 25,
-      'monthly_active': 100,
-      'streak_7_days': 50,
-      'streak_30_days': 200,
-      
+      daily_login: 5,
+      weekly_active: 25,
+      monthly_active: 100,
+      streak_7_days: 50,
+      streak_30_days: 200,
+
       // Especiales
-      'first_event': 500,
-      'first_tribe': 300,
-      'milestone_100_points': 50,
-      'milestone_500_points': 100,
-      'milestone_1000_points': 200,
-      'milestone_5000_points': 500
+      first_event: 500,
+      first_tribe: 300,
+      milestone_100_points: 50,
+      milestone_500_points: 100,
+      milestone_1000_points: 200,
+      milestone_5000_points: 500,
     };
 
     let points = pointValues[action] || 0;
-    
+
     // Multiplicadores por metadata
     if (metadata.quality === 'high') points *= 1.5;
     if (metadata.engagement > 10) points *= 1.2;
     if (metadata.isWeekend) points *= 1.1;
-    
+
     return Math.round(points);
   }
 
   /**
    * Asignar puntos a un usuario
+   * @param userId
+   * @param action
+   * @param metadata
    */
   static async assignPoints(userId, action, metadata = {}) {
     try {
       const points = this.calculatePoints(action, metadata);
-      
+
       if (points <= 0) {
         logger.warn(`No points calculated for action: ${action}`);
         return { success: false, points: 0 };
@@ -79,19 +87,25 @@ class GamificationService {
       // Actualizar puntos del usuario
       const previousPoints = user.stats?.points || 0;
       const newPoints = previousPoints + points;
-      
+
       await User.findByIdAndUpdate(userId, {
         $inc: { 'stats.points': points },
-        $set: { 'stats.lastActivity': new Date() }
+        $set: { 'stats.lastActivity': new Date() },
       });
 
       // Verificar logros
-      const achievements = await this.checkAchievements(userId, newPoints, action);
-      
+      const achievements = await this.checkAchievements(
+        userId,
+        newPoints,
+        action
+      );
+
       // Verificar badges
       const badges = await this.checkBadges(userId, action, metadata);
 
-      logger.info(`Points assigned to user ${userId}: ${points} for action ${action}`);
+      logger.info(
+        `Points assigned to user ${userId}: ${points} for action ${action}`
+      );
 
       return {
         success: true,
@@ -99,7 +113,7 @@ class GamificationService {
         previousPoints,
         newPoints,
         achievements,
-        badges
+        badges,
       };
     } catch (error) {
       logger.error('Error assigning points:', error);
@@ -109,6 +123,9 @@ class GamificationService {
 
   /**
    * Verificar logros del usuario
+   * @param userId
+   * @param totalPoints
+   * @param action
    */
   static async checkAchievements(userId, totalPoints, action) {
     try {
@@ -117,34 +134,53 @@ class GamificationService {
 
       // Logros basados en puntos
       const pointMilestones = [100, 500, 1000, 2500, 5000, 10000];
-      
+
       for (const milestone of pointMilestones) {
-        if (totalPoints >= milestone && !user.achievements?.includes(`points_${milestone}`)) {
-          const achievement = await this.createAchievement(userId, `points_${milestone}`, {
-            title: `${milestone} Puntos`,
-            description: `Has alcanzado ${milestone} puntos`,
-            points: milestone * 0.1
-          });
-          
+        if (
+          totalPoints >= milestone &&
+          !user.achievements?.includes(`points_${milestone}`)
+        ) {
+          const achievement = await this.createAchievement(
+            userId,
+            `points_${milestone}`,
+            {
+              title: `${milestone} Puntos`,
+              description: `Has alcanzado ${milestone} puntos`,
+              points: milestone * 0.1,
+            }
+          );
+
           if (achievement) achievements.push(achievement);
         }
       }
 
       // Logros basados en acciones
       const actionAchievements = {
-        'event_created': { title: 'Organizador', description: 'Has creado tu primer evento' },
-        'tribe_created': { title: 'Líder de Tribu', description: 'Has creado tu primera tribu' },
-        'event_attended': { title: 'Asistente', description: 'Has asistido a tu primer evento' },
-        'review_written': { title: 'Crítico', description: 'Has escrito tu primera reseña' }
+        event_created: {
+          title: 'Organizador',
+          description: 'Has creado tu primer evento',
+        },
+        tribe_created: {
+          title: 'Líder de Tribu',
+          description: 'Has creado tu primera tribu',
+        },
+        event_attended: {
+          title: 'Asistente',
+          description: 'Has asistido a tu primer evento',
+        },
+        review_written: {
+          title: 'Crítico',
+          description: 'Has escrito tu primera reseña',
+        },
       };
 
       if (actionAchievements[action] && !user.achievements?.includes(action)) {
         const achievement = await this.createAchievement(userId, action, {
           title: actionAchievements[action].title,
           description: actionAchievements[action].description,
-          points: 50
+          points: 50,
         });
-        
+
         if (achievement) achievements.push(achievement);
       }
 
@@ -157,6 +193,9 @@ class GamificationService {
 
   /**
    * Verificar badges del usuario
+   * @param userId
+   * @param action
+   * @param metadata
    */
   static async checkBadges(userId, action, metadata = {}) {
     try {
@@ -165,9 +204,18 @@ class GamificationService {
 
       // Badges basados en actividad
       const activityBadges = {
-        'daily_login': { title: 'Consistente', description: 'Login diario por 7 días' },
-        'event_hosted': { title: 'Anfitrión', description: 'Has organizado 5 eventos' },
-        'tribe_contribution': { title: 'Colaborador', description: 'Has contribuido 10 veces a tribus' }
+        daily_login: {
+          title: 'Consistente',
+          description: 'Login diario por 7 días',
+        },
+        event_hosted: {
+          title: 'Anfitrión',
+          description: 'Has organizado 5 eventos',
+        },
+        tribe_contribution: {
+          title: 'Colaborador',
+          description: 'Has contribuido 10 veces a tribus',
+        },
       };
 
       // Verificar badges específicos
@@ -177,9 +225,9 @@ class GamificationService {
           const badge = await this.createBadge(userId, 'daily_login_7', {
             title: 'Consistente',
             description: 'Login diario por 7 días',
-            icon: 'calendar-check'
+            icon: 'calendar-check',
           });
-          
+
           if (badge) badges.push(badge);
         }
       }
@@ -190,9 +238,9 @@ class GamificationService {
           const badge = await this.createBadge(userId, 'event_host_5', {
             title: 'Anfitrión',
             description: 'Has organizado 5 eventos',
-            icon: 'star'
+            icon: 'star',
           });
-          
+
           if (badge) badges.push(badge);
         }
       }
@@ -206,6 +254,9 @@ class GamificationService {
 
   /**
    * Crear un logro para el usuario
+   * @param userId
+   * @param achievementId
+   * @param data
    */
   static async createAchievement(userId, achievementId, data) {
     try {
@@ -215,7 +266,7 @@ class GamificationService {
         title: data.title,
         description: data.description,
         points: data.points,
-        earnedAt: new Date()
+        earnedAt: new Date(),
       });
 
       await achievement.save();
@@ -223,7 +274,7 @@ class GamificationService {
       // Actualizar usuario
       await User.findByIdAndUpdate(userId, {
         $push: { achievements: achievementId },
-        $inc: { 'stats.points': data.points }
+        $inc: { 'stats.points': data.points },
       });
 
       logger.info(`Achievement created for user ${userId}: ${achievementId}`);
@@ -236,6 +287,9 @@ class GamificationService {
 
   /**
    * Crear un badge para el usuario
+   * @param userId
+   * @param badgeId
+   * @param data
    */
   static async createBadge(userId, badgeId, data) {
     try {
@@ -245,14 +299,14 @@ class GamificationService {
         title: data.title,
         description: data.description,
         icon: data.icon,
-        earnedAt: new Date()
+        earnedAt: new Date(),
       });
 
       await badge.save();
 
       // Actualizar usuario
       await User.findByIdAndUpdate(userId, {
-        $push: { badges: badgeId }
+        $push: { badges: badgeId },
       });
 
       logger.info(`Badge created for user ${userId}: ${badgeId}`);
@@ -265,6 +319,7 @@ class GamificationService {
 
   /**
    * Calcular streak de login diario
+   * @param userId
    */
   static async calculateLoginStreak(userId) {
     try {
@@ -285,11 +340,14 @@ class GamificationService {
 
   /**
    * Obtener leaderboard
+   * @param limit
+   * @param category
    */
   static async getLeaderboard(limit = 10, category = 'points') {
     try {
-      const sortField = category === 'events' ? 'stats.eventsCreated' : 'stats.points';
-      
+      const sortField =
+        category === 'events' ? 'stats.eventsCreated' : 'stats.points';
+
       const users = await User.find({ 'stats.points': { $gt: 0 } })
         .select('username avatar stats.points stats.eventsCreated')
         .sort({ [sortField]: -1 })
@@ -301,7 +359,7 @@ class GamificationService {
         username: user.username,
         avatar: user.avatar,
         points: user.stats?.points || 0,
-        eventsCreated: user.stats?.eventsCreated || 0
+        eventsCreated: user.stats?.eventsCreated || 0,
       }));
     } catch (error) {
       logger.error('Error getting leaderboard:', error);
@@ -311,6 +369,7 @@ class GamificationService {
 
   /**
    * Obtener estadísticas de gamificación del usuario
+   * @param userId
    */
   static async getUserStats(userId) {
     try {
@@ -318,7 +377,9 @@ class GamificationService {
         .populate('achievements')
         .populate('badges');
 
-      const achievements = await Achievement.find({ userId }).sort({ earnedAt: -1 });
+      const achievements = await Achievement.find({ userId }).sort({
+        earnedAt: -1,
+      });
       const badges = await Badge.find({ userId }).sort({ earnedAt: -1 });
 
       const nextMilestone = this.getNextMilestone(user.stats?.points || 0);
@@ -332,7 +393,7 @@ class GamificationService {
         loginStreak,
         nextMilestone,
         recentAchievements: achievements.slice(0, 5),
-        recentBadges: badges.slice(0, 5)
+        recentBadges: badges.slice(0, 5),
       };
     } catch (error) {
       logger.error('Error getting user stats:', error);
@@ -342,20 +403,24 @@ class GamificationService {
 
   /**
    * Obtener el siguiente milestone
+   * @param currentPoints
    */
   static getNextMilestone(currentPoints) {
     const milestones = [100, 500, 1000, 2500, 5000, 10000];
-    const nextMilestone = milestones.find(milestone => milestone > currentPoints);
-    
+    const nextMilestone = milestones.find(
+      milestone => milestone > currentPoints
+    );
+
     return {
       points: nextMilestone,
       progress: nextMilestone ? (currentPoints / nextMilestone) * 100 : 100,
-      remaining: nextMilestone ? nextMilestone - currentPoints : 0
+      remaining: nextMilestone ? nextMilestone - currentPoints : 0,
     };
   }
 
   /**
    * Obtener el ranking del usuario
+   * @param userId
    */
   static async getUserRank(userId) {
     try {
@@ -363,7 +428,7 @@ class GamificationService {
       if (!user || !user.stats?.points) return null;
 
       const rank = await User.countDocuments({
-        'stats.points': { $gt: user.stats.points }
+        'stats.points': { $gt: user.stats.points },
       });
 
       return rank + 1;
@@ -375,12 +440,15 @@ class GamificationService {
 
   /**
    * Procesar evento de gamificación
+   * @param userId
+   * @param action
+   * @param metadata
    */
   static async processGamificationEvent(userId, action, metadata = {}) {
     try {
       // Asignar puntos
       const pointsResult = await this.assignPoints(userId, action, metadata);
-      
+
       if (!pointsResult.success) {
         return pointsResult;
       }
@@ -389,7 +457,7 @@ class GamificationService {
       if (action === 'daily_login') {
         const loginStreak = await this.calculateLoginStreak(userId);
         await User.findByIdAndUpdate(userId, {
-          $set: { 'stats.loginStreak': loginStreak }
+          $set: { 'stats.loginStreak': loginStreak },
         });
       }
 
@@ -399,7 +467,7 @@ class GamificationService {
         action,
         points: pointsResult.points,
         achievements: pointsResult.achievements.length,
-        badges: pointsResult.badges.length
+        badges: pointsResult.badges.length,
       });
 
       return pointsResult;
