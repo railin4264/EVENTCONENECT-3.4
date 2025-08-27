@@ -6,6 +6,7 @@ const { logger } = require('../utils/logger');
 const { sendWelcomeEmail, sendPasswordResetEmail } = require('../services/emailService');
 const { generateVerificationToken, verifyToken } = require('../config/jwt');
 const { redisClient } = require('../config/redis');
+const { asyncHandler } = require('../middleware/errorHandler');
 
 class AuthController {
   // Register new user

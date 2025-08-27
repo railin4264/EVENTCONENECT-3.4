@@ -204,19 +204,19 @@ class GamificationService {
 
       // Badges basados en actividad
       // const activityBadges = {
-        daily_login: {
-          title: 'Consistente',
-          description: 'Login diario por 7 días',
-        },
-        event_hosted: {
-          title: 'Anfitrión',
-          description: 'Has organizado 5 eventos',
-        },
-        tribe_contribution: {
-          title: 'Colaborador',
-          description: 'Has contribuido 10 veces a tribus',
-        },
-      }; // Variable no utilizada
+      //   daily_login: {
+      //     title: 'Consistente',
+      //     description: 'Login diario por 7 días',
+      //   },
+      //   event_hosted: {
+      //     title: 'Anfitrión',
+      //     description: 'Has organizado 5 eventos',
+      //   },
+      //   tribe_contribution: {
+      //     title: 'Colaborador',
+      //     description: 'Has contribuido 10 veces a tribus',
+      //   },
+      // }; // Variable no utilizada
 
       // Verificar badges específicos
       if (action === 'daily_login') {

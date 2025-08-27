@@ -13,7 +13,7 @@ const { aiLimiter } = require('../middleware/rateLimitMiddleware');
 router.get(
   '/recommendations',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.getPersonalizedRecommendations
 );
 
@@ -21,7 +21,7 @@ router.get(
 router.post(
   '/feedback',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.submitRecommendationFeedback
 );
 
@@ -33,7 +33,7 @@ router.post(
 router.get(
   '/trending',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.getTrendingRecommendations
 );
 
@@ -45,7 +45,7 @@ router.get(
 router.get(
   '/similar',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.getSimilarItems
 );
 
@@ -57,7 +57,7 @@ router.get(
 router.get(
   '/insights',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.getRecommendationInsights
 );
 
@@ -69,7 +69,7 @@ router.get(
 router.put(
   '/preferences',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.updateAIPreferences
 );
 
@@ -81,7 +81,7 @@ router.put(
 router.get(
   '/smart-notifications',
   authenticateToken,
-  rateLimits.ai,
+  aiLimiter,
   aiRecommendationsController.getSmartNotifications
 );
 
@@ -92,7 +92,7 @@ router.get(
 // Webhook para actualizaciones del modelo de ML
 router.post(
   '/ml-update',
-  rateLimits.webhook,
+  aiLimiter,
   aiRecommendationsController.handleMLModelUpdate
 );
 

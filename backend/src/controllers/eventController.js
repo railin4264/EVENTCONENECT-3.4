@@ -4,6 +4,124 @@ const GamificationService = require('../services/GamificationService');
 
 class EventController {
   // ==========================================
+  // OBTENER EVENTOS
+  // ==========================================
+
+  async getEvents(req, res) {
+    try {
+      const { page = 1, limit = 10, category, location, date } = req.query;
+      const skip = (page - 1) * limit;
+
+      const filter = { status: 'published' };
+
+      if (category) filter.categories = category;
+      if (location) filter['location.city'] = new RegExp(location, 'i');
+      if (date) {
+        const targetDate = new Date(date);
+        filter.startDate = {
+          $gte: targetDate,
+          $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+        };
+      }
+
+      const events = await Event.find(filter)
+        .populate('organizer', 'firstName lastName avatar')
+        .sort({ startDate: 1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const total = await Event.countDocuments(filter);
+
+      res.json({
+        success: true,
+        data: {
+          events,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / limit)
+          }
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error obteniendo eventos',
+        error: error.message
+      });
+    }
+  }
+
+  async getEventById(req, res) {
+    try {
+      const { eventId } = req.params;
+      const event = await Event.findById(eventId)
+        .populate('organizer', 'firstName lastName avatar')
+        .populate('attendees', 'firstName lastName avatar');
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: event
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error obteniendo evento',
+        error: error.message
+      });
+    }
+  }
+
+  async searchEvents(req, res) {
+    try {
+      const { q, category, location, date } = req.query;
+      const filter = { status: 'published' };
+
+      if (q) {
+        filter.$or = [
+          { title: new RegExp(q, 'i') },
+          { description: new RegExp(q, 'i') },
+          { tags: new RegExp(q, 'i') }
+        ];
+      }
+
+      if (category) filter.categories = category;
+      if (location) filter['location.city'] = new RegExp(location, 'i');
+      if (date) {
+        const targetDate = new Date(date);
+        filter.startDate = {
+          $gte: targetDate,
+          $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+        };
+      }
+
+      const events = await Event.find(filter)
+        .populate('organizer', 'firstName lastName avatar')
+        .sort({ startDate: 1 })
+        .limit(20);
+
+      res.json({
+        success: true,
+        data: events
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error buscando eventos',
+        error: error.message
+      });
+    }
+  }
+
+  // ==========================================
   // CREAR EVENTO COMPLETO
   // ==========================================
 
