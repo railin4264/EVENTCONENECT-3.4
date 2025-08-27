@@ -315,3 +315,6 @@ export {
   analyticsAPI,
   themesAPI,
 };
+
+// Default export for backward compatibility
+export default apiService;

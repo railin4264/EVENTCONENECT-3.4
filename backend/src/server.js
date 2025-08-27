@@ -29,7 +29,14 @@ const {
   notificationRoutes,
   themeRoutes,
   aiRecommendationRoutes,
+  analyticsRoutes,
   gamificationRoutes,
+  chatRoutes,
+  locationRoutes,
+  postRoutes,
+  reviewRoutes,
+  searchRoutes,
+  watchlistRoutes,
 } = require('./routes');
 
 // Import mock routes for development
@@ -304,7 +311,14 @@ app.use('/api/tribes', tribeRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/themes', themeRoutes);
 app.use('/api/ai', aiRecommendationRoutes);
-app.use('/api/gamification', gamificationRoutes); // Rate limits applied per route
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/location', locationRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/watchlist', watchlistRoutes);
 
 // ==========================================
 // API DOCUMENTATION ROUTE
@@ -324,7 +338,15 @@ app.get('/api', (req, res) => {
       notifications: '/api/notifications',
       themes: '/api/themes',
       ai: '/api/ai',
+      analytics: '/api/analytics',
       gamification: '/api/gamification',
+      chat: '/api/chat',
+      location: '/api/location',
+      posts: '/api/posts',
+      reviews: '/api/reviews',
+      search: '/api/search',
+      watchlist: '/api/watchlist',
+      mock: '/api/mock',
     },
     health: {
       server: '/health',

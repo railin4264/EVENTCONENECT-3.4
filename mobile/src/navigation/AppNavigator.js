@@ -7,6 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import HomeScreen from '../screens/main/HomeScreen';
+import EventsScreen from '../screens/EventsScreen';
+import PostsScreen from '../screens/PostsScreen';
+import WatchlistScreen from '../screens/WatchlistScreen';
+import SearchScreen from '../screens/SearchScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,6 +29,10 @@ function MainStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Events" component={EventsScreen} />
+      <Stack.Screen name="Posts" component={PostsScreen} />
+      <Stack.Screen name="Watchlist" component={WatchlistScreen} />
+      <Stack.Screen name="Search" component={SearchScreen} />
     </Stack.Navigator>
   );
 }
