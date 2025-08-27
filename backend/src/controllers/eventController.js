@@ -121,6 +121,54 @@ class EventController {
     }
   }
 
+  async getRecommendedEvents(req, res) {
+    try {
+      const userId = req.user.id;
+      const { page = 1, limit = 10 } = req.query;
+      const skip = (page - 1) * limit;
+
+      // Obtener preferencias del usuario
+      const user = await User.findById(userId).select('preferences interests');
+      
+      const filter = { 
+        status: 'published',
+        startDate: { $gte: new Date() }
+      };
+
+      // Filtrar por preferencias del usuario
+      if (user?.preferences?.categories?.length > 0) {
+        filter.categories = { $in: user.preferences.categories };
+      }
+
+      const events = await Event.find(filter)
+        .populate('organizer', 'firstName lastName avatar')
+        .sort({ startDate: 1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const total = await Event.countDocuments(filter);
+
+      res.json({
+        success: true,
+        data: {
+          events,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / limit)
+          }
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error obteniendo eventos recomendados',
+        error: error.message
+      });
+    }
+  }
+
   // ==========================================
   // CREAR EVENTO COMPLETO
   // ==========================================
