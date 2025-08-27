@@ -89,8 +89,9 @@ const reviewSchema = new mongoose.Schema(
         type: Number,
         min: 1,
         max: 5,
-      required() { return this.reviewType === 'event'; }
-    },
+        required: function () {
+          return this.reviewType === 'event';
+        },
       },
 
       // Para organizadores
@@ -222,329 +223,248 @@ const reviewSchema = new mongoose.Schema(
         enum: ['pending', 'approved', 'rejected', 'flagged'],
         default: 'pending',
       },
-
-      moderatedBy: {
+      moderator: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
       },
-
-      moderatedAt: Date,
-
-      reason: String,
-
-      autoModerated: {
-        type: Boolean,
-        default: false,
+      moderatedAt: {
+        type: Date,
       },
-    },
-
-    // Analytics
-    analytics: {
-      views: {
-        type: Number,
-        default: 0,
-      },
-
-      helpfulCount: {
-        type: Number,
-        default: 0,
-      },
-
-      reportsCount: {
-        type: Number,
-        default: 0,
-      },
-
-      engagementScore: {
-        type: Number,
-        default: 0,
+      moderationNotes: {
+        type: String,
+        maxlength: 500,
       },
     },
 
     // Metadatos
-    isAnonymous: {
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    // Estadísticas
+    viewCount: {
+      type: Number,
+      default: 0,
+    },
+
+    shareCount: {
+      type: Number,
+      default: 0,
+    },
+
+    // Tags para búsqueda
+    tags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+
+    // Configuración de privacidad
+    isPublic: {
       type: Boolean,
-      default: false,
+      default: true,
     },
 
-    language: {
-      type: String,
-      default: 'es',
+    allowComments: {
+      type: Boolean,
+      default: true,
     },
 
-    source: {
-      type: String,
-      enum: ['web', 'mobile', 'api'],
-      default: 'web',
+    // Información de ubicación
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number],
+        index: '2dsphere',
+      },
+      address: {
+        street: String,
+        city: String,
+        state: String,
+        country: String,
+        postalCode: String,
+      },
+    },
+
+    // Configuración de notificaciones
+    notifyOnHelpful: {
+      type: Boolean,
+      default: true,
+    },
+
+    notifyOnComments: {
+      type: Boolean,
+      default: true,
+    },
+
+    // Información de SEO
+    seo: {
+      metaTitle: {
+        type: String,
+        maxlength: 60,
+      },
+      metaDescription: {
+        type: String,
+        maxlength: 160,
+      },
+      keywords: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+    },
+
+    // Configuración de monetización
+    monetization: {
+      isSponsored: {
+        type: Boolean,
+        default: false,
+      },
+      sponsorInfo: {
+        sponsorName: String,
+        sponsorLogo: String,
+        sponsorshipType: {
+          type: String,
+          enum: ['paid', 'gifted', 'affiliate', 'partnership'],
+        },
+      },
     },
   },
   {
     timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
 
-// ===== INDEXES =====
-reviewSchema.index({ targetEvent: 1, createdAt: -1 });
-reviewSchema.index({ targetOrganizer: 1, createdAt: -1 });
+// Índices
 reviewSchema.index({ reviewer: 1, createdAt: -1 });
-reviewSchema.index({ reviewType: 1, 'ratings.overall': -1 });
-reviewSchema.index({ 'moderation.status': 1, createdAt: -1 });
-reviewSchema.index({ verified: 1, 'ratings.overall': -1 });
+reviewSchema.index({ reviewType: 1, targetEvent: 1 });
+reviewSchema.index({ reviewType: 1, targetOrganizer: 1 });
+reviewSchema.index({ reviewType: 1, targetUser: 1 });
+reviewSchema.index({ 'ratings.overall': -1 });
+reviewSchema.index({ verified: 1 });
+reviewSchema.index({ 'moderation.status': 1 });
+reviewSchema.index({ createdAt: -1 });
+reviewSchema.index({ tags: 1 });
+reviewSchema.index({ 'location.coordinates': '2dsphere' });
 
-// ===== VIRTUAL PROPERTIES =====
-reviewSchema.virtual('helpfulPercentage').get(function () {
-  if (this.analytics.views === 0) return 0;
-  return (this.analytics.helpfulCount / this.analytics.views) * 100;
+// Virtuals
+reviewSchema.virtual('helpfulCount').get(function () {
+  return this.helpful ? this.helpful.length : 0;
 });
 
-reviewSchema.virtual('isRecent').get(function () {
-  const daysSinceCreation =
-    (Date.now() - this.createdAt) / (1000 * 60 * 60 * 24);
-  return daysSinceCreation <= 30;
+reviewSchema.virtual('reportedCount').get(function () {
+  return this.reported ? this.reported.length : 0;
 });
 
 reviewSchema.virtual('averageRating').get(function () {
-  const ratings = Object.values(this.ratings).filter(
-    rating => typeof rating === 'number'
+  if (!this.ratings) return 0;
+  
+  const ratings = Object.values(this.ratings).filter(rating => 
+    typeof rating === 'number' && rating > 0
   );
+  
+  if (ratings.length === 0) return 0;
+  
   return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
 });
 
-// ===== METHODS =====
-reviewSchema.methods.markAsHelpful = function (userId) {
-  const existingHelpful = this.helpful.find(
-    h => h.user.toString() === userId.toString()
-  );
+reviewSchema.virtual('isVerified').get(function () {
+  return this.verified === true;
+});
 
-  if (existingHelpful) {
-    // Remove helpful mark
-    this.helpful = this.helpful.filter(
-      h => h.user.toString() !== userId.toString()
-    );
-    this.analytics.helpfulCount = Math.max(0, this.analytics.helpfulCount - 1);
-    return { action: 'removed', helpful: false };
-  } else {
-    // Add helpful mark
-    this.helpful.push({ user: userId });
-    this.analytics.helpfulCount += 1;
-    return { action: 'added', helpful: true };
-  }
-};
+reviewSchema.virtual('isModerated').get(function () {
+  return this.moderation && this.moderation.status !== 'pending';
+});
 
-reviewSchema.methods.reportReview = function (userId, reason) {
-  const existingReport = this.reported.find(
-    r => r.user.toString() === userId.toString()
-  );
-
-  if (existingReport) {
-    return { success: false, message: 'Ya has reportado esta reseña' };
-  }
-
-  this.reported.push({ user: userId, reason });
-  this.analytics.reportsCount += 1;
-
-  // Auto-flag if too many reports
-  if (this.analytics.reportsCount >= 3) {
-    this.moderation.status = 'flagged';
-    this.moderation.autoModerated = true;
-  }
-
-  return { success: true, message: 'Reseña reportada exitosamente' };
-};
-
-reviewSchema.methods.calculateEngagementScore = function () {
-  const helpfulWeight = 3;
-  const viewWeight = 1;
-  const recentnessWeight = 2;
-
-  let score = 0;
-  score += this.analytics.helpfulCount * helpfulWeight;
-  score += this.analytics.views * viewWeight;
-
-  // Bonus for recent reviews
-  const daysSinceCreation =
-    (Date.now() - this.createdAt) / (1000 * 60 * 60 * 24);
-  if (daysSinceCreation <= 7) {
-    score += 10 * recentnessWeight;
-  } else if (daysSinceCreation <= 30) {
-    score += 5 * recentnessWeight;
-  }
-
-  // Penalty for reported reviews
-  score -= this.analytics.reportsCount * 5;
-
-  return Math.max(0, score);
-};
-
-// ===== STATICS =====
-reviewSchema.statics.getAverageRating = async function (targetId, reviewType) {
-  const query = {};
-  query[`target${reviewType.charAt(0).toUpperCase() + reviewType.slice(1)}`] =
-    targetId;
-  query['moderation.status'] = 'approved';
-
-  const result = await this.aggregate([
-    { $match: query },
-    {
-      $group: {
-        _id: null,
-        averageOverall: { $avg: '$ratings.overall' },
-        count: { $sum: 1 },
-        ratings: { $push: '$ratings' },
-      },
-    },
-  ]);
-
-  if (result.length === 0) {
-    return { average: 0, count: 0, breakdown: {} };
-  }
-
-  const data = result[0];
-
-  // Calculate breakdown for each rating type
-  const breakdown = {};
-  if (data.ratings.length > 0) {
-    const firstRating = data.ratings[0];
-    for (const key in firstRating) {
-      if (typeof firstRating[key] === 'number') {
-        const values = data.ratings
-          .map(r => r[key])
-          .filter(v => v !== undefined);
-        breakdown[key] =
-          values.reduce((sum, val) => sum + val, 0) / values.length;
-      }
-    }
-  }
-
-  return {
-    average: Math.round(data.averageOverall * 10) / 10,
-    count: data.count,
-    breakdown,
-  };
-};
-
-reviewSchema.statics.getRatingDistribution = async function (
-  targetId,
-  reviewType
-) {
-  const query = {};
-  query[`target${reviewType.charAt(0).toUpperCase() + reviewType.slice(1)}`] =
-    targetId;
-  query['moderation.status'] = 'approved';
-
-  const result = await this.aggregate([
-    { $match: query },
-    {
-      $group: {
-        _id: '$ratings.overall',
-        count: { $sum: 1 },
-      },
-    },
-    { $sort: { _id: -1 } },
-  ]);
-
-  const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  result.forEach(item => {
-    distribution[item._id] = item.count;
-  });
-
-  return distribution;
-};
-
-reviewSchema.statics.canUserReview = async function (
-  userId,
-  targetId,
-  reviewType
-) {
-  // Check if user already reviewed
-  const query = {
-    reviewer: userId,
-    reviewType
-  };
-  query[`target${reviewType.charAt(0).toUpperCase() + reviewType.slice(1)}`] =
-    targetId;
-
-  const existingReview = await this.findOne(query);
-  if (existingReview) {
-    return { canReview: false, reason: 'Ya has reseñado este elemento' };
-  }
-
-  // Additional checks based on review type
-  if (reviewType === 'event') {
-    const Event = mongoose.model('Event');
-    const event = await Event.findById(targetId);
-
-    if (!event) {
-      return { canReview: false, reason: 'Evento no encontrado' };
-    }
-
-    // Check if user attended the event
-    const attended = event.attendees.some(
-      a => a.userId.toString() === userId.toString() && a.status === 'confirmed'
-    );
-
-    if (!attended) {
-      return {
-        canReview: false,
-        reason: 'Solo puedes reseñar eventos a los que asististe',
-      };
-    }
-
-    // Check if event has already happened
-    if (event.endDate > new Date()) {
-      return {
-        canReview: false,
-        reason: 'Solo puedes reseñar eventos que ya hayan terminado',
-      };
-    }
-  }
-
-  return { canReview: true };
-};
-
-// ===== PRE-SAVE HOOKS =====
+// Middleware
 reviewSchema.pre('save', function (next) {
-  // Calculate engagement score
-  this.analytics.engagementScore = this.calculateEngagementScore();
-
-  // Auto-approve reviews from verified users with good reputation
-  if (this.isNew && this.moderation.status === 'pending') {
-    // Auto-approve logic here
-    // For now, keeping manual approval
-  }
-
+  this.updatedAt = new Date();
   next();
 });
 
-// ===== POST-SAVE HOOKS =====
-reviewSchema.post('save', async (doc) => {
-  // Update target's rating cache
-  try {
-    const Model = doc.constructor;
-    const ratingData = await Model.getAverageRating(
-      doc[
-        `target${doc.reviewType.charAt(0).toUpperCase() + doc.reviewType.slice(1)}`
-      ],
-      doc.reviewType
-    );
-
-    // Update the target model's rating
-    if (doc.reviewType === 'event') {
-      const Event = mongoose.model('Event');
-      await Event.findByIdAndUpdate(doc.targetEvent, {
-        'stats.averageRating': ratingData.average,
-        'stats.reviewCount': ratingData.count,
-      });
-    } else if (doc.reviewType === 'organizer' || doc.reviewType === 'user') {
-      const User = mongoose.model('User');
-      await User.findByIdAndUpdate(doc.targetOrganizer || doc.targetUser, {
-        'stats.averageRating': ratingData.average,
-        'stats.reviewCount': ratingData.count,
-      });
-    }
-  } catch (error) {
-    console.error('Error updating rating cache:', error);
+reviewSchema.pre('save', function (next) {
+  // Auto-generar tags basados en el contenido
+  if (this.isModified('content.title') || this.isModified('content.description')) {
+    const text = `${this.content.title} ${this.content.description}`.toLowerCase();
+    const commonTags = ['evento', 'organizador', 'lugar', 'experiencia', 'recomendado'];
+    
+    this.tags = commonTags.filter(tag => text.includes(tag));
   }
+  next();
 });
+
+// Métodos estáticos
+reviewSchema.statics.findByType = function (type, limit = 10) {
+  return this.find({ reviewType: type })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('reviewer', 'name avatar')
+    .populate('targetEvent', 'title image')
+    .populate('targetOrganizer', 'name avatar');
+};
+
+reviewSchema.statics.findVerified = function () {
+  return this.find({ verified: true })
+    .sort({ createdAt: -1 })
+    .populate('reviewer', 'name avatar');
+};
+
+reviewSchema.statics.findByRating = function (minRating = 4) {
+  return this.find({ 'ratings.overall': { $gte: minRating } })
+    .sort({ 'ratings.overall': -1 })
+    .populate('reviewer', 'name avatar');
+};
+
+// Métodos de instancia
+reviewSchema.methods.addHelpful = function (userId) {
+  if (!this.helpful.some(h => h.user.toString() === userId.toString())) {
+    this.helpful.push({ user: userId });
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+reviewSchema.methods.removeHelpful = function (userId) {
+  this.helpful = this.helpful.filter(h => h.user.toString() !== userId.toString());
+  return this.save();
+};
+
+reviewSchema.methods.report = function (userId, reason) {
+  if (!this.reported.some(r => r.user.toString() === userId.toString())) {
+    this.reported.push({ user: userId, reason });
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+reviewSchema.methods.moderate = function (status, moderatorId, notes = '') {
+  this.moderation = {
+    status,
+    moderator: moderatorId,
+    moderatedAt: new Date(),
+    moderationNotes: notes,
+  };
+  return this.save();
+};
+
+reviewSchema.methods.verify = function (method = 'manual_verification') {
+  this.verified = true;
+  this.verificationMethod = method;
+  return this.save();
+};
 
 module.exports = mongoose.model('Review', reviewSchema);
