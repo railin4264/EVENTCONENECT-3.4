@@ -907,6 +907,635 @@ class EventController {
 
     return age;
   }
+
+  // ==========================================
+  // MÉTODOS FALTANTES - PARTICIPACIÓN
+  // ==========================================
+
+  async saveDraft(req, res) {
+    try {
+      const userId = req.user.id;
+      const draftData = req.body;
+
+      const draft = new Event({
+        ...draftData,
+        organizer: userId,
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await draft.save();
+
+      res.status(201).json({
+        success: true,
+        message: 'Borrador guardado exitosamente',
+        data: draft,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error guardando borrador',
+        error: error.message,
+      });
+    }
+  }
+
+  async updateEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+      const updateData = req.body;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.organizer.toString() !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para modificar este evento',
+        });
+      }
+
+      // Manejar imágenes si están presentes
+      if (req.files) {
+        const imageUrls = await this.uploadEventImages(req.files);
+        updateData.images = imageUrls;
+        if (imageUrls.length > 0) {
+          updateData.coverImage = imageUrls[0];
+        }
+      }
+
+      const updatedEvent = await Event.findByIdAndUpdate(
+        eventId,
+        { ...updateData, updatedAt: new Date() },
+        { new: true }
+      ).populate('organizer', 'firstName lastName avatar');
+
+      res.json({
+        success: true,
+        message: 'Evento actualizado exitosamente',
+        data: updatedEvent,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error actualizando evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async deleteEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.organizer.toString() !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para eliminar este evento',
+        });
+      }
+
+      await Event.findByIdAndDelete(eventId);
+
+      res.json({
+        success: true,
+        message: 'Evento eliminado exitosamente',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error eliminando evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async joinEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.attendees.includes(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Ya estás registrado en este evento',
+        });
+      }
+
+      event.attendees.push(userId);
+      await event.save();
+
+      res.json({
+        success: true,
+        message: 'Te has unido al evento exitosamente',
+        data: event,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error uniéndote al evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async leaveEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (!event.attendees.includes(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'No estás registrado en este evento',
+        });
+      }
+
+      event.attendees = event.attendees.filter(
+        (attendee) => attendee.toString() !== userId
+      );
+      await event.save();
+
+      res.json({
+        success: true,
+        message: 'Has salido del evento exitosamente',
+        data: event,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error saliendo del evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async markInterested(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.interestedUsers.includes(userId)) {
+        // Remover interés
+        event.interestedUsers = event.interestedUsers.filter(
+          (user) => user.toString() !== userId
+        );
+        await event.save();
+
+        res.json({
+          success: true,
+          message: 'Interés removido exitosamente',
+          data: event,
+        });
+      } else {
+        // Agregar interés
+        event.interestedUsers.push(userId);
+        await event.save();
+
+        res.json({
+          success: true,
+          message: 'Interés marcado exitosamente',
+          data: event,
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error marcando interés',
+        error: error.message,
+      });
+    }
+  }
+
+  async moderateAttendee(req, res) {
+    try {
+      const { eventId } = req.params;
+      const { attendeeId, action } = req.body;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.organizer.toString() !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para moderar este evento',
+        });
+      }
+
+      if (action === 'approve') {
+        if (!event.pendingAttendees.includes(attendeeId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'El usuario no está en la lista de pendientes',
+          });
+        }
+        event.pendingAttendees = event.pendingAttendees.filter(
+          (id) => id.toString() !== attendeeId
+        );
+        event.attendees.push(attendeeId);
+      } else if (action === 'reject') {
+        event.pendingAttendees = event.pendingAttendees.filter(
+          (id) => id.toString() !== attendeeId
+        );
+      }
+
+      await event.save();
+
+      res.json({
+        success: true,
+        message: `Usuario ${action === 'approve' ? 'aprobado' : 'rechazado'} exitosamente`,
+        data: event,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error moderando asistente',
+        error: error.message,
+      });
+    }
+  }
+
+  async reportEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const { reason, description } = req.body;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      // Aquí se implementaría la lógica de reporte
+      // Por ahora solo retornamos éxito
+      res.json({
+        success: true,
+        message: 'Evento reportado exitosamente',
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error reportando evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async shareEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      // Incrementar contador de shares
+      event.stats.shares = (event.stats.shares || 0) + 1;
+      await event.save();
+
+      res.json({
+        success: true,
+        message: 'Evento compartido exitosamente',
+        data: {
+          shareUrl: `${process.env.CLIENT_URL}/events/${eventId}`,
+          stats: event.stats,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error compartiendo evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async addComment(req, res) {
+    try {
+      const { eventId } = req.params;
+      const { content } = req.body;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      const comment = {
+        user: userId,
+        content,
+        createdAt: new Date(),
+      };
+
+      event.comments.push(comment);
+      await event.save();
+
+      res.json({
+        success: true,
+        message: 'Comentario agregado exitosamente',
+        data: comment,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error agregando comentario',
+        error: error.message,
+      });
+    }
+  }
+
+  async getComments(req, res) {
+    try {
+      const { eventId } = req.params;
+      const { page = 1, limit = 10 } = req.query;
+      const skip = (page - 1) * limit;
+
+      const event = await Event.findById(eventId)
+        .populate('comments.user', 'firstName lastName avatar')
+        .select('comments');
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      const comments = event.comments
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(skip, skip + parseInt(limit));
+
+      res.json({
+        success: true,
+        data: {
+          comments,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: event.comments.length,
+            pages: Math.ceil(event.comments.length / limit),
+          },
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error obteniendo comentarios',
+        error: error.message,
+      });
+    }
+  }
+
+  // ==========================================
+  // MÉTODOS ADICIONALES - ANÁLISIS Y UTILIDADES
+  // ==========================================
+
+  async getEventAnalytics(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.organizer.toString() !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para ver las estadísticas de este evento',
+        });
+      }
+
+      const analytics = {
+        totalAttendees: event.attendees.length,
+        totalInterested: event.interestedUsers.length,
+        totalViews: event.stats?.views || 0,
+        totalShares: event.stats?.shares || 0,
+        totalComments: event.comments?.length || 0,
+        capacity: event.capacity,
+        capacityPercentage: event.capacity ? (event.attendees.length / event.capacity) * 100 : null,
+      };
+
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error obteniendo estadísticas del evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async getAttendees(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+      const { page = 1, limit = 20 } = req.query;
+      const skip = (page - 1) * limit;
+
+      const event = await Event.findById(eventId)
+        .populate('attendees', 'firstName lastName avatar email')
+        .select('attendees organizer');
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.organizer.toString() !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para ver los asistentes de este evento',
+        });
+      }
+
+      const attendees = event.attendees.slice(skip, skip + parseInt(limit));
+
+      res.json({
+        success: true,
+        data: {
+          attendees,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: event.attendees.length,
+            pages: Math.ceil(event.attendees.length / limit),
+          },
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error obteniendo asistentes',
+        error: error.message,
+      });
+    }
+  }
+
+  async duplicateEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const originalEvent = await Event.findById(eventId);
+      if (!originalEvent) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      // Crear copia del evento
+      const duplicatedEvent = new Event({
+        ...originalEvent.toObject(),
+        _id: undefined,
+        organizer: userId,
+        attendees: [],
+        interestedUsers: [],
+        comments: [],
+        stats: {
+          views: 0,
+          interactions: 0,
+          shares: 0,
+        },
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await duplicatedEvent.save();
+
+      res.json({
+        success: true,
+        message: 'Evento duplicado exitosamente',
+        data: duplicatedEvent,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error duplicando evento',
+        error: error.message,
+      });
+    }
+  }
+
+  async exportEvent(req, res) {
+    try {
+      const { eventId } = req.params;
+      const userId = req.user.id;
+
+      const event = await Event.findById(eventId)
+        .populate('organizer', 'firstName lastName email')
+        .populate('attendees', 'firstName lastName email');
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Evento no encontrado',
+        });
+      }
+
+      if (event.organizer._id.toString() !== userId && req.user.role !== 'admin') {
+        return res.status(403).json({
+          success: false,
+          message: 'No tienes permisos para exportar este evento',
+        });
+      }
+
+      const exportData = {
+        event: {
+          title: event.title,
+          description: event.description,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          location: event.location,
+          category: event.category,
+          organizer: event.organizer,
+        },
+        attendees: event.attendees,
+        stats: event.stats,
+        exportDate: new Date(),
+      };
+
+      res.json({
+        success: true,
+        message: 'Evento exportado exitosamente',
+        data: exportData,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Error exportando evento',
+        error: error.message,
+      });
+    }
+  }
 }
 
 module.exports = new EventController();

@@ -17,7 +17,7 @@ const connectDB = require('./config/database');
 
 // Import middleware
 const authMiddleware = require('./middleware/authMiddleware');
-const errorHandler = require('./middleware/errorHandler');
+const { errorHandler } = require('./middleware/errorHandler');
 const rateLimits = require('./middleware/rateLimitMiddleware');
 
 // Import routes

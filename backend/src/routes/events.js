@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const eventController = require('../controllers/eventController');
 const { authenticateToken } = require('../middleware/authMiddleware');
-const { generalLimiter, searchLimiter, eventCreationLimiter, eventModificationLimiter, eventActionsLimiter } = require('../middleware/rateLimitMiddleware');
+const { generalLimiter, searchLimiter, eventCreationLimiter } = require('../middleware/rateLimitMiddleware');
 const { uploadImages } = require('../middleware/uploadMiddleware');
 
 // ==========================================
@@ -52,7 +52,7 @@ router.get(
 router.put(
   '/:eventId',
   authenticateToken,
-  eventModificationLimiter,
+  generalLimiter,
   uploadImages,
   eventController.updateEvent
 );
@@ -61,7 +61,7 @@ router.put(
 router.delete(
   '/:eventId',
   authenticateToken,
-  eventModificationLimiter,
+  generalLimiter,
   eventController.deleteEvent
 );
 
@@ -73,7 +73,7 @@ router.delete(
 router.post(
   '/:eventId/join',
   authenticateToken,
-  eventActionsLimiter,
+  generalLimiter,
   eventController.joinEvent
 );
 
@@ -81,7 +81,7 @@ router.post(
 router.delete(
   '/:eventId/leave',
   authenticateToken,
-  eventActionsLimiter,
+  generalLimiter,
   eventController.leaveEvent
 );
 
@@ -89,7 +89,7 @@ router.delete(
 router.post(
   '/:eventId/interested',
   authenticateToken,
-  eventActionsLimiter,
+  generalLimiter,
   eventController.markInterested
 );
 
@@ -101,7 +101,7 @@ router.post(
 router.post(
   '/:eventId/moderate',
   authenticateToken,
-  rateLimits.moderation,
+  generalLimiter,
   eventController.moderateAttendee
 );
 
@@ -109,7 +109,7 @@ router.post(
 router.post(
   '/:eventId/report',
   authenticateToken,
-  eventActionsLimiter,
+  generalLimiter,
   eventController.reportEvent
 );
 
@@ -121,7 +121,7 @@ router.post(
 router.post(
   '/:eventId/share',
   authenticateToken,
-  eventActionsLimiter,
+  generalLimiter,
   eventController.shareEvent
 );
 
@@ -129,7 +129,7 @@ router.post(
 router.post(
   '/:eventId/comments',
   authenticateToken,
-  rateLimits.content,
+  generalLimiter,
   eventController.addComment
 );
 

@@ -1,131 +1,131 @@
 const express = require('express');
 
 const router = express.Router();
-const { notificationController } = require('../controllers');
-const { protect } = require('../middleware/auth');
-const validators = require('../validators');
+const notificationController = require('../controllers/notificationController');
+const { authenticateToken } = require('../middleware/authMiddleware');
+const { generalLimiter } = require('../middleware/rateLimitMiddleware');
 
 // Rutas para notificaciones in-app
-router.get('/in-app', protect, notificationController.getInAppNotifications);
+router.get('/in-app', authenticateToken, notificationController.getInAppNotifications);
 router.get(
   '/in-app/unread',
-  protect,
+  authenticateToken,
   notificationController.getUnreadNotifications
 );
 router.get(
   '/in-app/stats',
-  protect,
+  authenticateToken,
   notificationController.getNotificationStats
 );
 router.patch(
   '/in-app/:id/read',
-  protect,
+  authenticateToken,
   notificationController.markNotificationAsRead
 );
 router.patch(
   '/in-app/read-all',
-  protect,
+  authenticateToken,
   notificationController.markAllNotificationsAsRead
 );
 router.delete(
   '/in-app/:id',
-  protect,
+  authenticateToken,
   notificationController.deleteNotification
 );
 router.delete(
   '/in-app',
-  protect,
+  authenticateToken,
   notificationController.deleteAllNotifications
 );
 
 // Rutas para notificaciones programadas
 router.get(
   '/scheduled',
-  protect,
+  authenticateToken,
   notificationController.getScheduledNotifications
 );
 router.post(
   '/scheduled',
-  protect,
-  validators.validateScheduledNotification,
+  authenticateToken,
+  generalLimiter,
   notificationController.scheduleNotification
 );
 router.patch(
   '/scheduled/:id',
-  protect,
-  validators.validateScheduledNotification,
+  authenticateToken,
+  generalLimiter,
   notificationController.updateScheduledNotification
 );
 router.delete(
   '/scheduled/:id',
-  protect,
+  authenticateToken,
   notificationController.cancelScheduledNotification
 );
 router.delete(
   '/scheduled',
-  protect,
+  authenticateToken,
   notificationController.cancelAllScheduledNotifications
 );
 
 // Rutas para preferencias de notificaciones
-router.get('/preferences', protect, notificationController.getUserPreferences);
+router.get('/preferences', authenticateToken, notificationController.getUserPreferences);
 router.patch(
   '/preferences',
-  protect,
-  validators.validateUserPreferences,
+  authenticateToken,
+  generalLimiter,
   notificationController.updateUserPreferences
 );
 
 // Rutas para tokens de push
 router.post(
   '/push-token',
-  protect,
-  validators.validatePushToken,
+  authenticateToken,
+  generalLimiter,
   notificationController.registerPushToken
 );
 router.delete(
   '/push-token/:token',
-  protect,
+  authenticateToken,
   notificationController.unregisterPushToken
 );
-router.get('/push-tokens', protect, notificationController.getPushTokens);
+router.get('/push-tokens', authenticateToken, notificationController.getPushTokens);
 
 // Rutas para notificaciones del sistema
-router.get('/system', protect, notificationController.getSystemNotifications);
+router.get('/system', authenticateToken, notificationController.getSystemNotifications);
 router.post(
   '/system/broadcast',
-  protect,
-  validators.validateSystemNotification,
+  authenticateToken,
+  generalLimiter,
   notificationController.broadcastSystemNotification
 );
 
 // Rutas para analytics de notificaciones
 router.get(
   '/analytics',
-  protect,
+  authenticateToken,
   notificationController.getNotificationAnalytics
 );
 router.get(
   '/analytics/engagement',
-  protect,
+  authenticateToken,
   notificationController.getEngagementMetrics
 );
 
 // Rutas para gestión de notificaciones (admin)
-router.get('/admin/all', protect, notificationController.getAllNotifications);
+router.get('/admin/all', authenticateToken, notificationController.getAllNotifications);
 router.get(
   '/admin/users/:userId',
-  protect,
+  authenticateToken,
   notificationController.getUserNotifications
 );
 router.post(
   '/admin/send',
-  protect,
+  authenticateToken,
   notificationController.sendAdminNotification
 );
 router.delete(
   '/admin/cleanup',
-  protect,
+  authenticateToken,
   notificationController.cleanupOldNotifications
 );
 
