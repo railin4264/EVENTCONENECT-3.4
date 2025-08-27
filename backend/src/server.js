@@ -12,13 +12,13 @@ const mongoSanitize = require('express-mongo-sanitize');
 const hpp = require('hpp');
 
 // Import configurations
-const connectDB = require('./config/database');
-const { logger } = require('./utils/logger');
+const databaseConfig = require('./config/database');
+const connectDB = databaseConfig.connectDB;
 
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
-const authMiddleware = require('./middleware/authMiddleware');
-const rateLimits = require('./middleware/rateLimitMiddleware');
+const { errorHandler } = require('./middleware/errorHandler');
+const authMiddleware = require('./middleware/auth');
+const { rateLimits } = require('./middleware/advancedSecurity');
 
 // Import routes
 const {
@@ -128,7 +128,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging
 if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+  app.use(morgan('combined'));
 } else {
   app.use(morgan('combined'));
 }
@@ -162,24 +162,24 @@ app.use(slowDown({
 // ==========================================
 
 io.on('connection', (socket) => {
-  logger.info(`User connected: ${socket.id}`);
+          console.log(`User connected: ${socket.id}`);
 
   // Join user to their personal room
   socket.on('join', (userId) => {
     socket.join(`user_${userId}`);
-    logger.info(`User ${userId} joined personal room`);
+            console.log(`User ${userId} joined personal room`);
   });
 
   // Join event room
   socket.on('joinEvent', (eventId) => {
     socket.join(`event_${eventId}`);
-    logger.info(`Socket ${socket.id} joined event ${eventId}`);
+            console.log(`Socket ${socket.id} joined event ${eventId}`);
   });
 
   // Leave event room
   socket.on('leaveEvent', (eventId) => {
     socket.leave(`event_${eventId}`);
-    logger.info(`Socket ${socket.id} left event ${eventId}`);
+            console.log(`Socket ${socket.id} left event ${eventId}`);
   });
 
   // Handle real-time event updates
@@ -194,7 +194,7 @@ io.on('connection', (socket) => {
 
   // Handle disconnection
   socket.on('disconnect', () => {
-    logger.info(`User disconnected: ${socket.id}`);
+    console.log(`User disconnected: ${socket.id}`);
   });
 });
 
@@ -342,7 +342,7 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  logger.info(`
+  console.log(`
 🚀 EventConnect Server is running!
 📍 Port: ${PORT}
 🌍 Environment: ${process.env.NODE_ENV}
@@ -356,24 +356,24 @@ server.listen(PORT, () => {
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+  console.log('SIGTERM received, shutting down gracefully');
   server.close(() => {
-    logger.info('Process terminated');
+    console.log('Process terminated');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
+  console.log('SIGINT received, shutting down gracefully');
   server.close(() => {
-    logger.info('Process terminated');
+    console.log('Process terminated');
     process.exit(0);
   });
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  logger.error('Unhandled Promise Rejection:', err);
+  console.error('Unhandled Promise Rejection:', err);
   server.close(() => {
     process.exit(1);
   });
@@ -381,7 +381,7 @@ process.on('unhandledRejection', (err) => {
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception:', err);
+  console.error('Uncaught Exception:', err);
   process.exit(1);
 });
 

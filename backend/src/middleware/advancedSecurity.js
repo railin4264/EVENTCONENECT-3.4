@@ -44,12 +44,25 @@ const rateLimits = {
   
   // Creación de contenido
   create: createRateLimit(60 * 1000, 10, 'Demasiada creación de contenido, espera 1 minuto'),
+  creation: createRateLimit(60 * 1000, 10, 'Demasiada creación de contenido, espera 1 minuto'),
+  
+  // Modificación de contenido
+  modification: createRateLimit(60 * 1000, 15, 'Demasiadas modificaciones, espera 1 minuto'),
+  
+  // Acciones del usuario
+  actions: createRateLimit(60 * 1000, 20, 'Demasiadas acciones, espera 1 minuto'),
   
   // Búsquedas
   search: createRateLimit(60 * 1000, 30, 'Demasiadas búsquedas, espera 1 minuto'),
   
   // Subida de archivos
-  upload: createRateLimit(60 * 1000, 5, 'Demasiadas subidas de archivos, espera 1 minuto')
+  upload: createRateLimit(60 * 1000, 5, 'Demasiadas subidas de archivos, espera 1 minuto'),
+  
+  // IA y recomendaciones
+  ai: createRateLimit(60 * 1000, 20, 'Demasiadas consultas de IA, espera 1 minuto'),
+  
+  // Webhooks
+  webhook: createRateLimit(60 * 1000, 10, 'Demasiados webhooks, espera 1 minuto')
 };
 
 // Configuración de seguridad con Helmet
