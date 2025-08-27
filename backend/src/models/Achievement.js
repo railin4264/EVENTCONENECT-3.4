@@ -1,162 +1,178 @@
 const mongoose = require('mongoose');
 
-const achievementSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-    maxlength: 100
-  },
-  description: {
-    type: String,
-    required: true,
-    maxlength: 500
-  },
-  icon: {
-    type: String,
-    required: true
-  },
-  category: {
-    type: String,
-    required: true,
-    enum: [
-      'events',      // Relacionado con eventos
-      'social',      // Relacionado con interacciones sociales
-      'tribes',      // Relacionado con tribus/comunidades
-      'exploration', // Relacionado con descubrimiento
-      'creation',    // Relacionado con crear contenido
-      'streak',      // Relacionado con rachas de actividad
-      'special',     // Logros especiales/estacionales
-      'milestone'    // Logros de hitos importantes
-    ]
-  },
-  difficulty: {
-    type: String,
-    required: true,
-    enum: ['easy', 'medium', 'hard', 'legendary']
-  },
-  requirements: {
-    type: {
+const achievementSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+    },
+    description: {
+      type: String,
+      required: true,
+      maxlength: 500,
+    },
+    icon: {
+      type: String,
+      required: true,
+    },
+    category: {
       type: String,
       required: true,
       enum: [
-        'count',           // Alcanzar cierto número
-        'streak',          // Mantener racha
-        'unique',          // Hacer algo único
-        'time_based',      // Basado en tiempo
-        'combination',     // Combinación de factores
-        'percentage'       // Alcanzar cierto porcentaje
-      ]
+        'events', // Relacionado con eventos
+        'social', // Relacionado con interacciones sociales
+        'tribes', // Relacionado con tribus/comunidades
+        'exploration', // Relacionado con descubrimiento
+        'creation', // Relacionado con crear contenido
+        'streak', // Relacionado con rachas de actividad
+        'special', // Logros especiales/estacionales
+        'milestone', // Logros de hitos importantes
+      ],
     },
-    target: {
-      type: Number,
-      required: true
-    },
-    metric: {
+    difficulty: {
       type: String,
       required: true,
-      // Ejemplos: 'events_attended', 'events_created', 'tribes_joined', etc.
+      enum: ['easy', 'medium', 'hard', 'legendary'],
     },
-    timeframe: {
-      type: String,
-      enum: ['day', 'week', 'month', 'year', 'all_time'],
-      default: 'all_time'
+    requirements: {
+      type: {
+        type: String,
+        required: true,
+        enum: [
+          'count', // Alcanzar cierto número
+          'streak', // Mantener racha
+          'unique', // Hacer algo único
+          'time_based', // Basado en tiempo
+          'combination', // Combinación de factores
+          'percentage', // Alcanzar cierto porcentaje
+        ],
+      },
+      target: {
+        type: Number,
+        required: true,
+      },
+      metric: {
+        type: String,
+        required: true,
+        // Ejemplos: 'events_attended', 'events_created', 'tribes_joined', etc.
+      },
+      timeframe: {
+        type: String,
+        enum: ['day', 'week', 'month', 'year', 'all_time'],
+        default: 'all_time',
+      },
+      additional: {
+        // Requisitos adicionales específicos
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+      },
     },
-    additional: {
-      // Requisitos adicionales específicos
-      type: mongoose.Schema.Types.Mixed,
-      default: {}
-    }
-  },
-  rewards: {
-    experience: {
-      type: Number,
-      required: true,
-      min: 0
+    rewards: {
+      experience: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      points: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      badges: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Badge',
+        },
+      ],
+      unlocks: [
+        {
+          type: String,
+          // Ejemplos: 'special_theme', 'premium_feature', 'exclusive_content'
+        },
+      ],
+      title: {
+        type: String,
+        // Título especial que se otorga
+      },
     },
-    points: {
+    prerequisites: [
+      {
+        achievementId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Achievement',
+        },
+        required: {
+          type: Boolean,
+          default: true,
+        },
+      },
+    ],
+    isSecret: {
+      type: Boolean,
+      default: false,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    order: {
       type: Number,
       default: 0,
-      min: 0
     },
-    badges: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Badge'
-    }],
-    unlocks: [{
-      type: String,
-      // Ejemplos: 'special_theme', 'premium_feature', 'exclusive_content'
-    }],
-    title: {
-      type: String,
-      // Título especial que se otorga
-    }
-  },
-  prerequisites: [{
-    achievementId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Achievement'
+    seasonalInfo: {
+      isSeasonalAndActive: {
+        type: Boolean,
+        default: false,
+      },
+      startDate: Date,
+      endDate: Date,
+      season: String,
     },
-    required: {
-      type: Boolean,
-      default: true
-    }
-  }],
-  isSecret: {
-    type: Boolean,
-    default: false
-  },
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-  order: {
-    type: Number,
-    default: 0
-  },
-  seasonalInfo: {
-    isSeasonalAndActive: {
-      type: Boolean,
-      default: false
+    stats: {
+      totalEarned: {
+        type: Number,
+        default: 0,
+      },
+      firstEarnedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      firstEarnedAt: Date,
+      averageTimeToComplete: Number, // En días
+      completionRate: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 100,
+      },
     },
-    startDate: Date,
-    endDate: Date,
-    season: String
   },
-  stats: {
-    totalEarned: {
-      type: Number,
-      default: 0
-    },
-    firstEarnedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    firstEarnedAt: Date,
-    averageTimeToComplete: Number, // En días
-    completionRate: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100
-    }
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true
-});
+);
 
 // ===== INDEXES =====
 achievementSchema.index({ category: 1, difficulty: 1 });
 achievementSchema.index({ isActive: 1, order: 1 });
 achievementSchema.index({ 'requirements.metric': 1 });
-achievementSchema.index({ 'seasonalInfo.isSeasonalAndActive': 1, 'seasonalInfo.endDate': 1 });
+achievementSchema.index({
+  'seasonalInfo.isSeasonalAndActive': 1,
+  'seasonalInfo.endDate': 1,
+});
 
 // ===== METHODS =====
-achievementSchema.methods.checkEligibility = function(userStats, userAchievements) {
+achievementSchema.methods.checkEligibility = function (
+  userStats,
+  userAchievements
+) {
   // Verificar prerrequisitos
   for (const prereq of this.prerequisites) {
     const hasPrerequisite = userAchievements.some(
-      achievement => achievement.achievementId.toString() === prereq.achievementId.toString()
+      achievement =>
+        achievement.achievementId.toString() === prereq.achievementId.toString()
     );
     if (prereq.required && !hasPrerequisite) {
       return { eligible: false, reason: 'Prerequisites not met' };
@@ -187,12 +203,12 @@ achievementSchema.methods.checkEligibility = function(userStats, userAchievement
   return { eligible: true };
 };
 
-achievementSchema.methods.calculateProgress = function(userStats) {
-  const metric = this.requirements.metric;
-  const target = this.requirements.target;
-  
+achievementSchema.methods.calculateProgress = function (userStats) {
+  const { metric } = this.requirements;
+  const { target } = this.requirements;
+
   let currentValue = 0;
-  
+
   // Obtener valor actual basado en la métrica
   switch (metric) {
     case 'events_attended':
@@ -231,29 +247,38 @@ achievementSchema.methods.calculateProgress = function(userStats) {
     target,
     progress,
     completed,
-    remaining: Math.max(target - currentValue, 0)
+    remaining: Math.max(target - currentValue, 0),
   };
 };
 
 // ===== STATICS =====
-achievementSchema.statics.getByCategory = function(category) {
-  return this.find({ category, isActive: true }).sort({ order: 1, difficulty: 1 });
+achievementSchema.statics.getByCategory = function (category) {
+  return this.find({ category, isActive: true }).sort({
+    order: 1,
+    difficulty: 1,
+  });
 };
 
-achievementSchema.statics.getSeasonalAchievements = function() {
+achievementSchema.statics.getSeasonalAchievements = function () {
   const now = new Date();
   return this.find({
     'seasonalInfo.isSeasonalAndActive': true,
     'seasonalInfo.startDate': { $lte: now },
     'seasonalInfo.endDate': { $gte: now },
-    isActive: true
+    isActive: true,
   });
 };
 
-achievementSchema.statics.getEligibleAchievements = function(userStats, userAchievements) {
+achievementSchema.statics.getEligibleAchievements = function (
+  userStats,
+  userAchievements
+) {
   return this.find({ isActive: true }).then(achievements => {
     return achievements.filter(achievement => {
-      const eligibility = achievement.checkEligibility(userStats, userAchievements);
+      const eligibility = achievement.checkEligibility(
+        userStats,
+        userAchievements
+      );
       return eligibility.eligible;
     });
   });

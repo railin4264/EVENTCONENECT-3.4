@@ -1,16 +1,21 @@
-const { User, Achievement, Badge, Leaderboard, UserProgress } = require('../models');
+const {
+  User,
+  Achievement,
+  Badge,
+  Leaderboard,
+  UserProgress,
+} = require('../models');
 const GamificationService = require('../services/GamificationService');
 
 class GamificationController {
-  
   // ==========================================
   // PERFIL DE GAMIFICACIÓN DEL USUARIO
   // ==========================================
-  
+
   async getUserGamificationProfile(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const user = await User.findById(userId)
         .populate('achievements.achievementId')
         .populate('badges.badgeId');
@@ -18,16 +23,17 @@ class GamificationController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Usuario no encontrado'
+          message: 'Usuario no encontrado',
         });
       }
 
       // Obtener progreso actual
       const progress = await GamificationService.getUserProgress(userId);
-      
+
       // Obtener logros disponibles
-      const availableAchievements = await GamificationService.getAvailableAchievements(userId);
-      
+      const availableAchievements =
+        await GamificationService.getAvailableAchievements(userId);
+
       // Obtener ranking del usuario
       const ranking = await GamificationService.getUserRanking(userId);
 
@@ -39,44 +45,44 @@ class GamificationController {
           nextLevelExperience: progress.nextLevelExperience,
           progressToNextLevel: progress.progressToNextLevel,
           totalPoints: progress.totalPoints,
-          
+
           achievements: {
             earned: user.achievements || [],
             available: availableAchievements,
-            completion: progress.achievementCompletion
+            completion: progress.achievementCompletion,
           },
-          
+
           badges: {
             earned: user.badges || [],
             showcased: user.showcasedBadges || [],
-            rare: progress.rareBadges
+            rare: progress.rareBadges,
           },
-          
+
           stats: {
             eventsAttended: user.stats?.eventsAttended || 0,
             eventsCreated: user.stats?.eventsHosted || 0,
             tribesJoined: user.stats?.tribesJoined || 0,
             socialScore: user.stats?.socialScore || 0,
-            streak: progress.currentStreak
+            streak: progress.currentStreak,
           },
-          
+
           ranking: {
             global: ranking.global,
             local: ranking.local,
-            category: ranking.category
+            category: ranking.category,
           },
-          
+
           rewards: {
             available: progress.availableRewards,
-            claimed: progress.claimedRewards
-          }
-        }
+            claimed: progress.claimedRewards,
+          },
+        },
       });
     } catch (error) {
       console.error('Error getting user gamification profile:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -93,20 +99,29 @@ class GamificationController {
       const filter = {};
       if (category) filter.category = category;
 
-      const achievements = await Achievement.find(filter).sort({ difficulty: 1, order: 1 });
-      
+      const achievements = await Achievement.find(filter).sort({
+        difficulty: 1,
+        order: 1,
+      });
+
       // Obtener progreso del usuario para cada logro
-      const userProgress = await GamificationService.getUserAchievementProgress(userId);
-      
+      const userProgress =
+        await GamificationService.getUserAchievementProgress(userId);
+
       const achievementsWithProgress = achievements.map(achievement => {
-        const progress = userProgress[achievement._id] || { progress: 0, completed: false };
-        
+        const progress = userProgress[achievement._id] || {
+          progress: 0,
+          completed: false,
+        };
+
         return {
           ...achievement.toObject(),
           userProgress: progress.progress,
           userCompleted: progress.completed,
           completedAt: progress.completedAt,
-          canClaim: progress.progress >= achievement.requirements.target && !progress.completed
+          canClaim:
+            progress.progress >= achievement.requirements.target &&
+            !progress.completed,
         };
       });
 
@@ -115,10 +130,14 @@ class GamificationController {
       if (status !== 'all') {
         filteredAchievements = achievementsWithProgress.filter(a => {
           switch (status) {
-            case 'completed': return a.userCompleted;
-            case 'available': return !a.userCompleted && a.userProgress > 0;
-            case 'locked': return a.userProgress === 0;
-            default: return true;
+            case 'completed':
+              return a.userCompleted;
+            case 'available':
+              return !a.userCompleted && a.userProgress > 0;
+            case 'locked':
+              return a.userProgress === 0;
+            default:
+              return true;
           }
         });
       }
@@ -130,17 +149,20 @@ class GamificationController {
           categories: await GamificationService.getAchievementCategories(),
           summary: {
             total: achievements.length,
-            completed: achievementsWithProgress.filter(a => a.userCompleted).length,
-            inProgress: achievementsWithProgress.filter(a => a.userProgress > 0 && !a.userCompleted).length,
-            available: achievementsWithProgress.filter(a => a.canClaim).length
-          }
-        }
+            completed: achievementsWithProgress.filter(a => a.userCompleted)
+              .length,
+            inProgress: achievementsWithProgress.filter(
+              a => a.userProgress > 0 && !a.userCompleted
+            ).length,
+            available: achievementsWithProgress.filter(a => a.canClaim).length,
+          },
+        },
       });
     } catch (error) {
       console.error('Error getting achievements:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -154,21 +176,27 @@ class GamificationController {
       if (!achievement) {
         return res.status(404).json({
           success: false,
-          message: 'Logro no encontrado'
+          message: 'Logro no encontrado',
         });
       }
 
       // Verificar si el usuario puede reclamar el logro
-      const canClaim = await GamificationService.canClaimAchievement(userId, achievementId);
+      const canClaim = await GamificationService.canClaimAchievement(
+        userId,
+        achievementId
+      );
       if (!canClaim.success) {
         return res.status(400).json({
           success: false,
-          message: canClaim.message
+          message: canClaim.message,
         });
       }
 
       // Reclamar el logro
-      const result = await GamificationService.claimAchievement(userId, achievementId);
+      const result = await GamificationService.claimAchievement(
+        userId,
+        achievementId
+      );
 
       if (result.success) {
         res.json({
@@ -178,20 +206,20 @@ class GamificationController {
             achievement: result.achievement,
             rewards: result.rewards,
             newLevel: result.newLevel,
-            unlockedFeatures: result.unlockedFeatures
-          }
+            unlockedFeatures: result.unlockedFeatures,
+          },
         });
       } else {
         res.status(400).json({
           success: false,
-          message: result.message
+          message: result.message,
         });
       }
     } catch (error) {
       console.error('Error claiming achievement:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -208,7 +236,7 @@ class GamificationController {
       if (!amount || amount <= 0) {
         return res.status(400).json({
           success: false,
-          message: 'Cantidad de experiencia inválida'
+          message: 'Cantidad de experiencia inválida',
         });
       }
 
@@ -216,7 +244,7 @@ class GamificationController {
         amount,
         source,
         description,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       res.json({
@@ -228,14 +256,14 @@ class GamificationController {
           currentLevel: result.currentLevel,
           levelUp: result.levelUp,
           newBadges: result.newBadges,
-          newAchievements: result.newAchievements
-        }
+          newAchievements: result.newAchievements,
+        },
       });
     } catch (error) {
       console.error('Error adding experience:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -248,7 +276,7 @@ class GamificationController {
       if (isNaN(levelNumber) || levelNumber < 1) {
         return res.status(400).json({
           success: false,
-          message: 'Nivel inválido'
+          message: 'Nivel inválido',
         });
       }
 
@@ -256,13 +284,13 @@ class GamificationController {
 
       res.json({
         success: true,
-        data: levelInfo
+        data: levelInfo,
       });
     } catch (error) {
       console.error('Error getting level info:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -281,21 +309,23 @@ class GamificationController {
       if (rarity) filter.rarity = rarity;
 
       const badges = await Badge.find(filter).sort({ rarity: 1, name: 1 });
-      
+
       // Obtener badges del usuario
       const user = await User.findById(userId).select('badges showcasedBadges');
       const userBadges = user.badges || [];
       const showcasedBadges = user.showcasedBadges || [];
 
       const badgesWithStatus = badges.map(badge => {
-        const userBadge = userBadges.find(ub => ub.badgeId.toString() === badge._id.toString());
-        
+        const userBadge = userBadges.find(
+          ub => ub.badgeId.toString() === badge._id.toString()
+        );
+
         return {
           ...badge.toObject(),
           earned: !!userBadge,
           earnedAt: userBadge?.earnedAt,
           showcased: showcasedBadges.includes(badge._id.toString()),
-          count: userBadge?.count || 0
+          count: userBadge?.count || 0,
         };
       });
 
@@ -307,15 +337,17 @@ class GamificationController {
             total: badges.length,
             earned: badgesWithStatus.filter(b => b.earned).length,
             showcased: showcasedBadges.length,
-            rare: badgesWithStatus.filter(b => b.earned && ['legendary', 'epic'].includes(b.rarity)).length
-          }
-        }
+            rare: badgesWithStatus.filter(
+              b => b.earned && ['legendary', 'epic'].includes(b.rarity)
+            ).length,
+          },
+        },
       });
     } catch (error) {
       console.error('Error getting badges:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -326,27 +358,33 @@ class GamificationController {
       const { badgeId } = req.params;
       const { showcase = true } = req.body;
 
-      const result = await GamificationService.showcaseBadge(userId, badgeId, showcase);
+      const result = await GamificationService.showcaseBadge(
+        userId,
+        badgeId,
+        showcase
+      );
 
       if (result.success) {
         res.json({
           success: true,
-          message: showcase ? 'Badge agregado al showcase' : 'Badge removido del showcase',
+          message: showcase
+            ? 'Badge agregado al showcase'
+            : 'Badge removido del showcase',
           data: {
-            showcasedBadges: result.showcasedBadges
-          }
+            showcasedBadges: result.showcasedBadges,
+          },
         });
       } else {
         res.status(400).json({
           success: false,
-          message: result.message
+          message: result.message,
         });
       }
     } catch (error) {
       console.error('Error showcasing badge:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -357,12 +395,12 @@ class GamificationController {
 
   async getLeaderboards(req, res) {
     try {
-      const { 
-        type = 'global', 
-        period = 'all_time', 
+      const {
+        type = 'global',
+        period = 'all_time',
         category,
         limit = 50,
-        page = 1 
+        page = 1,
       } = req.query;
 
       const leaderboards = await GamificationService.getLeaderboards({
@@ -370,18 +408,18 @@ class GamificationController {
         period,
         category,
         limit: parseInt(limit),
-        page: parseInt(page)
+        page: parseInt(page),
       });
 
       res.json({
         success: true,
-        data: leaderboards
+        data: leaderboards,
       });
     } catch (error) {
       console.error('Error getting leaderboards:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -389,18 +427,18 @@ class GamificationController {
   async getUserRankings(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const rankings = await GamificationService.getUserRankings(userId);
 
       res.json({
         success: true,
-        data: rankings
+        data: rankings,
       });
     } catch (error) {
       console.error('Error getting user rankings:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -412,7 +450,7 @@ class GamificationController {
   async getActiveChallenges(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const challenges = await GamificationService.getActiveChallenges(userId);
 
       res.json({
@@ -422,15 +460,15 @@ class GamificationController {
           summary: {
             active: challenges.filter(c => c.status === 'active').length,
             completed: challenges.filter(c => c.status === 'completed').length,
-            available: challenges.filter(c => c.status === 'available').length
-          }
-        }
+            available: challenges.filter(c => c.status === 'available').length,
+          },
+        },
       });
     } catch (error) {
       console.error('Error getting active challenges:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -440,7 +478,10 @@ class GamificationController {
       const userId = req.user.id;
       const { challengeId } = req.params;
 
-      const result = await GamificationService.joinChallenge(userId, challengeId);
+      const result = await GamificationService.joinChallenge(
+        userId,
+        challengeId
+      );
 
       if (result.success) {
         res.json({
@@ -448,20 +489,20 @@ class GamificationController {
           message: 'Te has unido al desafío exitosamente',
           data: {
             challenge: result.challenge,
-            progress: result.progress
-          }
+            progress: result.progress,
+          },
         });
       } else {
         res.status(400).json({
           success: false,
-          message: result.message
+          message: result.message,
         });
       }
     } catch (error) {
       console.error('Error joining challenge:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -473,18 +514,18 @@ class GamificationController {
   async getAvailableRewards(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const rewards = await GamificationService.getAvailableRewards(userId);
 
       res.json({
         success: true,
-        data: rewards
+        data: rewards,
       });
     } catch (error) {
       console.error('Error getting available rewards:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -502,20 +543,20 @@ class GamificationController {
           message: 'Recompensa reclamada exitosamente',
           data: {
             reward: result.reward,
-            newBalance: result.newBalance
-          }
+            newBalance: result.newBalance,
+          },
         });
       } else {
         res.status(400).json({
           success: false,
-          message: result.message
+          message: result.message,
         });
       }
     } catch (error) {
       console.error('Error claiming reward:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -532,18 +573,18 @@ class GamificationController {
       const stats = await GamificationService.getGamificationStats({
         userId,
         period,
-        global: global === 'true'
+        global: global === 'true',
       });
 
       res.json({
         success: true,
-        data: stats
+        data: stats,
       });
     } catch (error) {
       console.error('Error getting gamification stats:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -560,7 +601,7 @@ class GamificationController {
         showProgressBars,
         participateInLeaderboards,
         shareMilestones,
-        difficulty
+        difficulty,
       } = req.body;
 
       const updatedUser = await User.findByIdAndUpdate(
@@ -568,14 +609,20 @@ class GamificationController {
         {
           $set: {
             'preferences.gamification': {
-              enableNotifications: enableNotifications !== undefined ? enableNotifications : true,
-              showProgressBars: showProgressBars !== undefined ? showProgressBars : true,
-              participateInLeaderboards: participateInLeaderboards !== undefined ? participateInLeaderboards : true,
-              shareMilestones: shareMilestones !== undefined ? shareMilestones : false,
+              enableNotifications:
+                enableNotifications !== undefined ? enableNotifications : true,
+              showProgressBars:
+                showProgressBars !== undefined ? showProgressBars : true,
+              participateInLeaderboards:
+                participateInLeaderboards !== undefined
+                  ? participateInLeaderboards
+                  : true,
+              shareMilestones:
+                shareMilestones !== undefined ? shareMilestones : false,
               difficulty: difficulty || 'normal',
-              updatedAt: new Date()
-            }
-          }
+              updatedAt: new Date(),
+            },
+          },
         },
         { new: true }
       );
@@ -584,14 +631,14 @@ class GamificationController {
         success: true,
         message: 'Configuración de gamificación actualizada',
         data: {
-          settings: updatedUser.preferences.gamification
-        }
+          settings: updatedUser.preferences.gamification,
+        },
       });
     } catch (error) {
       console.error('Error updating gamification settings:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }

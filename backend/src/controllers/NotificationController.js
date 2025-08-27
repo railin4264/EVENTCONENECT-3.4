@@ -3,11 +3,10 @@ const NotificationService = require('../services/NotificationService');
 
 // Extend existing controller with enhanced push notifications
 class EnhancedNotificationController {
-  
   // ==========================================
   // CONFIGURAR NOTIFICACIONES PUSH VISUALES
   // ==========================================
-  
+
   async updatePushSettings(req, res) {
     try {
       const userId = req.user.id;
@@ -19,7 +18,7 @@ class EnhancedNotificationController {
         locationBased,
         customSounds,
         quietHours,
-        categories
+        categories,
       } = req.body;
 
       const user = await User.findByIdAndUpdate(
@@ -34,7 +33,7 @@ class EnhancedNotificationController {
             'notificationPreferences.push.customSounds': customSounds,
             'notificationPreferences.push.quietHours': quietHours,
             'notificationPreferences.push.categories': categories,
-          }
+          },
         },
         { new: true, runValidators: true }
       );
@@ -43,14 +42,14 @@ class EnhancedNotificationController {
         success: true,
         message: 'Configuración de notificaciones push actualizada',
         data: {
-          pushSettings: user.notificationPreferences.push
-        }
+          pushSettings: user.notificationPreferences.push,
+        },
       });
     } catch (error) {
       console.error('Error updating push settings:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -73,7 +72,7 @@ class EnhancedNotificationController {
         badge,
         priority,
         groupId,
-        locationTrigger
+        locationTrigger,
       } = req.body;
 
       // Validar usuario
@@ -81,7 +80,7 @@ class EnhancedNotificationController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Usuario no encontrado'
+          message: 'Usuario no encontrado',
         });
       }
 
@@ -90,15 +89,19 @@ class EnhancedNotificationController {
       if (!pushPrefs?.enabled) {
         return res.status(400).json({
           success: false,
-          message: 'Notificaciones push deshabilitadas para este usuario'
+          message: 'Notificaciones push deshabilitadas para este usuario',
         });
       }
 
       // Verificar categoría específica
-      if (category && pushPrefs.categories && !pushPrefs.categories[category]?.enabled) {
+      if (
+        category &&
+        pushPrefs.categories &&
+        !pushPrefs.categories[category]?.enabled
+      ) {
         return res.status(400).json({
           success: false,
-          message: `Notificaciones de categoría ${category} deshabilitadas`
+          message: `Notificaciones de categoría ${category} deshabilitadas`,
         });
       }
 
@@ -106,7 +109,7 @@ class EnhancedNotificationController {
       if (this.isInQuietHours(pushPrefs.quietHours)) {
         return res.status(400).json({
           success: false,
-          message: 'Usuario en horas silenciosas'
+          message: 'Usuario en horas silenciosas',
         });
       }
 
@@ -119,7 +122,7 @@ class EnhancedNotificationController {
           ...data,
           category,
           timestamp: new Date().toISOString(),
-          userId: userId
+          userId,
         },
         android: {
           priority: priority || 'high',
@@ -128,35 +131,37 @@ class EnhancedNotificationController {
             color: '#06b6d4',
             sound: sound || 'default',
             largeIcon: image,
-            style: image ? {
-              type: 'bigPicture',
-              picture: image
-            } : undefined,
-            actions: actions || []
+            style: image
+              ? {
+                  type: 'bigPicture',
+                  picture: image,
+                }
+              : undefined,
+            actions: actions || [],
           },
           data: {
             groupId: groupId || category,
-            ...data
-          }
+            ...data,
+          },
         },
         ios: {
           aps: {
             alert: {
               title,
-              body
+              body,
             },
             badge: badge || 1,
             sound: sound || 'default',
             category: category || 'default',
             'mutable-content': 1,
-            'content-available': 1
+            'content-available': 1,
           },
           data: {
             image,
             actions: JSON.stringify(actions || []),
             groupId: groupId || category,
-            ...data
-          }
+            ...data,
+          },
         },
         web: {
           notification: {
@@ -168,15 +173,16 @@ class EnhancedNotificationController {
             tag: groupId || category,
             data: {
               actions: actions || [],
-              ...data
+              ...data,
             },
-            actions: actions?.map(action => ({
-              action: action.id,
-              title: action.title,
-              icon: action.icon
-            })) || []
-          }
-        }
+            actions:
+              actions?.map(action => ({
+                action: action.id,
+                title: action.title,
+                icon: action.icon,
+              })) || [],
+          },
+        },
       };
 
       // Enviar notificación
@@ -195,15 +201,15 @@ class EnhancedNotificationController {
           ...data,
           image,
           actions,
-          groupId
+          groupId,
         },
         deliveryMethod: ['push'],
         status: result.success ? 'sent' : 'failed',
         metadata: {
           pushResult: result,
           richContent: true,
-          platform: 'all'
-        }
+          platform: 'all',
+        },
       });
 
       await notification.save();
@@ -214,14 +220,14 @@ class EnhancedNotificationController {
         data: {
           notificationId: notification._id,
           deliveryResult: result,
-          recipients: user.pushTokens.length
-        }
+          recipients: user.pushTokens.length,
+        },
       });
     } catch (error) {
       console.error('Error sending rich push notification:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -240,11 +246,11 @@ class EnhancedNotificationController {
         participants,
         category,
         collapseKey,
-        summaryText
+        summaryText,
       } = req.body;
 
       const results = [];
-      
+
       for (const userId of participants) {
         const user = await User.findById(userId);
         if (!user || !user.notificationPreferences?.push?.enabled) {
@@ -259,7 +265,7 @@ class EnhancedNotificationController {
           data: {
             ...data,
             groupId,
-            userId
+            userId,
           },
           android: {
             collapseKey: collapseKey || groupId,
@@ -268,15 +274,16 @@ class EnhancedNotificationController {
               tag: groupId,
               group: groupId,
               groupSummary: participants.indexOf(userId) === 0,
-              summaryText: summaryText || `${participants.length} participantes`
-            }
+              summaryText:
+                summaryText || `${participants.length} participantes`,
+            },
           },
           ios: {
             aps: {
               'thread-id': groupId,
               'summary-arg': user.firstName,
-              'summary-arg-count': participants.length
-            }
+              'summary-arg-count': participants.length,
+            },
           },
           web: {
             notification: {
@@ -284,10 +291,10 @@ class EnhancedNotificationController {
               renotify: true,
               data: {
                 groupId,
-                totalMembers: participants.length
-              }
-            }
-          }
+                totalMembers: participants.length,
+              },
+            },
+          },
         };
 
         const result = await NotificationService.sendRichPushNotification(
@@ -298,7 +305,7 @@ class EnhancedNotificationController {
         results.push({
           userId,
           success: result.success,
-          details: result
+          details: result,
         });
       }
 
@@ -309,14 +316,14 @@ class EnhancedNotificationController {
           groupId,
           totalRecipients: participants.length,
           successfulDeliveries: results.filter(r => r.success).length,
-          results
-        }
+          results,
+        },
       });
     } catch (error) {
       console.error('Error sending grouped notifications:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -334,7 +341,7 @@ class EnhancedNotificationController {
         body,
         data,
         category,
-        excludeUserIds = []
+        excludeUserIds = [],
       } = req.body;
 
       // Encontrar usuarios en el área
@@ -346,11 +353,11 @@ class EnhancedNotificationController {
           $near: {
             $geometry: {
               type: 'Point',
-              coordinates: center
+              coordinates: center,
             },
-            $maxDistance: radius
-          }
-        }
+            $maxDistance: radius,
+          },
+        },
       });
 
       const results = [];
@@ -358,28 +365,28 @@ class EnhancedNotificationController {
       for (const user of usersInArea) {
         const locationNotification = {
           to: user.pushTokens.map(token => token.token),
-            title,
-            body,
+          title,
+          body,
           data: {
             ...data,
             locationBased: true,
             userLocation: user.location.coordinates,
-            distance: this.calculateDistance(center, user.location.coordinates)
+            distance: this.calculateDistance(center, user.location.coordinates),
           },
           android: {
             notification: {
               channelId: category || 'location',
               icon: 'ic_location',
-              color: '#06b6d4'
-            }
+              color: '#06b6d4',
+            },
           },
           ios: {
             aps: {
               category: category || 'location',
               'loc-key': 'LOCATION_NOTIFICATION_BODY',
-              'loc-args': [title]
-            }
-          }
+              'loc-args': [title],
+            },
+          },
         };
 
         const result = await NotificationService.sendRichPushNotification(
@@ -390,7 +397,7 @@ class EnhancedNotificationController {
         results.push({
           userId: user._id,
           distance: this.calculateDistance(center, user.location.coordinates),
-          success: result.success
+          success: result.success,
         });
       }
 
@@ -402,14 +409,14 @@ class EnhancedNotificationController {
           radius,
           usersFound: usersInArea.length,
           successfulDeliveries: results.filter(r => r.success).length,
-          results
-        }
+          results,
+        },
       });
     } catch (error) {
       console.error('Error sending location-based notifications:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -421,10 +428,10 @@ class EnhancedNotificationController {
   async getNotificationAnalytics(req, res) {
     try {
       const { timeframe = '7d', category, userId } = req.query;
-      
+
       const startDate = this.getStartDate(timeframe);
       const filter = {
-        createdAt: { $gte: startDate }
+        createdAt: { $gte: startDate },
       };
 
       if (category) filter.type = category;
@@ -435,13 +442,15 @@ class EnhancedNotificationController {
         {
           $group: {
             _id: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              date: {
+                $dateToString: { format: '%Y-%m-%d', date: '$createdAt' },
+              },
               type: '$type',
-              status: '$status'
+              status: '$status',
             },
             count: { $sum: 1 },
-            deliveryMethods: { $push: '$deliveryMethod' }
-          }
+            deliveryMethods: { $push: '$deliveryMethod' },
+          },
         },
         {
           $group: {
@@ -449,27 +458,27 @@ class EnhancedNotificationController {
             total: { $sum: '$count' },
             sent: {
               $sum: {
-                $cond: [{ $eq: ['$_id.status', 'sent'] }, '$count', 0]
-              }
+                $cond: [{ $eq: ['$_id.status', 'sent'] }, '$count', 0],
+              },
             },
             failed: {
               $sum: {
-                $cond: [{ $eq: ['$_id.status', 'failed'] }, '$count', 0]
-              }
+                $cond: [{ $eq: ['$_id.status', 'failed'] }, '$count', 0],
+              },
             },
             delivered: {
               $sum: {
-                $cond: [{ $eq: ['$_id.status', 'delivered'] }, '$count', 0]
-              }
+                $cond: [{ $eq: ['$_id.status', 'delivered'] }, '$count', 0],
+              },
             },
             opened: {
               $sum: {
-                $cond: [{ $eq: ['$_id.status', 'opened'] }, '$count', 0]
-              }
-            }
-          }
+                $cond: [{ $eq: ['$_id.status', 'opened'] }, '$count', 0],
+              },
+            },
+          },
         },
-        { $sort: { '_id.date': 1, '_id.type': 1 } }
+        { $sort: { '_id.date': 1, '_id.type': 1 } },
       ]);
 
       res.json({
@@ -478,17 +487,20 @@ class EnhancedNotificationController {
           timeframe,
           analytics,
           summary: {
-            totalNotifications: analytics.reduce((sum, item) => sum + item.total, 0),
+            totalNotifications: analytics.reduce(
+              (sum, item) => sum + item.total,
+              0
+            ),
             deliveryRate: this.calculateDeliveryRate(analytics),
-            openRate: this.calculateOpenRate(analytics)
-          }
-        }
+            openRate: this.calculateOpenRate(analytics),
+          },
+        },
       });
     } catch (error) {
       console.error('Error getting notification analytics:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -507,7 +519,7 @@ class EnhancedNotificationController {
 
     const [startHour, startMinute] = quietHours.start.split(':').map(Number);
     const [endHour, endMinute] = quietHours.end.split(':').map(Number);
-    
+
     const startTime = startHour * 60 + startMinute;
     const endTime = endHour * 60 + endMinute;
 
@@ -520,15 +532,15 @@ class EnhancedNotificationController {
 
   calculateDistance(point1, point2) {
     const R = 6371e3; // Earth's radius in meters
-    const φ1 = point1[1] * Math.PI / 180;
-    const φ2 = point2[1] * Math.PI / 180;
-    const Δφ = (point2[1] - point1[1]) * Math.PI / 180;
-    const Δλ = (point2[0] - point1[0]) * Math.PI / 180;
+    const φ1 = (point1[1] * Math.PI) / 180;
+    const φ2 = (point2[1] * Math.PI) / 180;
+    const Δφ = ((point2[1] - point1[1]) * Math.PI) / 180;
+    const Δλ = ((point2[0] - point1[0]) * Math.PI) / 180;
 
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return Math.round(R * c);
   }

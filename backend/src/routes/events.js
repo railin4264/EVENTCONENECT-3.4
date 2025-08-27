@@ -1,34 +1,23 @@
 const express = require('express');
+
 const router = express.Router();
 const eventController = require('../controllers/eventController');
 const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware');
 const rateLimits = require('../middleware/rateLimitMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 // ==========================================
 // RUTAS PÚBLICAS (sin autenticación)
 // ==========================================
 
 // Obtener eventos públicos
-router.get(
-  '/',
-  rateLimits.general,
-  eventController.getEvents
-);
+router.get('/', rateLimits.general, eventController.getEvents);
 
 // Buscar eventos
-router.get(
-  '/search',
-  rateLimits.search,
-  eventController.searchEvents
-);
+router.get('/search', rateLimits.search, eventController.searchEvents);
 
 // Obtener evento por ID (público)
-router.get(
-  '/:eventId',
-  rateLimits.general,
-  eventController.getEventById
-);
+router.get('/:eventId', rateLimits.general, eventController.getEventById);
 
 // ==========================================
 // RUTAS PROTEGIDAS (requieren autenticación)

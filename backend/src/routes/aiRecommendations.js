@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = express.Router();
 const aiRecommendationsController = require('../controllers/aiRecommendationsController');
 const authMiddleware = require('../middleware/authMiddleware');

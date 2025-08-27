@@ -2,14 +2,14 @@
 // ROUTES INDEX - EVENT CONNECT BACKEND
 // ==========================================
 
+const aiRecommendationRoutes = require('./aiRecommendations');
 const authRoutes = require('./auth');
-const userRoutes = require('./users');
 const eventRoutes = require('./events');
-const tribeRoutes = require('./tribes');
+const gamificationRoutes = require('./gamification');
 const notificationRoutes = require('./notifications');
 const themeRoutes = require('./themes');
-const aiRecommendationRoutes = require('./aiRecommendations');
-const gamificationRoutes = require('./gamification');
+const tribeRoutes = require('./tribes');
+const userRoutes = require('./users');
 
 module.exports = {
   authRoutes,

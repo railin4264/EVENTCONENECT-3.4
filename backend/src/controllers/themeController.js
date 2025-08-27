@@ -5,13 +5,13 @@ class ThemeController {
   async getThemeConfig(req, res) {
     try {
       const userId = req.user.id;
-      
+
       const user = await User.findById(userId).select('preferences.theme');
-      
+
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Usuario no encontrado'
+          message: 'Usuario no encontrado',
         });
       }
 
@@ -26,13 +26,13 @@ class ThemeController {
           accent: '#f59e0b',
           background: '#0f172a',
           surface: '#1e293b',
-          text: '#f8fafc'
+          text: '#f8fafc',
         },
         animations: true,
         reducedMotion: false,
         glassEffect: true,
         neonEffects: false,
-        autoSync: true
+        autoSync: true,
       };
 
       const themeConfig = user.preferences?.theme || defaultTheme;
@@ -41,14 +41,14 @@ class ThemeController {
         success: true,
         data: {
           theme: themeConfig,
-          lastUpdated: user.updatedAt
-        }
+          lastUpdated: user.updatedAt,
+        },
       });
     } catch (error) {
       console.error('Error obteniendo configuración de tema:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -61,19 +61,30 @@ class ThemeController {
 
       // Validar configuración de tema
       const validModes = ['light', 'dark', 'auto'];
-      const validColors = ['cyan', 'purple', 'blue', 'green', 'orange', 'pink', 'red'];
+      const validColors = [
+        'cyan',
+        'purple',
+        'blue',
+        'green',
+        'orange',
+        'pink',
+        'red',
+      ];
 
       if (themeConfig.mode && !validModes.includes(themeConfig.mode)) {
         return res.status(400).json({
           success: false,
-          message: 'Modo de tema inválido'
+          message: 'Modo de tema inválido',
         });
       }
 
-      if (themeConfig.primaryColor && !validColors.includes(themeConfig.primaryColor)) {
+      if (
+        themeConfig.primaryColor &&
+        !validColors.includes(themeConfig.primaryColor)
+      ) {
         return res.status(400).json({
           success: false,
-          message: 'Color primario inválido'
+          message: 'Color primario inválido',
         });
       }
 
@@ -84,9 +95,9 @@ class ThemeController {
           $set: {
             'preferences.theme': {
               ...themeConfig,
-              updatedAt: new Date()
-            }
-          }
+              updatedAt: new Date(),
+            },
+          },
         },
         { new: true, runValidators: true }
       ).select('preferences.theme');
@@ -94,7 +105,7 @@ class ThemeController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Usuario no encontrado'
+          message: 'Usuario no encontrado',
         });
       }
 
@@ -103,14 +114,14 @@ class ThemeController {
         message: 'Configuración de tema actualizada',
         data: {
           theme: user.preferences.theme,
-          lastUpdated: user.updatedAt
-        }
+          lastUpdated: user.updatedAt,
+        },
       });
     } catch (error) {
       console.error('Error actualizando configuración de tema:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -134,12 +145,12 @@ class ThemeController {
               accent: '#f59e0b',
               background: '#0f172a',
               surface: '#1e293b',
-              text: '#f8fafc'
+              text: '#f8fafc',
             },
             animations: true,
             glassEffect: true,
-            neonEffects: false
-          }
+            neonEffects: false,
+          },
         },
         {
           id: 'neon-cyber',
@@ -156,12 +167,12 @@ class ThemeController {
               accent: '#ffff00',
               background: '#000000',
               surface: '#111111',
-              text: '#ffffff'
+              text: '#ffffff',
             },
             animations: true,
             glassEffect: false,
-            neonEffects: true
-          }
+            neonEffects: true,
+          },
         },
         {
           id: 'minimal-light',
@@ -178,12 +189,12 @@ class ThemeController {
               accent: '#d97706',
               background: '#ffffff',
               surface: '#f8fafc',
-              text: '#1e293b'
+              text: '#1e293b',
             },
             animations: true,
             glassEffect: false,
-            neonEffects: false
-          }
+            neonEffects: false,
+          },
         },
         {
           id: 'sunset-gradient',
@@ -200,12 +211,12 @@ class ThemeController {
               accent: '#facc15',
               background: '#1c1917',
               surface: '#292524',
-              text: '#fef3c7'
+              text: '#fef3c7',
             },
             animations: true,
             glassEffect: true,
-            neonEffects: false
-          }
+            neonEffects: false,
+          },
         },
         {
           id: 'forest-green',
@@ -222,27 +233,27 @@ class ThemeController {
               accent: '#84cc16',
               background: '#064e3b',
               surface: '#065f46',
-              text: '#ecfdf5'
+              text: '#ecfdf5',
             },
             animations: true,
             glassEffect: true,
-            neonEffects: false
-          }
-        }
+            neonEffects: false,
+          },
+        },
       ];
 
       res.json({
         success: true,
         data: {
           themes: presetThemes,
-          total: presetThemes.length
-        }
+          total: presetThemes.length,
+        },
       });
     } catch (error) {
       console.error('Error obteniendo temas predefinidos:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -254,7 +265,9 @@ class ThemeController {
       const { themeId } = req.params;
 
       // Obtener temas predefinidos
-      const presetResponse = await this.getPresetThemes(req, { json: () => {} });
+      const presetResponse = await this.getPresetThemes(req, {
+        json: () => {},
+      });
       const presetThemes = [
         // Los mismos temas de arriba - simplificado para este ejemplo
         {
@@ -269,13 +282,13 @@ class ThemeController {
               accent: '#f59e0b',
               background: '#0f172a',
               surface: '#1e293b',
-              text: '#f8fafc'
+              text: '#f8fafc',
             },
             animations: true,
             glassEffect: true,
-            neonEffects: false
-          }
-        }
+            neonEffects: false,
+          },
+        },
       ];
 
       const selectedTheme = presetThemes.find(theme => theme.id === themeId);
@@ -283,7 +296,7 @@ class ThemeController {
       if (!selectedTheme) {
         return res.status(404).json({
           success: false,
-          message: 'Tema predefinido no encontrado'
+          message: 'Tema predefinido no encontrado',
         });
       }
 
@@ -295,9 +308,9 @@ class ThemeController {
             'preferences.theme': {
               ...selectedTheme.config,
               appliedPreset: themeId,
-              updatedAt: new Date()
-            }
-          }
+              updatedAt: new Date(),
+            },
+          },
         },
         { new: true, runValidators: true }
       ).select('preferences.theme');
@@ -307,14 +320,14 @@ class ThemeController {
         message: 'Tema aplicado correctamente',
         data: {
           theme: user.preferences.theme,
-          appliedPreset: themeId
-        }
+          appliedPreset: themeId,
+        },
       });
     } catch (error) {
       console.error('Error aplicando tema predefinido:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -330,7 +343,7 @@ class ThemeController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Usuario no encontrado'
+          message: 'Usuario no encontrado',
         });
       }
 
@@ -340,9 +353,9 @@ class ThemeController {
           'preferences.theme.syncHistory': {
             deviceId,
             platform,
-            syncedAt: new Date()
-          }
-        }
+            syncedAt: new Date(),
+          },
+        },
       });
 
       res.json({
@@ -351,14 +364,14 @@ class ThemeController {
         data: {
           theme: user.preferences.theme,
           deviceId,
-          platform
-        }
+          platform,
+        },
       });
     } catch (error) {
       console.error('Error sincronizando tema:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }

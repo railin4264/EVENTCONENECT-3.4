@@ -2,7 +2,8 @@ const { Event, User, Tribe, UserInteraction } = require('../models');
 
 class AIRecommendationService {
   constructor() {
-    this.MLModelEndpoint = process.env.ML_MODEL_ENDPOINT || 'http://localhost:8000';
+    this.MLModelEndpoint =
+      process.env.ML_MODEL_ENDPOINT || 'http://localhost:8000';
     this.useMLModel = process.env.USE_ML_MODEL === 'true';
     this.fallbackToRules = true;
   }
@@ -20,7 +21,10 @@ class AIRecommendationService {
         try {
           return await this.getMLEventRecommendations(user, options);
         } catch (mlError) {
-          console.warn('ML model failed, using rule-based fallback:', mlError.message);
+          console.warn(
+            'ML model failed, using rule-based fallback:',
+            mlError.message
+          );
         }
       }
 
@@ -34,27 +38,29 @@ class AIRecommendationService {
 
   async getRuleBasedEventRecommendations(user, options) {
     const { location, radius = 25, limit = 10 } = options;
-    
+
     // Construir query de eventos
     const query = {
       status: 'published',
       startDate: { $gte: new Date() },
-      isPrivate: false
+      isPrivate: false,
     };
 
     // Filtro geográfico
     if (location || user.location?.coordinates) {
-      const coords = location ? [location.lng, location.lat] : user.location.coordinates;
+      const coords = location
+        ? [location.lng, location.lat]
+        : user.location.coordinates;
       query.location = {
         $near: {
           $geometry: { type: 'Point', coordinates: coords },
-          $maxDistance: radius * 1000
-        }
+          $maxDistance: radius * 1000,
+        },
       };
     }
 
     // Obtener eventos base
-    let events = await Event.find(query)
+    const events = await Event.find(query)
       .populate('organizer', 'firstName lastName avatar')
       .populate('tribe', 'name avatar')
       .limit(limit * 2) // Obtener más para filtrar
@@ -68,8 +74,10 @@ class AIRecommendationService {
       // Score por intereses del usuario
       const userInterests = user.interests || [];
       const eventCategories = event.categories || [];
-      const interestMatch = eventCategories.filter(cat => userInterests.includes(cat)).length;
-      
+      const interestMatch = eventCategories.filter(cat =>
+        userInterests.includes(cat)
+      ).length;
+
       if (interestMatch > 0) {
         score += interestMatch * 20;
         reasons.push(`Coincide con ${interestMatch} de tus intereses`);
@@ -85,14 +93,16 @@ class AIRecommendationService {
       }
 
       // Score por novedad
-      const daysSinceCreated = (Date.now() - event.createdAt) / (1000 * 60 * 60 * 24);
+      const daysSinceCreated =
+        (Date.now() - event.createdAt) / (1000 * 60 * 60 * 24);
       if (daysSinceCreated < 3) {
         score += 10;
         reasons.push('Evento reciente');
       }
 
       // Score por tiempo hasta el evento
-      const daysUntilEvent = (event.startDate - Date.now()) / (1000 * 60 * 60 * 24);
+      const daysUntilEvent =
+        (event.startDate - Date.now()) / (1000 * 60 * 60 * 24);
       if (daysUntilEvent >= 1 && daysUntilEvent <= 14) {
         score += 15;
         reasons.push('Fecha ideal para planear');
@@ -125,13 +135,15 @@ class AIRecommendationService {
         recommendationScore: Math.max(score, 0),
         recommendationReasons: reasons,
         recommendationType: 'rule_based',
-        confidence: this.calculateConfidence(score, reasons.length)
+        confidence: this.calculateConfidence(score, reasons.length),
       };
     });
 
     // Ordenar por score y aplicar diversidad
     const finalRecommendations = this.applyDiversityFilter(
-      scoredEvents.sort((a, b) => b.recommendationScore - a.recommendationScore),
+      scoredEvents.sort(
+        (a, b) => b.recommendationScore - a.recommendationScore
+      ),
       limit,
       'categories'
     );
@@ -153,15 +165,15 @@ class AIRecommendationService {
       // Query para tribus
       const query = {
         isPrivate: false,
-        isActive: true
+        isActive: true,
       };
 
       if (userLocation) {
         query.location = {
           $near: {
             $geometry: { type: 'Point', coordinates: userLocation },
-            $maxDistance: 50000 // 50km para tribus
-          }
+            $maxDistance: 50000, // 50km para tribus
+          },
         };
       }
 
@@ -175,8 +187,10 @@ class AIRecommendationService {
 
         // Score por intereses
         const tribeInterests = tribe.interests || [];
-        const interestMatch = tribeInterests.filter(interest => userInterests.includes(interest)).length;
-        
+        const interestMatch = tribeInterests.filter(interest =>
+          userInterests.includes(interest)
+        ).length;
+
         if (interestMatch > 0) {
           score += interestMatch * 25;
           reasons.push(`${interestMatch} intereses en común`);
@@ -190,7 +204,8 @@ class AIRecommendationService {
         }
 
         // Score por actividad reciente
-        const daysSinceLastActivity = (Date.now() - tribe.lastActivityAt) / (1000 * 60 * 60 * 24);
+        const daysSinceLastActivity =
+          (Date.now() - tribe.lastActivityAt) / (1000 * 60 * 60 * 24);
         if (daysSinceLastActivity < 7) {
           score += 20;
           reasons.push('Comunidad activa');
@@ -208,7 +223,7 @@ class AIRecommendationService {
           recommendationScore: score,
           recommendationReasons: reasons,
           recommendationType: 'rule_based',
-          confidence: this.calculateConfidence(score, reasons.length)
+          confidence: this.calculateConfidence(score, reasons.length),
         };
       });
 
@@ -233,17 +248,19 @@ class AIRecommendationService {
       const query = {
         _id: { $ne: user._id },
         isActive: true,
-        'privacy.profileVisibility': { $ne: 'private' }
+        'privacy.profileVisibility': { $ne: 'private' },
       };
 
       // Filtro geográfico
       if (location || user.location?.coordinates) {
-        const coords = location ? [location.lng, location.lat] : user.location.coordinates;
+        const coords = location
+          ? [location.lng, location.lat]
+          : user.location.coordinates;
         query.location = {
           $near: {
             $geometry: { type: 'Point', coordinates: coords },
-            $maxDistance: radius * 1000
-          }
+            $maxDistance: radius * 1000,
+          },
         };
       }
 
@@ -258,8 +275,10 @@ class AIRecommendationService {
         // Score por intereses comunes
         const userInterests = user.interests || [];
         const targetInterests = targetUser.interests || [];
-        const commonInterests = userInterests.filter(interest => targetInterests.includes(interest));
-        
+        const commonInterests = userInterests.filter(interest =>
+          targetInterests.includes(interest)
+        );
+
         if (commonInterests.length > 0) {
           score += commonInterests.length * 15;
           reasons.push(`${commonInterests.length} intereses en común`);
@@ -285,7 +304,7 @@ class AIRecommendationService {
           recommendationReasons: reasons,
           recommendationType: 'rule_based',
           confidence: this.calculateConfidence(score, reasons.length),
-          commonInterests
+          commonInterests,
         };
       });
 
@@ -304,7 +323,7 @@ class AIRecommendationService {
 
   async getMixedRecommendations(user, options = {}) {
     const { limit = 10 } = options;
-    
+
     const eventLimit = Math.ceil(limit * 0.6); // 60% eventos
     const tribeLimit = Math.ceil(limit * 0.3); // 30% tribus
     const peopleLimit = Math.ceil(limit * 0.1); // 10% personas
@@ -313,14 +332,14 @@ class AIRecommendationService {
       const [events, tribes, people] = await Promise.all([
         this.getEventRecommendations(user, { ...options, limit: eventLimit }),
         this.getTribeRecommendations(user, { ...options, limit: tribeLimit }),
-        this.getPeopleRecommendations(user, { ...options, limit: peopleLimit })
+        this.getPeopleRecommendations(user, { ...options, limit: peopleLimit }),
       ]);
 
       // Combinar y mezclar
       const mixed = [
         ...events.map(item => ({ ...item, itemType: 'event' })),
         ...tribes.map(item => ({ ...item, itemType: 'tribe' })),
-        ...people.map(item => ({ ...item, itemType: 'user' }))
+        ...people.map(item => ({ ...item, itemType: 'user' })),
       ];
 
       // Intercalar tipos para diversidad
@@ -336,7 +355,13 @@ class AIRecommendationService {
   // ==========================================
 
   async getTrendingContent(options = {}) {
-    const { userId, timeframe = '24h', location, limit = 10, category } = options;
+    const {
+      userId,
+      timeframe = '24h',
+      location,
+      limit = 10,
+      category,
+    } = options;
 
     try {
       const timeframeDays = this.parseTimeframe(timeframe);
@@ -346,7 +371,7 @@ class AIRecommendationService {
       const query = {
         createdAt: { $gte: since },
         status: 'published',
-        isPrivate: false
+        isPrivate: false,
       };
 
       if (category) {
@@ -356,9 +381,12 @@ class AIRecommendationService {
       if (location) {
         query.location = {
           $near: {
-            $geometry: { type: 'Point', coordinates: [location.lng, location.lat] },
-            $maxDistance: 50000 // 50km para trending
-          }
+            $geometry: {
+              type: 'Point',
+              coordinates: [location.lng, location.lat],
+            },
+            $maxDistance: 50000, // 50km para trending
+          },
         };
       }
 
@@ -368,18 +396,21 @@ class AIRecommendationService {
 
       // Calcular trending score
       const trendingEvents = events.map(event => {
-        const daysSinceCreated = (Date.now() - event.createdAt) / (1000 * 60 * 60 * 24);
+        const daysSinceCreated =
+          (Date.now() - event.createdAt) / (1000 * 60 * 60 * 24);
         const attendeesCount = event.attendees?.length || 0;
         const interactionsCount = event.stats?.interactions || 0;
-        
+
         // Algoritmo de trending (similar a Reddit/HackerNews)
-        const score = (attendeesCount + interactionsCount) / Math.pow(daysSinceCreated + 1, 1.5);
+        const score =
+          (attendeesCount + interactionsCount) /
+          Math.pow(daysSinceCreated + 1, 1.5);
 
         return {
           ...event.toObject(),
           trendingScore: score,
           growthRate: this.calculateGrowthRate(event),
-          recommendationType: 'trending'
+          recommendationType: 'trending',
         };
       });
 
@@ -390,9 +421,14 @@ class AIRecommendationService {
       return {
         items: sortedTrending,
         algorithm: 'trending_score',
-        totalInteractions: sortedTrending.reduce((sum, item) => sum + (item.stats?.interactions || 0), 0),
+        totalInteractions: sortedTrending.reduce(
+          (sum, item) => sum + (item.stats?.interactions || 0),
+          0
+        ),
         growthRate: this.calculateAverageGrowthRate(sortedTrending),
-        userMatch: userId ? await this.calculateUserMatch(userId, sortedTrending) : null
+        userMatch: userId
+          ? await this.calculateUserMatch(userId, sortedTrending)
+          : null,
       };
     } catch (error) {
       console.error('Error in getTrendingContent:', error);
@@ -411,22 +447,23 @@ class AIRecommendationService {
         id: `feedback_${Date.now()}`,
         ...feedbackData,
         impact: this.calculateFeedbackImpact(feedbackData.action),
-        processed: false
+        processed: false,
       };
 
       // En un sistema real, esto se guardaría en la base de datos
       console.log('Feedback recorded:', feedback);
 
       // Simular próximas recomendaciones ajustadas
-      const nextRecommendations = await this.adjustRecommendationsBasedOnFeedback(
-        feedbackData.userId, 
-        feedbackData
-      );
+      const nextRecommendations =
+        await this.adjustRecommendationsBasedOnFeedback(
+          feedbackData.userId,
+          feedbackData
+        );
 
       return {
         id: feedback.id,
         impact: feedback.impact,
-        nextRecommendations: nextRecommendations.slice(0, 3)
+        nextRecommendations: nextRecommendations.slice(0, 3),
       };
     } catch (error) {
       console.error('Error recording feedback:', error);
@@ -442,8 +479,11 @@ class AIRecommendationService {
       }
 
       // En un sistema real, esto enviaría datos al modelo de ML
-      console.log(`Updating ML model for user ${userId} with feedback:`, feedbackData);
-      
+      console.log(
+        `Updating ML model for user ${userId} with feedback:`,
+        feedbackData
+      );
+
       // Simular llamada a API de ML
       // const response = await fetch(`${this.MLModelEndpoint}/update`, {
       //   method: 'POST',
@@ -484,7 +524,7 @@ class AIRecommendationService {
     for (const item of items) {
       const values = item[diversityField] || [];
       const category = values[0]; // Usar primera categoría como principal
-      
+
       if (!category) {
         diverse.push(item);
         continue;
@@ -521,7 +561,7 @@ class AIRecommendationService {
 
     const types = Object.keys(byType);
     const result = [];
-    let maxLength = Math.max(...Object.values(byType).map(arr => arr.length));
+    const maxLength = Math.max(...Object.values(byType).map(arr => arr.length));
 
     for (let i = 0; i < maxLength; i++) {
       for (const type of types) {
@@ -542,25 +582,33 @@ class AIRecommendationService {
     const number = parseInt(num);
 
     switch (unit) {
-      case 'h': return number / 24;
-      case 'd': return number;
-      case 'w': return number * 7;
-      default: return 1;
+      case 'h':
+        return number / 24;
+      case 'd':
+        return number;
+      case 'w':
+        return number * 7;
+      default:
+        return 1;
     }
   }
 
   calculateGrowthRate(event) {
     // Simular cálculo de tasa de crecimiento
-    const daysSinceCreated = (Date.now() - event.createdAt) / (1000 * 60 * 60 * 24);
+    const daysSinceCreated =
+      (Date.now() - event.createdAt) / (1000 * 60 * 60 * 24);
     const attendeesCount = event.attendees?.length || 0;
-    
+
     if (daysSinceCreated < 1) return attendeesCount * 100; // 100% growth per attendee in first day
     return (attendeesCount / daysSinceCreated) * 10; // Normalize growth rate
   }
 
   calculateAverageGrowthRate(items) {
     if (items.length === 0) return 0;
-    const totalGrowth = items.reduce((sum, item) => sum + (item.growthRate || 0), 0);
+    const totalGrowth = items.reduce(
+      (sum, item) => sum + (item.growthRate || 0),
+      0
+    );
     return totalGrowth / items.length;
   }
 
@@ -574,7 +622,9 @@ class AIRecommendationService {
 
       items.forEach(item => {
         const itemCategories = item.categories || [];
-        const matches = itemCategories.filter(cat => userInterests.includes(cat)).length;
+        const matches = itemCategories.filter(cat =>
+          userInterests.includes(cat)
+        ).length;
         totalMatch += matches / Math.max(itemCategories.length, 1);
       });
 
@@ -587,13 +637,13 @@ class AIRecommendationService {
 
   calculateFeedbackImpact(action) {
     const impacts = {
-      'like': 'positive',
-      'dislike': 'negative', 
-      'ignore': 'minimal',
-      'interact': 'high_positive',
-      'share': 'very_positive',
-      'hide': 'negative',
-      'report': 'very_negative'
+      like: 'positive',
+      dislike: 'negative',
+      ignore: 'minimal',
+      interact: 'high_positive',
+      share: 'very_positive',
+      hide: 'negative',
+      report: 'very_negative',
     };
     return impacts[action] || 'minimal';
   }
@@ -605,8 +655,10 @@ class AIRecommendationService {
       if (!user) return [];
 
       // En un sistema real, esto ajustaría los algoritmos
-      console.log(`Adjusting recommendations for user ${userId} based on ${feedbackData.action} feedback`);
-      
+      console.log(
+        `Adjusting recommendations for user ${userId} based on ${feedbackData.action} feedback`
+      );
+
       // Retornar recomendaciones simuladas ajustadas
       return await this.getEventRecommendations(user, { limit: 5 });
     } catch (error) {
@@ -627,15 +679,15 @@ class AIRecommendationService {
           _id: { $ne: itemId },
           categories: { $in: sourceEvent.categories || [] },
           status: 'published',
-          isPrivate: false
+          isPrivate: false,
         })
-        .limit(limit * 2)
-        .populate('organizer', 'firstName lastName avatar');
+          .limit(limit * 2)
+          .populate('organizer', 'firstName lastName avatar');
 
         return similarEvents.slice(0, limit).map(event => ({
           ...event.toObject(),
           similarityScore: this.calculateSimilarityScore(sourceEvent, event),
-          similarityReasons: this.getSimilarityReasons(sourceEvent, event)
+          similarityReasons: this.getSimilarityReasons(sourceEvent, event),
         }));
       }
 
@@ -652,11 +704,16 @@ class AIRecommendationService {
     // Similitud por categorías
     const sourceCategories = sourceEvent.categories || [];
     const targetCategories = targetEvent.categories || [];
-    const commonCategories = sourceCategories.filter(cat => targetCategories.includes(cat));
+    const commonCategories = sourceCategories.filter(cat =>
+      targetCategories.includes(cat)
+    );
     score += commonCategories.length * 20;
 
     // Similitud por ubicación
-    if (sourceEvent.location?.coordinates && targetEvent.location?.coordinates) {
+    if (
+      sourceEvent.location?.coordinates &&
+      targetEvent.location?.coordinates
+    ) {
       const distance = this.calculateDistance(
         sourceEvent.location.coordinates,
         targetEvent.location.coordinates
@@ -665,7 +722,9 @@ class AIRecommendationService {
     }
 
     // Similitud por precio
-    const priceDiff = Math.abs((sourceEvent.price || 0) - (targetEvent.price || 0));
+    const priceDiff = Math.abs(
+      (sourceEvent.price || 0) - (targetEvent.price || 0)
+    );
     if (priceDiff < 50) score += 10; // Diferencia menor a $50
 
     return Math.min(score, 100);
@@ -676,13 +735,18 @@ class AIRecommendationService {
 
     const sourceCategories = sourceEvent.categories || [];
     const targetCategories = targetEvent.categories || [];
-    const commonCategories = sourceCategories.filter(cat => targetCategories.includes(cat));
-    
+    const commonCategories = sourceCategories.filter(cat =>
+      targetCategories.includes(cat)
+    );
+
     if (commonCategories.length > 0) {
       reasons.push(`Misma categoría: ${commonCategories.join(', ')}`);
     }
 
-    if (sourceEvent.location?.coordinates && targetEvent.location?.coordinates) {
+    if (
+      sourceEvent.location?.coordinates &&
+      targetEvent.location?.coordinates
+    ) {
       const distance = this.calculateDistance(
         sourceEvent.location.coordinates,
         targetEvent.location.coordinates
@@ -692,7 +756,9 @@ class AIRecommendationService {
       }
     }
 
-    const priceDiff = Math.abs((sourceEvent.price || 0) - (targetEvent.price || 0));
+    const priceDiff = Math.abs(
+      (sourceEvent.price || 0) - (targetEvent.price || 0)
+    );
     if (priceDiff < 50) {
       reasons.push('Precio similar');
     }
@@ -704,16 +770,18 @@ class AIRecommendationService {
     const R = 6371; // Radio de la Tierra en km
     const dLat = this.deg2rad(coords2[1] - coords1[1]);
     const dLon = this.deg2rad(coords2[0] - coords1[0]);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(this.deg2rad(coords1[1])) * Math.cos(this.deg2rad(coords2[1])) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(coords1[1])) *
+        Math.cos(this.deg2rad(coords2[1])) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   }
 
   deg2rad(deg) {
-    return deg * (Math.PI/180);
+    return deg * (Math.PI / 180);
   }
 }
 
