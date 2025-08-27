@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 
 const redisClient = require('../config/redis');
-const User = require('../models/User');
 const Event = require('../models/Event');
+const User = require('../models/User');
 
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
@@ -178,11 +178,15 @@ const ownerOrAdmin = (resourceField = 'userId') => {
         try {
           const event = await Event.findById(req.params.eventId).select('host');
           if (!event) {
-            return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+            return res
+              .status(404)
+              .json({ success: false, message: 'Evento no encontrado' });
           }
           resourceId = event.host?.toString();
         } catch (e) {
-          return res.status(404).json({ success: false, message: 'Evento no encontrado' });
+          return res
+            .status(404)
+            .json({ success: false, message: 'Evento no encontrado' });
         }
       }
 
@@ -214,7 +218,7 @@ const ownerOrAdmin = (resourceField = 'userId') => {
 };
 
 // Rate limiting middleware
-const rateLimit = (maxRequests = 100, windowMs = 15 * 60 * 1000) => {
+const rateLimit = (_maxRequests = 100, windowMs = 15 * 60 * 1000) => {
   const requests = new Map();
 
   return (req, res, next) => {

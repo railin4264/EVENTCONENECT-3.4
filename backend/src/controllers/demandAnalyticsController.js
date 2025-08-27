@@ -1,32 +1,27 @@
 const DemandAnalyticsService = require('../services/DemandAnalyticsService');
 
 class DemandAnalyticsController {
-  
   // ==========================================
   // ANÁLISIS DE DEMANDA LOCAL
   // ==========================================
-  
+
   async getLocalDemand(req, res) {
     try {
-      const { 
-        lat, 
-        lng, 
-        radius = 25 
-      } = req.query;
+      const { lat, lng, radius = 25 } = req.query;
 
       if (!lat || !lng) {
         return res.status(400).json({
           success: false,
-          message: 'Latitud y longitud son requeridas'
+          message: 'Latitud y longitud son requeridas',
         });
       }
 
       const location = {
-        coordinates: [parseFloat(lng), parseFloat(lat)]
+        coordinates: [parseFloat(lng), parseFloat(lat)],
       };
 
       const analysis = await DemandAnalyticsService.analyzeLocalDemand(
-        location, 
+        location,
         parseInt(radius)
       );
 
@@ -35,7 +30,7 @@ class DemandAnalyticsController {
       console.error('Error getting local demand:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -43,7 +38,7 @@ class DemandAnalyticsController {
   // ==========================================
   // SUGERENCIAS PARA CREAR EVENTOS
   // ==========================================
-  
+
   async getEventSuggestions(req, res) {
     try {
       const userId = req.user.id;
@@ -52,12 +47,12 @@ class DemandAnalyticsController {
       let location = null;
       if (lat && lng) {
         location = {
-          coordinates: [parseFloat(lng), parseFloat(lat)]
+          coordinates: [parseFloat(lng), parseFloat(lat)],
         };
       }
 
       const suggestions = await DemandAnalyticsService.generateEventSuggestions(
-        userId, 
+        userId,
         location
       );
 
@@ -66,7 +61,7 @@ class DemandAnalyticsController {
       console.error('Error getting event suggestions:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -74,30 +69,24 @@ class DemandAnalyticsController {
   // ==========================================
   // OPORTUNIDADES DE MERCADO
   // ==========================================
-  
+
   async getMarketOpportunities(req, res) {
     try {
-      const { 
-        lat, 
-        lng, 
-        radius = 25,
-        category,
-        minScore = 60
-      } = req.query;
+      const { lat, lng, radius = 25, category, minScore = 60 } = req.query;
 
       if (!lat || !lng) {
         return res.status(400).json({
           success: false,
-          message: 'Latitud y longitud son requeridas'
+          message: 'Latitud y longitud son requeridas',
         });
       }
 
       const location = {
-        coordinates: [parseFloat(lng), parseFloat(lat)]
+        coordinates: [parseFloat(lng), parseFloat(lat)],
       };
 
       const analysis = await DemandAnalyticsService.analyzeLocalDemand(
-        location, 
+        location,
         parseInt(radius)
       );
 
@@ -106,14 +95,16 @@ class DemandAnalyticsController {
       }
 
       // Filtrar oportunidades
-      let opportunities = analysis.data.opportunities;
+      let { opportunities } = analysis.data;
 
       if (category) {
         opportunities = opportunities.filter(opp => opp.category === category);
       }
 
       if (minScore) {
-        opportunities = opportunities.filter(opp => opp.score >= parseInt(minScore));
+        opportunities = opportunities.filter(
+          opp => opp.score >= parseInt(minScore)
+        );
       }
 
       res.json({
@@ -124,16 +115,17 @@ class DemandAnalyticsController {
           opportunities,
           summary: {
             totalOpportunities: opportunities.length,
-            highImpactOpportunities: opportunities.filter(o => o.score >= 80).length,
-            categories: [...new Set(opportunities.map(o => o.category))]
-          }
-        }
+            highImpactOpportunities: opportunities.filter(o => o.score >= 80)
+              .length,
+            categories: [...new Set(opportunities.map(o => o.category))],
+          },
+        },
       });
     } catch (error) {
       console.error('Error getting market opportunities:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -141,29 +133,29 @@ class DemandAnalyticsController {
   // ==========================================
   // ANÁLISIS DE TENDENCIAS
   // ==========================================
-  
+
   async getTrends(req, res) {
     try {
-      const { 
-        lat, 
-        lng, 
+      const {
+        lat,
+        lng,
         radius = 25,
-        timeframe = '6m' // 6 months, 1y, etc.
+        timeframe = '6m', // 6 months, 1y, etc.
       } = req.query;
 
       if (!lat || !lng) {
         return res.status(400).json({
           success: false,
-          message: 'Latitud y longitud son requeridas'
+          message: 'Latitud y longitud son requeridas',
         });
       }
 
       const location = {
-        coordinates: [parseFloat(lng), parseFloat(lat)]
+        coordinates: [parseFloat(lng), parseFloat(lat)],
       };
 
       const analysis = await DemandAnalyticsService.analyzeLocalDemand(
-        location, 
+        location,
         parseInt(radius)
       );
 
@@ -177,14 +169,14 @@ class DemandAnalyticsController {
           location,
           timeframe,
           trends: analysis.data.trends,
-          insights: this.generateTrendInsights(analysis.data.trends)
-        }
+          insights: this.generateTrendInsights(analysis.data.trends),
+        },
       });
     } catch (error) {
       console.error('Error getting trends:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -192,29 +184,30 @@ class DemandAnalyticsController {
   // ==========================================
   // RECOMENDACIONES DE PRECIOS
   // ==========================================
-  
+
   async getPricingRecommendations(req, res) {
     try {
-      const { 
-        lat, 
-        lng, 
+      const {
+        lat,
+        lng,
         category,
         eventType = 'standard',
-        capacity 
+        capacity,
       } = req.query;
 
       if (!lat || !lng || !category) {
         return res.status(400).json({
           success: false,
-          message: 'Latitud, longitud y categoría son requeridas'
+          message: 'Latitud, longitud y categoría son requeridas',
         });
       }
 
       const location = {
-        coordinates: [parseFloat(lng), parseFloat(lat)]
+        coordinates: [parseFloat(lng), parseFloat(lat)],
       };
 
-      const analysis = await DemandAnalyticsService.analyzeLocalDemand(location);
+      const analysis =
+        await DemandAnalyticsService.analyzeLocalDemand(location);
 
       if (!analysis.success) {
         return res.status(400).json(analysis);
@@ -226,7 +219,7 @@ class DemandAnalyticsController {
       if (!categoryData) {
         return res.status(404).json({
           success: false,
-          message: 'Categoría no encontrada en el análisis'
+          message: 'Categoría no encontrada en el análisis',
         });
       }
 
@@ -239,13 +232,13 @@ class DemandAnalyticsController {
 
       res.json({
         success: true,
-        data: recommendations
+        data: recommendations,
       });
     } catch (error) {
       console.error('Error getting pricing recommendations:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -253,29 +246,24 @@ class DemandAnalyticsController {
   // ==========================================
   // ANÁLISIS COMPETITIVO
   // ==========================================
-  
+
   async getCompetitiveAnalysis(req, res) {
     try {
-      const { 
-        lat, 
-        lng, 
-        category,
-        radius = 25 
-      } = req.query;
+      const { lat, lng, category, radius = 25 } = req.query;
 
       if (!lat || !lng) {
         return res.status(400).json({
           success: false,
-          message: 'Latitud y longitud son requeridas'
+          message: 'Latitud y longitud son requeridas',
         });
       }
 
       const location = {
-        coordinates: [parseFloat(lng), parseFloat(lat)]
+        coordinates: [parseFloat(lng), parseFloat(lat)],
       };
 
       const analysis = await DemandAnalyticsService.analyzeLocalDemand(
-        location, 
+        location,
         parseInt(radius)
       );
 
@@ -291,8 +279,8 @@ class DemandAnalyticsController {
             eventCount: 0,
             averageAttendees: 0,
             marketShare: 0,
-            competitionIntensity: 'none'
-          }
+            competitionIntensity: 'none',
+          },
         };
       }
 
@@ -302,15 +290,16 @@ class DemandAnalyticsController {
           location,
           category: category || 'all',
           competition: competitiveData,
-          recommendations: this.generateCompetitiveRecommendations(competitiveData),
-          marketPosition: this.assessMarketPosition(competitiveData)
-        }
+          recommendations:
+            this.generateCompetitiveRecommendations(competitiveData),
+          marketPosition: this.assessMarketPosition(competitiveData),
+        },
       });
     } catch (error) {
       console.error('Error getting competitive analysis:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor'
+        message: 'Error interno del servidor',
       });
     }
   }
@@ -318,7 +307,7 @@ class DemandAnalyticsController {
   // ==========================================
   // MÉTODOS AUXILIARES
   // ==========================================
-  
+
   generateTrendInsights(trends) {
     const insights = [];
 
@@ -327,13 +316,13 @@ class DemandAnalyticsController {
       insights.push({
         type: 'growth',
         message: `El mercado de eventos está creciendo ${trends.monthlyGrowth.toFixed(1)}% mensualmente`,
-        impact: 'positive'
+        impact: 'positive',
       });
     } else if (trends.monthlyGrowth < -10) {
       insights.push({
         type: 'decline',
         message: `El mercado está decreciendo ${Math.abs(trends.monthlyGrowth).toFixed(1)}%`,
-        impact: 'negative'
+        impact: 'negative',
       });
     }
 
@@ -343,7 +332,7 @@ class DemandAnalyticsController {
       insights.push({
         type: 'emerging',
         message: `${topEmerging.category} está emergiendo con ${topEmerging.growth.toFixed(1)}% de crecimiento`,
-        impact: 'opportunity'
+        impact: 'opportunity',
       });
     }
 
@@ -351,14 +340,14 @@ class DemandAnalyticsController {
     const seasonalData = trends.seasonalPatterns;
     if (seasonalData) {
       const seasons = Object.entries(seasonalData);
-      const bestSeason = seasons.reduce((best, current) => 
+      const bestSeason = seasons.reduce((best, current) =>
         current[1].events > best[1].events ? current : best
       );
-      
+
       insights.push({
         type: 'seasonal',
         message: `${bestSeason[0]} es la mejor temporada con ${bestSeason[1].events} eventos`,
-        impact: 'timing'
+        impact: 'timing',
       });
     }
 
@@ -367,28 +356,28 @@ class DemandAnalyticsController {
 
   generatePricingRecommendations(category, categoryData, pricingData, options) {
     const { eventType, capacity } = options;
-    
+
     // Precio base sugerido
     const basePrices = {
-      'technology': 35,
-      'business': 45,
-      'education': 25,
-      'music': 30,
-      'art': 20,
-      'food': 40,
-      'sports': 15,
-      'health': 30
+      technology: 35,
+      business: 45,
+      education: 25,
+      music: 30,
+      art: 20,
+      food: 40,
+      sports: 15,
+      health: 30,
     };
 
     let suggestedPrice = basePrices[category] || 25;
 
     // Ajustes por competencia
     const competitionMultiplier = {
-      'low': 1.3,
-      'medium': 1.0,
-      'high': 0.8
+      low: 1.3,
+      medium: 1.0,
+      high: 0.8,
     };
-    
+
     suggestedPrice *= competitionMultiplier[categoryData.competitionLevel];
 
     // Ajustes por demanda
@@ -400,17 +389,18 @@ class DemandAnalyticsController {
 
     // Ajustes por tipo de evento
     const typeMultiplier = {
-      'workshop': 1.5,
-      'conference': 2.0,
-      'meetup': 0.5,
-      'standard': 1.0
+      workshop: 1.5,
+      conference: 2.0,
+      meetup: 0.5,
+      standard: 1.0,
     };
-    
+
     suggestedPrice *= typeMultiplier[eventType] || 1.0;
 
     // Ajustes por capacidad
     if (capacity) {
-      if (capacity < 25) suggestedPrice *= 1.2; // Evento íntimo
+      if (capacity < 25)
+        suggestedPrice *= 1.2; // Evento íntimo
       else if (capacity > 200) suggestedPrice *= 0.8; // Evento masivo
     }
 
@@ -423,18 +413,18 @@ class DemandAnalyticsController {
       marketData: {
         averagePrice: pricingData.averagePrice,
         medianPrice: pricingData.medianPrice,
-        competitionLevel: categoryData.competitionLevel
+        competitionLevel: categoryData.competitionLevel,
       },
       recommendations: [
         `Precio óptimo: $${Math.round(suggestedPrice)}`,
         `Rango competitivo: $${minPrice} - $${maxPrice}`,
-        categoryData.competitionLevel === 'low' 
+        categoryData.competitionLevel === 'low'
           ? 'Puedes cobrar premium por la baja competencia'
           : 'Mantén precios competitivos',
-        categoryData.interestedUsers > 50 
+        categoryData.interestedUsers > 50
           ? 'Alta demanda te permite precios más altos'
-          : 'Considera precios atractivos para impulsar demanda'
-      ]
+          : 'Considera precios atractivos para impulsar demanda',
+      ],
     };
   }
 
@@ -447,14 +437,14 @@ class DemandAnalyticsController {
           category,
           type: 'opportunity',
           message: `Baja competencia en ${category} - gran oportunidad`,
-          action: 'Considera entrar en este mercado'
+          action: 'Considera entrar en este mercado',
         });
       } else if (data.competitionIntensity === 'high') {
         recommendations.push({
           category,
           type: 'challenge',
           message: `Alta competencia en ${category}`,
-          action: 'Diferénciate con valor único o considera otro nicho'
+          action: 'Diferénciate con valor único o considera otro nicho',
         });
       }
 
@@ -463,7 +453,7 @@ class DemandAnalyticsController {
           category,
           type: 'benchmark',
           message: `Asistencia promedio: ${Math.round(data.averageAttendees)} personas`,
-          action: `Apunta a superar este número para destacar`
+          action: `Apunta a superar este número para destacar`,
         });
       }
     });
@@ -473,27 +463,27 @@ class DemandAnalyticsController {
 
   assessMarketPosition(competitiveData) {
     const categories = Object.keys(competitiveData);
-    const lowCompetition = categories.filter(cat => 
-      competitiveData[cat].competitionIntensity === 'low'
+    const lowCompetition = categories.filter(
+      cat => competitiveData[cat].competitionIntensity === 'low'
     ).length;
-    
+
     const totalCategories = categories.length;
     const opportunityRatio = lowCompetition / totalCategories;
 
     if (opportunityRatio > 0.6) {
       return {
         assessment: 'favorable',
-        message: 'Mercado con muchas oportunidades de bajo riesgo'
+        message: 'Mercado con muchas oportunidades de bajo riesgo',
       };
     } else if (opportunityRatio > 0.3) {
       return {
         assessment: 'mixed',
-        message: 'Mercado balanceado con oportunidades selectivas'
+        message: 'Mercado balanceado con oportunidades selectivas',
       };
     } else {
       return {
         assessment: 'challenging',
-        message: 'Mercado competitivo - requiere diferenciación fuerte'
+        message: 'Mercado competitivo - requiere diferenciación fuerte',
       };
     }
   }

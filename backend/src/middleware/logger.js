@@ -1,6 +1,7 @@
-const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
+
+const morgan = require('morgan');
 
 // Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, '../../logs');
@@ -51,7 +52,7 @@ morgan.token('user-id', req => {
 
 // Custom token for request method with color
 morgan.token('method-color', req => {
-  const method = req.method;
+  const { method } = req;
   const colors = {
     GET: '\x1b[32m', // Green
     POST: '\x1b[34m', // Blue

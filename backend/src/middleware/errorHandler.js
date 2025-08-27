@@ -158,7 +158,7 @@ const gracefulShutdown = signal => {
 };
 
 // Error logging service
-const logError = (error, req = null) => {
+const logError = (error, _req = null) => {
   const errorLog = {
     timestamp: new Date().toISOString(),
     message: error.message,
@@ -318,7 +318,7 @@ const handleConflictError = (message = 'Conflicto de datos') => {
 };
 
 // Too many requests error handler
-const handleTooManyRequestsError = (retryAfter = 60) => {
+const handleTooManyRequestsError = (_retryAfter = 60) => {
   return {
     statusCode: 429,
     message: 'Demasiadas solicitudes. Intente de nuevo más tarde',

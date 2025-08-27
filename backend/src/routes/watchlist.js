@@ -1,4 +1,5 @@
 const express = require('express');
+
 const { AppError } = require('../middleware/errorHandler');
 const { User } = require('../models');
 

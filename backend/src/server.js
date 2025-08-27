@@ -1,23 +1,23 @@
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
 const http = require('http');
-const socketIo = require('socket.io');
+
+const cors = require('cors');
+const express = require('express');
+const mongoSanitize = require('express-mongo-sanitize');
 const rateLimit = require('express-rate-limit');
 const slowDown = require('express-slow-down');
-const xss = require('xss-clean');
-const mongoSanitize = require('express-mongo-sanitize');
+const helmet = require('helmet');
 const hpp = require('hpp');
+const morgan = require('morgan');
+const socketIo = require('socket.io');
+const xss = require('xss-clean');
 
 // Import configurations
 const connectDB = require('./config/database');
-const { logger } = require('./utils/logger');
 
 // Import middleware
-const errorHandler = require('./middleware/errorHandler');
 const authMiddleware = require('./middleware/authMiddleware');
+const { errorHandler } = require('./middleware/errorHandler');
 const rateLimits = require('./middleware/rateLimitMiddleware');
 
 // Import routes
@@ -29,11 +29,19 @@ const {
   notificationRoutes,
   themeRoutes,
   aiRecommendationRoutes,
+  analyticsRoutes,
   gamificationRoutes,
+  chatRoutes,
+  locationRoutes,
+  postRoutes,
+  reviewRoutes,
+  searchRoutes,
+  watchlistRoutes,
 } = require('./routes');
 
 // Import mock routes for development
 const mockRoutes = require('./routes/mock');
+const { logger } = require('./utils/logger');
 
 // ==========================================
 // APPLICATION SETUP
@@ -45,10 +53,10 @@ const server = http.createServer(app);
 // Socket.IO configuration
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
 });
 
 // ==========================================
@@ -61,7 +69,9 @@ if (process.env.NODE_ENV === 'development') {
     connectDB();
     console.log('✅ MongoDB connected successfully');
   } catch (error) {
-    console.log('⚠️ MongoDB not available, running in development mode with mock data');
+    console.log(
+      '⚠️ MongoDB not available, running in development mode with mock data'
+    );
   }
 } else {
   connectDB();
@@ -72,42 +82,46 @@ if (process.env.NODE_ENV === 'development') {
 // ==========================================
 
 // Helmet for security headers
-app.use(helmet({
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
-      fontSrc: ["'self'", "fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:", "res.cloudinary.com"],
-      scriptSrc: ["'self'"],
-      connectSrc: ["'self'", "ws:", "wss:"],
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'fonts.googleapis.com'],
+        fontSrc: ["'self'", 'fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'https:', 'res.cloudinary.com'],
+        scriptSrc: ["'self'"],
+        connectSrc: ["'self'", 'ws:', 'wss:'],
+      },
     },
-  },
-}));
+  })
+);
 
 // CORS configuration
-app.use(cors({
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:19006', // Expo development
-      process.env.CLIENT_URL,
-      process.env.WEB_URL,
-      process.env.MOBILE_URL
-    ].filter(Boolean);
+app.use(
+  cors({
+    origin(origin, callback) {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:19006', // Expo development
+        process.env.CLIENT_URL,
+        process.env.WEB_URL,
+        process.env.MOBILE_URL,
+      ].filter(Boolean);
 
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  })
+);
 
 // XSS protection
 app.use(xss());
@@ -128,67 +142,75 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging
 if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+  app.use(
+    morgan('combined', {
+      stream: { write: message => logger.info(message.trim()) },
+    })
+  );
 } else {
   app.use(morgan('combined'));
 }
 
 // Global rate limiting
-app.use(rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 1000 : 10000, // Limit each IP to 1000 requests per windowMs in production
-  message: {
-    success: false,
-    message: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/health' || req.path.startsWith('/health/');
-  }
-}));
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: process.env.NODE_ENV === 'production' ? 1000 : 10000, // Limit each IP to 1000 requests per windowMs in production
+    message: {
+      success: false,
+      message: 'Too many requests from this IP, please try again later.',
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: req => {
+      // Skip rate limiting for health checks
+      return req.path === '/health' || req.path.startsWith('/health/');
+    },
+  })
+);
 
 // Speed limiting for consecutive requests
-app.use(slowDown({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  delayAfter: 50, // Allow 50 requests per windowMs without delay
-  delayMs: 500, // Add 500ms delay per request after delayAfter
-  maxDelayMs: 20000, // Maximum delay of 20 seconds
-}));
+app.use(
+  slowDown({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    delayAfter: 50, // Allow 50 requests per windowMs without delay
+    delayMs: 500, // Add 500ms delay per request after delayAfter
+    maxDelayMs: 20000, // Maximum delay of 20 seconds
+  })
+);
 
 // ==========================================
 // SOCKET.IO SETUP
 // ==========================================
 
-io.on('connection', (socket) => {
+io.on('connection', socket => {
   logger.info(`User connected: ${socket.id}`);
 
   // Join user to their personal room
-  socket.on('join', (userId) => {
+  socket.on('join', userId => {
     socket.join(`user_${userId}`);
     logger.info(`User ${userId} joined personal room`);
   });
 
   // Join event room
-  socket.on('joinEvent', (eventId) => {
+  socket.on('joinEvent', eventId => {
     socket.join(`event_${eventId}`);
     logger.info(`Socket ${socket.id} joined event ${eventId}`);
   });
 
   // Leave event room
-  socket.on('leaveEvent', (eventId) => {
+  socket.on('leaveEvent', eventId => {
     socket.leave(`event_${eventId}`);
     logger.info(`Socket ${socket.id} left event ${eventId}`);
   });
 
   // Handle real-time event updates
-  socket.on('eventUpdate', (data) => {
+  socket.on('eventUpdate', data => {
     socket.to(`event_${data.eventId}`).emit('eventUpdated', data);
   });
 
   // Handle real-time notifications
-  socket.on('sendNotification', (data) => {
+  socket.on('sendNotification', data => {
     socket.to(`user_${data.userId}`).emit('notification', data);
   });
 
@@ -217,8 +239,8 @@ app.get('/health', (req, res) => {
     endpoints: {
       mock: '/api/mock',
       api: '/api',
-      health: '/health'
-    }
+      health: '/health',
+    },
   });
 });
 
@@ -226,12 +248,12 @@ app.get('/health/database', async (req, res) => {
   try {
     const mongoose = require('mongoose');
     const dbState = mongoose.connection.readyState;
-    
+
     const states = {
       0: 'disconnected',
       1: 'connected',
       2: 'connecting',
-      3: 'disconnecting'
+      3: 'disconnecting',
     };
 
     res.status(dbState === 1 ? 200 : 503).json({
@@ -239,23 +261,23 @@ app.get('/health/database', async (req, res) => {
       database: {
         status: states[dbState],
         host: mongoose.connection.host,
-        name: mongoose.connection.name
+        name: mongoose.connection.name,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     res.status(503).json({
       success: false,
       message: 'Database health check failed',
       error: error.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
 });
 
 app.get('/health/system', (req, res) => {
   const os = require('os');
-  
+
   res.status(200).json({
     success: true,
     system: {
@@ -266,11 +288,11 @@ app.get('/health/system', (req, res) => {
       memory: {
         used: process.memoryUsage(),
         total: os.totalmem(),
-        free: os.freemem()
+        free: os.freemem(),
       },
-      loadAverage: os.loadavg()
+      loadAverage: os.loadavg(),
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -289,7 +311,14 @@ app.use('/api/tribes', tribeRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/themes', themeRoutes);
 app.use('/api/ai', aiRecommendationRoutes);
-app.use('/api/gamification', gamificationRoutes); // Rate limits applied per route
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/gamification', gamificationRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/location', locationRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/watchlist', watchlistRoutes);
 
 // ==========================================
 // API DOCUMENTATION ROUTE
@@ -309,13 +338,21 @@ app.get('/api', (req, res) => {
       notifications: '/api/notifications',
       themes: '/api/themes',
       ai: '/api/ai',
-      gamification: '/api/gamification'
+      analytics: '/api/analytics',
+      gamification: '/api/gamification',
+      chat: '/api/chat',
+      location: '/api/location',
+      posts: '/api/posts',
+      reviews: '/api/reviews',
+      search: '/api/search',
+      watchlist: '/api/watchlist',
+      mock: '/api/mock',
     },
     health: {
       server: '/health',
       database: '/health/database',
-      system: '/health/system'
-    }
+      system: '/health/system',
+    },
   });
 });
 
@@ -328,7 +365,7 @@ app.use('/api/*', (req, res) => {
   res.status(404).json({
     success: false,
     message: `API endpoint not found: ${req.method} ${req.originalUrl}`,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -372,7 +409,7 @@ process.on('SIGINT', () => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (err) => {
+process.on('unhandledRejection', err => {
   logger.error('Unhandled Promise Rejection:', err);
   server.close(() => {
     process.exit(1);
@@ -380,7 +417,7 @@ process.on('unhandledRejection', (err) => {
 });
 
 // Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
+process.on('uncaughtException', err => {
   logger.error('Uncaught Exception:', err);
   process.exit(1);
 });

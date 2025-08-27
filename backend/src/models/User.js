@@ -134,17 +134,17 @@ const userSchema = new mongoose.Schema(
         mode: {
           type: String,
           enum: ['light', 'dark', 'auto'],
-          default: 'dark'
+          default: 'dark',
         },
         primaryColor: {
           type: String,
           enum: ['cyan', 'purple', 'blue', 'green', 'orange', 'pink', 'red'],
-          default: 'cyan'
+          default: 'cyan',
         },
         accentColor: {
           type: String,
           enum: ['cyan', 'purple', 'blue', 'green', 'orange', 'pink', 'red'],
-          default: 'purple'
+          default: 'purple',
         },
         customColors: {
           primary: { type: String, default: '#06b6d4' },
@@ -152,7 +152,7 @@ const userSchema = new mongoose.Schema(
           accent: { type: String, default: '#f59e0b' },
           background: { type: String, default: '#0f172a' },
           surface: { type: String, default: '#1e293b' },
-          text: { type: String, default: '#f8fafc' }
+          text: { type: String, default: '#f8fafc' },
         },
         animations: { type: Boolean, default: true },
         reducedMotion: { type: Boolean, default: false },
@@ -160,13 +160,15 @@ const userSchema = new mongoose.Schema(
         neonEffects: { type: Boolean, default: false },
         autoSync: { type: Boolean, default: true },
         appliedPreset: { type: String, default: null },
-        syncHistory: [{
-          deviceId: String,
-          platform: String,
-          syncedAt: { type: Date, default: Date.now }
-        }],
-        updatedAt: { type: Date, default: Date.now }
-      }
+        syncHistory: [
+          {
+            deviceId: String,
+            platform: String,
+            syncedAt: { type: Date, default: Date.now },
+          },
+        ],
+        updatedAt: { type: Date, default: Date.now },
+      },
     },
     stats: {
       eventsAttended: { type: Number, default: 0 },

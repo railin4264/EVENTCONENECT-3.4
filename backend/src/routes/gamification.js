@@ -1,8 +1,9 @@
 const express = require('express');
+
 const router = express.Router();
 const gamificationController = require('../controllers/gamificationController');
-const authMiddleware = require('../middleware/authMiddleware');
-const rateLimits = require('../middleware/rateLimitMiddleware');
+const { authenticateToken } = require('../middleware/authMiddleware');
+const { generalLimiter } = require('../middleware/rateLimitMiddleware');
 
 // ==========================================
 // PERFIL DE GAMIFICACIÓN
@@ -11,8 +12,8 @@ const rateLimits = require('../middleware/rateLimitMiddleware');
 // Obtener perfil de gamificación del usuario
 router.get(
   '/profile',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getUserGamificationProfile
 );
 
@@ -23,16 +24,16 @@ router.get(
 // Obtener logros
 router.get(
   '/achievements',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getAchievements
 );
 
 // Reclamar logro
 router.post(
   '/achievements/:achievementId/claim',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   gamificationController.claimAchievement
 );
 
@@ -43,16 +44,16 @@ router.post(
 // Agregar experiencia (para testing/admin)
 router.post(
   '/experience',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   gamificationController.addExperience
 );
 
 // Obtener información de nivel
 router.get(
   '/levels/:level',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getLevelInfo
 );
 
@@ -63,16 +64,16 @@ router.get(
 // Obtener badges
 router.get(
   '/badges',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getBadges
 );
 
 // Mostrar/ocultar badge en perfil
 router.put(
   '/badges/:badgeId/showcase',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   gamificationController.showcaseBadge
 );
 
@@ -83,16 +84,16 @@ router.put(
 // Obtener leaderboards
 router.get(
   '/leaderboards',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getLeaderboards
 );
 
 // Obtener rankings del usuario
 router.get(
   '/rankings',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getUserRankings
 );
 
@@ -103,16 +104,16 @@ router.get(
 // Obtener desafíos activos
 router.get(
   '/challenges',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getActiveChallenges
 );
 
 // Unirse a desafío
 router.post(
   '/challenges/:challengeId/join',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   gamificationController.joinChallenge
 );
 
@@ -123,16 +124,16 @@ router.post(
 // Obtener recompensas disponibles
 router.get(
   '/rewards',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getAvailableRewards
 );
 
 // Reclamar recompensa
 router.post(
   '/rewards/:rewardId/claim',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   gamificationController.claimReward
 );
 
@@ -143,8 +144,8 @@ router.post(
 // Obtener estadísticas de gamificación
 router.get(
   '/stats',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.getGamificationStats
 );
 
@@ -155,8 +156,8 @@ router.get(
 // Actualizar configuración de gamificación
 router.put(
   '/settings',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   gamificationController.updateGamificationSettings
 );
 

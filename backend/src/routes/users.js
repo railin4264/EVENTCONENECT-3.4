@@ -1,9 +1,9 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 
+const { redis } = require('../config');
 const { AppError } = require('../middleware/errorHandler');
 const { User, Event, Tribe, Post } = require('../models');
-const { redis } = require('../config');
 
 const router = express.Router();
 

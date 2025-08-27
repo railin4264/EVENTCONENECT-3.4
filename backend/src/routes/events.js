@@ -1,34 +1,23 @@
 const express = require('express');
+
 const router = express.Router();
 const eventController = require('../controllers/eventController');
-const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/uploadMiddleware');
-const rateLimits = require('../middleware/rateLimitMiddleware');
+const { authenticateToken } = require('../middleware/authMiddleware');
+const { generalLimiter, searchLimiter, eventCreationLimiter } = require('../middleware/rateLimitMiddleware');
+const { uploadImages } = require('../middleware/uploadMiddleware');
 
 // ==========================================
 // RUTAS PÚBLICAS (sin autenticación)
 // ==========================================
 
 // Obtener eventos públicos
-router.get(
-  '/',
-  rateLimits.general,
-  eventController.getEvents
-);
+router.get('/', generalLimiter, eventController.getEvents);
 
 // Buscar eventos
-router.get(
-  '/search',
-  rateLimits.search,
-  eventController.searchEvents
-);
+router.get('/search', searchLimiter, eventController.searchEvents);
 
 // Obtener evento por ID (público)
-router.get(
-  '/:eventId',
-  rateLimits.general,
-  eventController.getEventById
-);
+router.get('/:eventId', generalLimiter, eventController.getEventById);
 
 // ==========================================
 // RUTAS PROTEGIDAS (requieren autenticación)
@@ -37,42 +26,42 @@ router.get(
 // Crear evento
 router.post(
   '/',
-  authMiddleware,
-  rateLimits.creation,
-  upload.array('images', 5), // Máximo 5 imágenes
+  authenticateToken,
+  eventCreationLimiter,
+  uploadImages, // Máximo 5 imágenes
   eventController.createEvent
 );
 
 // Guardar borrador
 router.post(
   '/draft',
-  authMiddleware,
-  rateLimits.creation,
+  authenticateToken,
+  eventCreationLimiter,
   eventController.saveDraft
 );
 
 // Obtener eventos recomendados
 router.get(
   '/recommended',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   eventController.getRecommendedEvents
 );
 
 // Actualizar evento
 router.put(
   '/:eventId',
-  authMiddleware,
-  rateLimits.modification,
-  upload.array('images', 5),
+  authenticateToken,
+  generalLimiter,
+  uploadImages,
   eventController.updateEvent
 );
 
 // Eliminar evento
 router.delete(
   '/:eventId',
-  authMiddleware,
-  rateLimits.modification,
+  authenticateToken,
+  generalLimiter,
   eventController.deleteEvent
 );
 
@@ -83,24 +72,24 @@ router.delete(
 // Unirse a evento
 router.post(
   '/:eventId/join',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   eventController.joinEvent
 );
 
 // Salir de evento
 router.delete(
   '/:eventId/leave',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   eventController.leaveEvent
 );
 
 // Marcar interés en evento
 router.post(
   '/:eventId/interested',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   eventController.markInterested
 );
 
@@ -111,16 +100,16 @@ router.post(
 // Moderar asistente (aprobar/rechazar)
 router.post(
   '/:eventId/moderate',
-  authMiddleware,
-  rateLimits.moderation,
+  authenticateToken,
+  generalLimiter,
   eventController.moderateAttendee
 );
 
 // Reportar evento
 router.post(
   '/:eventId/report',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   eventController.reportEvent
 );
 
@@ -131,23 +120,23 @@ router.post(
 // Compartir evento
 router.post(
   '/:eventId/share',
-  authMiddleware,
-  rateLimits.actions,
+  authenticateToken,
+  generalLimiter,
   eventController.shareEvent
 );
 
 // Comentar en evento
 router.post(
   '/:eventId/comments',
-  authMiddleware,
-  rateLimits.content,
+  authenticateToken,
+  generalLimiter,
   eventController.addComment
 );
 
 // Obtener comentarios del evento
 router.get(
   '/:eventId/comments',
-  rateLimits.general,
+  generalLimiter,
   eventController.getComments
 );
 
@@ -158,16 +147,16 @@ router.get(
 // Obtener estadísticas del evento (solo organizador)
 router.get(
   '/:eventId/analytics',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   eventController.getEventAnalytics
 );
 
 // Obtener lista de asistentes (solo organizador)
 router.get(
   '/:eventId/attendees',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   eventController.getAttendees
 );
 
@@ -178,16 +167,16 @@ router.get(
 // Duplicar evento
 router.post(
   '/:eventId/duplicate',
-  authMiddleware,
-  rateLimits.creation,
+  authenticateToken,
+  eventCreationLimiter,
   eventController.duplicateEvent
 );
 
 // Exportar evento
 router.get(
   '/:eventId/export',
-  authMiddleware,
-  rateLimits.general,
+  authenticateToken,
+  generalLimiter,
   eventController.exportEvent
 );
 
