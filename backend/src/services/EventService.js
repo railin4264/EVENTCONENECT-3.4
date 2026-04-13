@@ -1,6 +1,6 @@
-const { redis } = require('../config');
+
 const { AppError } = require('../middleware/errorHandler');
-const { Event, User, Post } = require('../models');
+const { Event, User } = require('../models');
 
 class EventService {
   /**

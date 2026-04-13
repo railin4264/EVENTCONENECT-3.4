@@ -1,8 +1,9 @@
 const express = require('express');
+
 const router = express.Router();
 const aiRecommendationsController = require('../controllers/aiRecommendationsController');
-const authMiddleware = require('../middleware/authMiddleware');
-const rateLimits = require('../middleware/rateLimitMiddleware');
+const { authenticateToken } = require('../middleware/authMiddleware');
+const { aiLimiter } = require('../middleware/rateLimitMiddleware');
 
 // ==========================================
 // RECOMENDACIONES PERSONALIZADAS
@@ -11,16 +12,16 @@ const rateLimits = require('../middleware/rateLimitMiddleware');
 // Obtener recomendaciones personalizadas
 router.get(
   '/recommendations',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.getPersonalizedRecommendations
 );
 
 // Enviar feedback de recomendaciones
 router.post(
   '/feedback',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.submitRecommendationFeedback
 );
 
@@ -31,8 +32,8 @@ router.post(
 // Obtener contenido trending
 router.get(
   '/trending',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.getTrendingRecommendations
 );
 
@@ -43,8 +44,8 @@ router.get(
 // Obtener elementos similares
 router.get(
   '/similar',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.getSimilarItems
 );
 
@@ -55,8 +56,8 @@ router.get(
 // Obtener insights de recomendaciones
 router.get(
   '/insights',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.getRecommendationInsights
 );
 
@@ -67,8 +68,8 @@ router.get(
 // Actualizar preferencias de IA
 router.put(
   '/preferences',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.updateAIPreferences
 );
 
@@ -79,8 +80,8 @@ router.put(
 // Obtener notificaciones inteligentes
 router.get(
   '/smart-notifications',
-  authMiddleware,
-  rateLimits.ai,
+  authenticateToken,
+  aiLimiter,
   aiRecommendationsController.getSmartNotifications
 );
 
@@ -91,7 +92,7 @@ router.get(
 // Webhook para actualizaciones del modelo de ML
 router.post(
   '/ml-update',
-  rateLimits.webhook,
+  aiLimiter,
   aiRecommendationsController.handleMLModelUpdate
 );
 

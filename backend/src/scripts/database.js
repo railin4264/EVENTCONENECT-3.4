@@ -1,15 +1,16 @@
 require('dotenv').config();
 
-
-
-
 const mongoose = require('mongoose');
-const { Event, User, Tribe, Post, Review, Chat, Notification } = require('../models');
+
+const { User,  } = require('../models');
 
 /**
  * Database management script for EventConnect
  */
 class DatabaseManager {
+  /**
+   *
+   */
   constructor() {
     this.connection = null;
     this.isConnected = false;
@@ -260,7 +261,9 @@ class DatabaseManager {
   async clearDatabase() {
     try {
       console.log('🗑️ Limpiando base de datos...');
-      const collections = await mongoose.connection.db.listCollections().toArray();
+      const collections = await mongoose.connection.db
+        .listCollections()
+        .toArray();
       for (const { name } of collections) {
         if (!name.startsWith('system.')) {
           await mongoose.connection.db.collection(name).deleteMany({});

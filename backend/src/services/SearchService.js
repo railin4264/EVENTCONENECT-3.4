@@ -1,6 +1,6 @@
+const { redis } = require('../config');
 const { AppError } = require('../middleware/errorHandler');
 const { Event, Tribe, User, Post } = require('../models');
-const { redis } = require('../config');
 
 /**
  * Servicio de búsqueda avanzada para EventConnect

@@ -1,5 +1,6 @@
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
+
 const { User, Event, Tribe, Post } = require('../../models');
 
 // Datos de desarrollo para testing
@@ -59,13 +60,14 @@ const DEV_USERS = [
     bio: 'UX/UI Designer creando experiencias digitales increíbles.',
     location: 'Valencia, España',
     interests: ['art', 'education'],
-  }
+  },
 ];
 
 const DEV_EVENTS = [
   {
     title: 'Tech Meetup Barcelona 2024',
-    description: 'Únete a desarrolladores y entusiastas de la tecnología para una noche de networking y charlas inspiradoras sobre el futuro del desarrollo web, IA y blockchain.',
+    description:
+      'Únete a desarrolladores y entusiastas de la tecnología para una noche de networking y charlas inspiradoras sobre el futuro del desarrollo web, IA y blockchain.',
     category: 'technology',
     dateTime: {
       start: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // En 7 días
@@ -79,22 +81,23 @@ const DEV_EVENTS = [
         city: 'Barcelona',
         state: 'Barcelona',
         country: 'España',
-        zipCode: '08028'
-      }
+        zipCode: '08028',
+      },
     },
     capacity: 300,
     pricing: {
       type: 'free',
       amount: 0,
-      currency: 'EUR'
+      currency: 'EUR',
     },
     tags: ['Web Development', 'AI', 'Blockchain', 'Networking'],
     status: 'published',
-    visibility: 'public'
+    visibility: 'public',
   },
   {
     title: 'Workshop de React Avanzado',
-    description: 'Aprende las técnicas más avanzadas de React: hooks personalizados, optimización de performance, testing avanzado y arquitectura escalable.',
+    description:
+      'Aprende las técnicas más avanzadas de React: hooks personalizados, optimización de performance, testing avanzado y arquitectura escalable.',
     category: 'education',
     dateTime: {
       start: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // En 14 días
@@ -108,22 +111,23 @@ const DEV_EVENTS = [
         city: 'Madrid',
         state: 'Madrid',
         country: 'España',
-        zipCode: '28001'
-      }
+        zipCode: '28001',
+      },
     },
     capacity: 50,
     pricing: {
       type: 'paid',
       amount: 75,
-      currency: 'EUR'
+      currency: 'EUR',
     },
     tags: ['React', 'JavaScript', 'Frontend', 'Workshop'],
     status: 'published',
-    visibility: 'public'
+    visibility: 'public',
   },
   {
     title: 'Conferencia de UX/UI Design',
-    description: 'Los mejores diseñadores del país comparten sus experiencias y las últimas tendencias en diseño de experiencias de usuario.',
+    description:
+      'Los mejores diseñadores del país comparten sus experiencias y las últimas tendencias en diseño de experiencias de usuario.',
     category: 'art',
     dateTime: {
       start: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000), // En 21 días
@@ -137,51 +141,57 @@ const DEV_EVENTS = [
         city: 'Valencia',
         state: 'Valencia',
         country: 'España',
-        zipCode: '46015'
-      }
+        zipCode: '46015',
+      },
     },
     capacity: 500,
     pricing: {
       type: 'paid',
       amount: 120,
-      currency: 'EUR'
+      currency: 'EUR',
     },
     tags: ['UX', 'UI', 'Design', 'User Experience'],
     status: 'published',
-    visibility: 'public'
-  }
+    visibility: 'public',
+  },
 ];
 
 const DEV_TRIBES = [
   {
     name: 'Desarrolladores Frontend',
-    description: 'Comunidad de desarrolladores especializados en tecnologías frontend como React, Vue, Angular y más.',
+    description:
+      'Comunidad de desarrolladores especializados en tecnologías frontend como React, Vue, Angular y más.',
     category: 'technology',
     visibility: 'public',
     membershipType: 'open',
     tags: ['Frontend', 'React', 'Vue', 'Angular', 'JavaScript'],
-    location: 'España'
+    location: 'España',
   },
   {
     name: 'UX/UI Designers España',
-    description: 'Grupo para diseñadores UX/UI que quieren compartir conocimientos, proyectos y oportunidades profesionales.',
+    description:
+      'Grupo para diseñadores UX/UI que quieren compartir conocimientos, proyectos y oportunidades profesionales.',
     category: 'art',
     visibility: 'public',
     membershipType: 'open',
     tags: ['UX', 'UI', 'Design', 'Figma', 'Prototipado'],
-    location: 'España'
+    location: 'España',
   },
   {
     name: 'Emprendedores Tech',
-    description: 'Red de emprendedores tecnológicos para networking, colaboración en proyectos y mentoría.',
+    description:
+      'Red de emprendedores tecnológicos para networking, colaboración en proyectos y mentoría.',
     category: 'business',
     visibility: 'public',
     membershipType: 'moderated',
     tags: ['Emprendimiento', 'Startups', 'Tecnología', 'Networking'],
-    location: 'España'
-  }
+    location: 'España',
+  },
 ];
 
+/**
+ *
+ */
 async function seedDevelopmentData() {
   try {
     console.log('🌱 Iniciando seed de datos de desarrollo...');
@@ -195,14 +205,14 @@ async function seedDevelopmentData() {
     // Crear usuarios
     console.log('👥 Creando usuarios de desarrollo...');
     const users = [];
-    
+
     for (const userData of DEV_USERS) {
       const hashedPassword = await bcrypt.hash(userData.password, 12);
       const user = new User({
         ...userData,
         password: hashedPassword,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       await user.save();
       users.push(user);
@@ -212,11 +222,11 @@ async function seedDevelopmentData() {
     // Crear tribus
     console.log('🏘️ Creando tribus...');
     const tribes = [];
-    
+
     for (let i = 0; i < DEV_TRIBES.length; i++) {
       const tribeData = DEV_TRIBES[i];
       const creator = users[i % users.length];
-      
+
       const tribe = new Tribe({
         ...tribeData,
         creator: creator._id,
@@ -224,9 +234,9 @@ async function seedDevelopmentData() {
         members: [creator._id],
         memberCount: 1,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
-      
+
       await tribe.save();
       tribes.push(tribe);
       console.log(`✅ Tribu creada: ${tribe.name}`);
@@ -234,20 +244,20 @@ async function seedDevelopmentData() {
 
     // Crear eventos
     console.log('📅 Creando eventos...');
-    
+
     for (let i = 0; i < DEV_EVENTS.length; i++) {
       const eventData = DEV_EVENTS[i];
       const host = users[i % users.length];
-      
+
       const event = new Event({
         ...eventData,
         host: host._id,
         attendees: [host._id],
         attendeeCount: 1,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
-      
+
       await event.save();
       console.log(`✅ Evento creado: ${event.title}`);
     }
@@ -261,13 +271,12 @@ async function seedDevelopmentData() {
     console.log(`🏘️ Tribus: ${tribes.length}`);
     console.log(`📅 Eventos: ${DEV_EVENTS.length}`);
     console.log(`📝 Posts: 0 (omitidos por configuración)`);
-    
+
     console.log('\n🔐 Credenciales de desarrollo:');
     console.log('Admin: admin@eventconnect.com / admin123');
     console.log('Usuario: maria@example.com / dev123');
     console.log('Usuario: carlos@example.com / dev123');
     console.log('Usuario: ana@example.com / dev123');
-
   } catch (error) {
     console.error('❌ Error en seed de desarrollo:', error);
     throw error;
@@ -277,8 +286,11 @@ async function seedDevelopmentData() {
 // Ejecutar si se llama directamente
 if (require.main === module) {
   const { database } = require('../../config');
-  
-  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/eventconnect')
+
+  mongoose
+    .connect(
+      process.env.MONGODB_URI || 'mongodb://localhost:27017/eventconnect'
+    )
     .then(() => {
       console.log('📊 Conectado a MongoDB');
       return seedDevelopmentData();
@@ -287,11 +299,10 @@ if (require.main === module) {
       console.log('✅ Seed completado');
       process.exit(0);
     })
-    .catch((error) => {
+    .catch(error => {
       console.error('❌ Error:', error);
       process.exit(1);
     });
 }
 
 module.exports = { seedDevelopmentData, DEV_USERS, DEV_EVENTS, DEV_TRIBES };
-

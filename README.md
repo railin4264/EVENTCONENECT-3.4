@@ -1,371 +1,381 @@
-# 🚀 **EVENTCONNECT - PLATAFORMA INTELIGENTE DE EVENTOS**
+# EventConnect - Plataforma Integral de Eventos y Tribus
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Version-3.0.0-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg" alt="Status">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
-</p>
+EventConnect es una plataforma completa para descubrir eventos, conectar con tribus y crear experiencias sociales únicas. Incluye aplicaciones web y móvil con backend robusto.
 
-## 🌟 **OVERVIEW**
+## 🚀 Características Principales
 
-**EventConnect** es una plataforma revolucionaria de eventos que combina **Inteligencia Artificial**, **análisis de mercado** y **características sociales** para crear la mejor experiencia de descubrimiento y organización de eventos del mundo.
+### Backend (Node.js + Express)
+- ✅ API RESTful completa con autenticación JWT
+- ✅ Base de datos MongoDB con Redis para cache
+- ✅ Sistema de notificaciones push (Firebase + Expo)
+- ✅ Gamificación con puntos, logros y badges
+- ✅ Recomendaciones AI personalizadas
+- ✅ Sistema de búsqueda avanzada
+- ✅ Upload de archivos con Cloudinary
+- ✅ Rate limiting y seguridad avanzada
+- ✅ WebSockets para tiempo real
+- ✅ Logging y monitoreo completo
 
-### **🎯 CARACTERÍSTICAS PRINCIPALES**
-- 🤖 **IA Avanzada** para recomendaciones personalizadas con 94% de precisión
-- 📊 **Analytics de Mercado** profesionales para organizadores
-- 👥 **Red Social Integrada** con sistema de seguimientos inteligente
-- 📱 **Apps Nativas** sincronizadas (Web + iOS + Android)
-- 🎮 **Gamificación Completa** con logros y badges
-- ⭐ **Sistema de Reseñas** verificadas automáticamente
-- 🏆 **Dashboard Profesional** con métricas avanzadas
+### Frontend Web (Next.js 14)
+- ✅ PWA con funcionalidades offline
+- ✅ Diseño responsive y moderno
+- ✅ Integración con Google Maps
+- ✅ Sistema de notificaciones
+- ✅ Chat en tiempo real
+- ✅ Gamificación visual
+- ✅ Optimización SEO
 
----
+### Frontend Móvil (React Native + Expo)
+- ✅ App nativa para iOS y Android
+- ✅ Notificaciones push
+- ✅ Geolocalización
+- ✅ Cámara y galería
+- ✅ Chat en tiempo real
+- ✅ Gamificación móvil
 
-## 🏗️ **ARQUITECTURA TÉCNICA**
+## 📋 Prerrequisitos
 
-### **💻 STACK TECNOLÓGICO**
-
-```bash
-Backend (Node.js + Express)
-├── 🚀 Runtime: Node.js 18+
-├── 🌐 Framework: Express.js
-├── 🗄️ Database: MongoDB + Mongoose
-├── ⚡ Cache: Redis
-├── 🔄 Real-time: Socket.IO
-├── 🔐 Auth: JWT + Refresh Tokens
-├── 📁 Storage: Cloudinary
-└── 🛡️ Security: Helmet, CORS, Rate Limiting
-
-Frontend Web (Next.js 14)
-├── ⚛️ Framework: Next.js 14 (App Router)
-├── 📝 Language: TypeScript
-├── 🎨 Styling: Tailwind CSS
-├── ✨ Animations: Framer Motion
-├── 🔄 State: Zustand + React Query
-└── 📱 PWA: Next-PWA
-
-Mobile (React Native + Expo)
-├── 📱 Framework: React Native + Expo
-├── 🧭 Navigation: React Navigation 6
-├── 🔄 State: Zustand + TanStack Query
-├── ✨ Animations: Reanimated 3
-├── 💾 Storage: AsyncStorage + SecureStore
-└── 👆 Gestures: React Native Gesture Handler
-```
-
-### **🗄️ BASE DE DATOS**
-- **Users**: Sistema completo con gamificación y temas
-- **Events**: Geolocalización + analytics + recurrencia
-- **Reviews**: Verificación automática + moderación IA
-- **Follow**: Red social con recomendaciones inteligentes
-- **Achievements/Badges**: Sistema de gamificación completo
-- **Notifications**: Push notifications contextuales
-
----
-
-## 🚀 **INSTALACIÓN Y CONFIGURACIÓN**
-
-### **📋 REQUISITOS PREVIOS**
-```bash
-- Node.js 18+
-- MongoDB 5.0+
-- Redis 6.0+
+- Node.js 18+ 
+- npm 9+
+- MongoDB 6+
+- Redis 6+
 - Git
-```
 
-### **⚡ INSTALACIÓN RÁPIDA**
+## 🛠️ Instalación
 
-#### **1. Clonar el repositorio**
+### 1. Clonar el repositorio
+
 ```bash
-git clone https://github.com/railin4264/EVENTCONENECT-3.4.git
-cd EVENTCONENECT-3.4
-git checkout "event Connect completa"
+git clone https://github.com/tu-usuario/eventconnect.git
+cd eventconnect
 ```
 
-#### **2. Configurar Backend**
+### 2. Instalar dependencias
+
+```bash
+# Instalar todas las dependencias
+npm run install:all
+
+# O instalar por separado:
+npm run install:backend
+npm run install:web
+npm run install:mobile
+```
+
+### 3. Configurar variables de entorno
+
+#### Backend
 ```bash
 cd backend
-npm install
-cp env-config.txt .env
+cp .env.example .env
 # Editar .env con tus configuraciones
+```
+
+#### Frontend Web
+```bash
+cd web
+cp .env.example .env.local
+# Editar .env.local con tus configuraciones
+```
+
+#### Frontend Móvil
+```bash
+cd mobile
+cp .env.example .env
+# Editar .env con tus configuraciones
+```
+
+### 4. Configurar base de datos
+
+```bash
+# Iniciar MongoDB (si no está corriendo)
+mongod
+
+# Iniciar Redis (si no está corriendo)
+redis-server
+
+# Ejecutar migraciones y seeders
+cd backend
+npm run db:migrate
+npm run db:seed
+```
+
+### 5. Iniciar servicios
+
+```bash
+# Desarrollo completo (backend + web + mobile)
 npm run dev
+
+# O por separado:
+npm run dev:backend  # Puerto 5000
+npm run dev:web      # Puerto 3000
+npm run dev:mobile   # Puerto 19006
 ```
 
-#### **3. Configurar Web App**
-```bash
-cd ../web
-npm install
-npm run dev
-```
+## 🔧 Configuración Detallada
 
-#### **4. Configurar Mobile App**
-```bash
-cd ../mobile
-npm install
-npx expo start
-```
+### Variables de Entorno Requeridas
 
-### **🔧 VARIABLES DE ENTORNO**
-
-#### **Backend (.env)**
-```bash
-# Database
+#### Backend (.env)
+```env
+# Base de datos
 MONGODB_URI=mongodb://localhost:27017/eventconnect
 REDIS_URL=redis://localhost:6379
 
 # JWT
-JWT_SECRET=your_super_secret_key
-JWT_REFRESH_SECRET=your_refresh_secret_key
+JWT_SECRET=your-super-secret-jwt-key
+JWT_REFRESH_SECRET=your-super-secret-refresh-key
 
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+# CORS
+CLIENT_URL=http://localhost:3000
+WEB_URL=http://localhost:3000
+MOBILE_URL=http://localhost:19006
+
+# Cloudinary (para uploads)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 
 # Email
 SMTP_HOST=smtp.gmail.com
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Google Maps
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+
+# Firebase (notificaciones push)
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_PRIVATE_KEY=your-private-key
+FIREBASE_CLIENT_EMAIL=your-client-email
+
+# Expo (notificaciones push móvil)
+EXPO_ACCESS_TOKEN=your-expo-access-token
 ```
 
-#### **Web (.env.local)**
+#### Frontend Web (.env.local)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_WS_URL=ws://localhost:5000
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+```
+
+#### Frontend Móvil (.env)
+```env
+EXPO_PUBLIC_API_URL=http://localhost:5000/api
+EXPO_PUBLIC_WS_URL=ws://localhost:5000
+EXPO_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+```
+
+## 🚀 Despliegue
+
+### Backend (Producción)
+
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:5000
-NEXT_PUBLIC_APP_ENV=development
+cd backend
+npm run build
+npm start
 ```
 
-#### **Mobile (app.json)**
-```json
-{
-  "expo": {
-    "extra": {
-      "apiUrl": "http://localhost:5000",
-      "environment": "development"
-    }
-  }
-}
-```
+### Frontend Web (Producción)
 
----
-
-## 🎯 **CARACTERÍSTICAS ÚNICAS**
-
-### **🤖 INTELIGENCIA ARTIFICIAL**
-
-#### **Recomendaciones Personalizadas**
-```javascript
-// Algoritmo de recomendación híbrido
-const recommendationScore = 
-  userInterests * 0.40 +
-  geographicProximity * 0.25 +
-  socialNetwork * 0.20 +
-  eventHistory * 0.10 +
-  trendingBoost * 0.05;
-
-// Precisión actual: 94%
-```
-
-#### **Análisis de Demanda Local**
-- Identificación de oportunidades de mercado
-- Predicciones de éxito para eventos
-- Recomendaciones de precio dinámicas
-- Insights competitivos en tiempo real
-
-### **📊 DASHBOARD PROFESIONAL**
-
-#### **Métricas para Organizadores**
-- 📈 **Performance Analytics**: Vistas, conversiones, ROI
-- 👥 **Audience Insights**: Demografia, comportamiento, preferencias
-- 💰 **Revenue Tracking**: Ingresos, proyecciones, comparativas
-- 🎯 **Marketing Tools**: Campañas automatizadas, A/B testing
-
-### **👥 RED SOCIAL NATIVA**
-
-#### **Sistema de Seguimientos**
-- Recomendaciones basadas en intereses comunes
-- Feed de actividad personalizado
-- Detección de conexiones mutuas
-- Gamificación social integrada
-
----
-
-## 📱 **APLICACIONES**
-
-### **🌐 WEB APP (Next.js 14)**
-- **PWA Installable**: Funciona como app nativa
-- **Server-Side Rendering**: Performance optimizado
-- **Responsive Design**: Móvil, tablet, desktop
-- **Real-time Updates**: Socket.IO para actualizaciones live
-
-### **📱 MOBILE APPS (React Native)**
-- **iOS & Android Nativo**: Performance 60fps
-- **Offline Capabilities**: Funciona sin internet
-- **Push Notifications**: Contextuales e inteligentes
-- **Gestos Nativos**: Swipe, pinch, haptic feedback
-
----
-
-## 🔐 **SEGURIDAD**
-
-### **🛡️ MEDIDAS IMPLEMENTADAS**
-- **Authentication**: JWT + Refresh tokens automáticos
-- **Authorization**: Role-based access control
-- **Rate Limiting**: Protección contra ataques DDoS
-- **Input Validation**: Sanitización XSS y SQL injection
-- **Encryption**: Datos en tránsito y en reposo
-- **Audit Logs**: Tracking completo de actividades
-
----
-
-## ⚡ **PERFORMANCE**
-
-### **📊 MÉTRICAS OBJETIVO**
-- **Web Vitals**: LCP < 2s, FID < 100ms, CLS < 0.1
-- **Mobile Performance**: 60fps, startup < 3s
-- **API Response**: < 200ms P95
-- **Database Queries**: < 50ms P95
-
-### **🚀 OPTIMIZACIONES**
-- **Code Splitting**: Carga bajo demanda
-- **Image Optimization**: Compresión automática
-- **Caching Strategy**: Multi-layer caching
-- **CDN Integration**: Assets distribuidos globalmente
-
----
-
-## 🧪 **TESTING**
-
-### **🔬 ESTRATEGIA DE TESTING**
 ```bash
-# Unit Tests
-npm run test
+cd web
+npm run build
+npm start
+```
 
-# Integration Tests
-npm run test:integration
+### Frontend Móvil (Producción)
 
-# E2E Tests
+```bash
+cd mobile
+npm run build:android  # Para Android
+npm run build:ios      # Para iOS
+```
+
+## 📱 Estructura del Proyecto
+
+```
+eventconnect/
+├── backend/                 # API Node.js + Express
+│   ├── src/
+│   │   ├── config/         # Configuraciones
+│   │   ├── controllers/    # Controladores
+│   │   ├── middleware/     # Middlewares
+│   │   ├── models/         # Modelos MongoDB
+│   │   ├── routes/         # Rutas API
+│   │   ├── services/       # Servicios
+│   │   ├── utils/          # Utilidades
+│   │   └── server.js       # Servidor principal
+│   └── package.json
+├── web/                    # Frontend Next.js
+│   ├── src/
+│   │   ├── app/           # App Router
+│   │   ├── components/    # Componentes React
+│   │   ├── contexts/      # Contextos
+│   │   ├── hooks/         # Custom hooks
+│   │   ├── lib/           # Librerías
+│   │   ├── services/      # Servicios API
+│   │   ├── store/         # Estado global
+│   │   ├── styles/        # Estilos
+│   │   ├── types/         # Tipos TypeScript
+│   │   └── utils/         # Utilidades
+│   └── package.json
+├── mobile/                 # App React Native
+│   ├── src/
+│   │   ├── components/    # Componentes
+│   │   ├── navigation/    # Navegación
+│   │   ├── screens/       # Pantallas
+│   │   ├── services/      # Servicios
+│   │   ├── store/         # Estado
+│   │   ├── types/         # Tipos
+│   │   └── utils/         # Utilidades
+│   └── package.json
+└── package.json           # Workspace principal
+```
+
+## 🧪 Testing
+
+```bash
+# Ejecutar todos los tests
+npm test
+
+# Tests por componente
+npm run test:backend
+npm run test:web
+npm run test:mobile
+
+# Tests con coverage
+npm run test:coverage
+
+# Tests E2E (web)
+cd web
 npm run test:e2e
-
-# Performance Tests
-npm run test:performance
 ```
 
-### **📊 COVERAGE OBJETIVO**
-- **Unit Tests**: > 90%
-- **Integration Tests**: > 80%
-- **E2E Critical Paths**: 100%
+## 📊 Monitoreo y Logs
 
----
+### Health Checks
+- Backend: `http://localhost:5000/health`
+- Base de datos: `http://localhost:5000/health/database`
+- Sistema: `http://localhost:5000/health/system`
 
-## 🚀 **DEPLOYMENT**
+### Logs
+- Backend: `backend/logs/`
+- Web: `web/.next/`
+- Mobile: `mobile/logs/`
 
-### **☁️ PRODUCTION STACK**
-```bash
-Frontend Web: Vercel/Netlify
-Mobile Apps: App Store + Google Play
-Backend: AWS/Railway/DigitalOcean
-Database: MongoDB Atlas
-Cache: Redis Cloud
-CDN: Cloudflare
-Monitoring: New Relic/DataDog
-```
+## 🔒 Seguridad
 
-### **🔄 CI/CD PIPELINE**
-```yaml
-# GitHub Actions
-- Code quality checks
-- Automated testing
-- Security scanning
-- Build optimization
-- Deployment automation
-- Rollback capabilities
-```
+- ✅ Autenticación JWT con refresh tokens
+- ✅ Rate limiting por IP y usuario
+- ✅ Validación de entrada con Joi
+- ✅ Sanitización de datos
+- ✅ CORS configurado
+- ✅ Helmet para headers de seguridad
+- ✅ XSS protection
+- ✅ CSRF protection
+- ✅ SQL injection protection
 
----
+## 📈 Performance
 
-## 💰 **MONETIZACIÓN**
+- ✅ Caching con Redis
+- ✅ Compresión gzip
+- ✅ Lazy loading de imágenes
+- ✅ Code splitting
+- ✅ Bundle optimization
+- ✅ CDN para assets estáticos
 
-### **💵 MODELO DE NEGOCIO**
-- **🎫 Comisiones**: 2-5% en eventos pagos
-- **💎 Suscripciones**: Pro plans para organizadores
-- **📈 Promoción**: Boost de eventos
-- **🏢 Enterprise**: Soluciones corporativas
-- **🤝 Partnerships**: Revenue share con servicios
+## 🤝 Contribución
 
-### **📊 PROYECCIONES**
-```
-Año 1: $1.2M revenue
-Año 2: $5.5M revenue  
-Año 3: $15.2M revenue
-Año 5: $78.5M revenue
-```
-
----
-
-## 📚 **DOCUMENTACIÓN**
-
-### **📖 DOCUMENTOS PRINCIPALES**
-- [📚 Documentación Completa](./DOCUMENTACION-COMPLETA.md)
-- [📖 Manual de Usuario](./MANUAL-USUARIO-COMPLETO.md)
-- [💰 Planes de Monetización](./PLANES-MONETIZACION.md)
-- [🎯 Análisis de Mercado](./RESUMEN-FINAL-MARKET-READY.md)
-
-### **🔗 ENLACES ÚTILES**
-- [🎨 Design System](./web/src/components/ui/)
-- [🤖 AI Services](./backend/src/services/)
-- [📱 Mobile Components](./mobile/src/components/)
-- [📊 Analytics Dashboard](./web/src/components/dashboard/)
-
----
-
-## 👥 **CONTRIBUCIÓN**
-
-### **🤝 CÓMO CONTRIBUIR**
-1. Fork el repositorio
-2. Crea una rama feature (`git checkout -b feature/AmazingFeature`)
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
 3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
 
-### **📋 CONVENCIONES**
-- **Commits**: Conventional Commits format
-- **Branches**: feature/, bugfix/, hotfix/
-- **Code Style**: ESLint + Prettier
-- **Testing**: Obligatorio para nuevas features
+## 📝 Scripts Disponibles
 
----
+### Workspace Principal
+```bash
+npm run dev              # Desarrollo completo
+npm run build            # Build completo
+npm run test             # Tests completos
+npm run lint             # Linting completo
+npm run format           # Formateo completo
+npm run clean            # Limpiar node_modules
+```
 
-## 📞 **SOPORTE**
+### Backend
+```bash
+npm run dev              # Desarrollo con nodemon
+npm run start            # Producción
+npm run build            # Build con Babel
+npm run test             # Tests con Jest
+npm run db:migrate       # Migraciones
+npm run db:seed          # Datos de prueba
+```
 
-### **💬 CANALES DE COMUNICACIÓN**
-- **📧 Email**: dev@eventconnect.app
-- **💬 Discord**: [EventConnect Dev Community](https://discord.gg/eventconnect)
-- **🐛 Issues**: GitHub Issues para bugs
-- **💡 Feature Requests**: GitHub Discussions
+### Frontend Web
+```bash
+npm run dev              # Desarrollo Next.js
+npm run build            # Build de producción
+npm run start            # Servidor de producción
+npm run test             # Tests
+npm run test:e2e         # Tests E2E
+npm run storybook        # Storybook
+```
 
----
+### Frontend Móvil
+```bash
+npm start                # Expo development server
+npm run android          # Android
+npm run ios              # iOS
+npm run build:android    # Build Android
+npm run build:ios        # Build iOS
+```
 
-## 📜 **LICENCIA**
+## 🐛 Troubleshooting
 
-Este proyecto está bajo la licencia MIT. Ver el archivo [LICENSE](LICENSE) para más detalles.
+### Problemas Comunes
 
----
+1. **Error de conexión a MongoDB**
+   - Verificar que MongoDB esté corriendo
+   - Verificar la URI en .env
 
-## 🏆 **RECONOCIMIENTOS**
+2. **Error de conexión a Redis**
+   - Verificar que Redis esté corriendo
+   - Verificar la URL en .env
 
-### **🌟 TECNOLOGÍAS PRINCIPALES**
-- [Next.js](https://nextjs.org/) - Framework web
-- [React Native](https://reactnative.dev/) - Mobile framework
+3. **Error de CORS**
+   - Verificar las URLs en .env del backend
+   - Verificar que el frontend esté en el puerto correcto
+
+4. **Error de JWT**
+   - Verificar que JWT_SECRET esté configurado
+   - Verificar que el token no haya expirado
+
+5. **Error de upload de archivos**
+   - Verificar configuración de Cloudinary
+   - Verificar permisos de carpeta uploads
+
+## 📞 Soporte
+
+- 📧 Email: soporte@eventconnect.com
+- 📱 Discord: [EventConnect Community](https://discord.gg/eventconnect)
+- 📖 Documentación: [docs.eventconnect.com](https://docs.eventconnect.com)
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
+
+## 🙏 Agradecimientos
+
+- [Next.js](https://nextjs.org/) - Framework React
+- [Expo](https://expo.dev/) - Plataforma React Native
 - [MongoDB](https://www.mongodb.com/) - Base de datos
-- [Socket.IO](https://socket.io/) - Real-time communication
-- [Cloudinary](https://cloudinary.com/) - Media management
-
----
-
-<p align="center">
-  <strong>🚀 EventConnect - Conectando personas a través de experiencias increíbles 🎉</strong>
-</p>
-
-<p align="center">
-  Hecho con ❤️ para revolucionar la industria de eventos
-</p>
+- [Redis](https://redis.io/) - Cache
+- [Cloudinary](https://cloudinary.com/) - Cloud storage
+- [Firebase](https://firebase.google.com/) - Notificaciones push
+- [Google Maps](https://developers.google.com/maps) - Mapas
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework

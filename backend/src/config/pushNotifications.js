@@ -1,4 +1,4 @@
-const { redis } = require('./index');
+
 
 class PushNotificationConfig {
   constructor() {

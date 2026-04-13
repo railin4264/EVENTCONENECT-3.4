@@ -1,6 +1,8 @@
+const mongoose = require('mongoose');
 const redisClient = require('../config/redis');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const { logger } = require('../utils/logger');
 
 // WebSocket connection manager
 /**
