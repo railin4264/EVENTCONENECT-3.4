@@ -1,428 +1,186 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
-import authService from '../services/AuthService';
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { authService, apiUtils } from '../services/api';
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth debe ser usado dentro de AuthProvider');
+    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [refreshToken, setRefreshToken] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Configurar axios con interceptors
+  // Verificar autenticación al cargar
   useEffect(() => {
-    const api = axios.create({
-      baseURL: API_BASE_URL,
-      timeout: 10000,
-    });
-
-    // Request interceptor para agregar token
-    api.interceptors.request.use(
-      async (config) => {
-        const storedAccess = await SecureStore.getItemAsync('accessToken');
-        const bearer = token || storedAccess;
-        if (bearer) {
-          config.headers.Authorization = `Bearer ${bearer}`;
-        }
-        return config;
-      },
-      (error) => Promise.reject(error)
-    );
-
-    // Response interceptor para refresh token
-    api.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        const originalRequest = error.config;
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          originalRequest._retry = true;
-
-          try {
-            const newTokens = await refreshAccessToken();
-            if (newTokens) {
-              originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
-              return api(originalRequest);
-            }
-          } catch (refreshError) {
-            await logout();
-            return Promise.reject(refreshError);
-          }
-        }
-
-        return Promise.reject(error);
-      }
-    );
-
-    // Guardar instancia de API en contexto
-    setApi(api);
-  }, [token]);
-
-  const [api, setApi] = useState(null);
-
-  // Cargar tokens guardados al iniciar
-  useEffect(() => {
-    loadStoredTokens();
+    checkAuth();
   }, []);
 
-  const loadStoredTokens = async () => {
+  const checkAuth = async () => {
     try {
-      const storedToken = await SecureStore.getItemAsync('accessToken');
-      const storedRefreshToken = await SecureStore.getItemAsync('refreshToken');
-      const storedUser = await AsyncStorage.getItem('user');
+      setLoading(true);
+      setError(null);
 
-      if (storedToken && storedRefreshToken && storedUser) {
-        setToken(storedToken);
-        setRefreshToken(storedRefreshToken);
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
-        await validateToken(storedToken);
+      // Verificar si hay token
+      const isAuth = await apiUtils.isAuthenticated();
+      if (!isAuth) {
+        setUser(null);
+        return;
       }
+
+      // Obtener usuario actual
+      const userData = await authService.getCurrentUser();
+      setUser(userData.user);
     } catch (error) {
-      console.error('Error cargando tokens:', error);
+      console.error('Error verificando autenticación:', error);
+      setError('Error al verificar autenticación');
+      // Limpiar datos de autenticación si hay error
+      await apiUtils.clearAuth();
+      setUser(null);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const validateToken = async (tokenToValidate) => {
+  const login = async (credentials) => {
     try {
-      const response = await api?.get('/api/auth/profile');
-      if (response?.data?.success) {
-        const currentUser = response.data.data.user || response.data.data;
-        setUser(currentUser);
-        await AsyncStorage.setItem('user', JSON.stringify(currentUser));
-      }
-    } catch (error) {
-      console.error('Token inválido, haciendo logout');
-      await logout();
-    }
-  };
+      setLoading(true);
+      setError(null);
 
-  const login = async (email, password) => {
-    try {
-      setIsLoading(true);
-      const response = await api?.post('/api/auth/login', { email, password });
+      const response = await authService.login(credentials);
+      setUser(response.user);
       
-      if (response?.data?.success) {
-        const { tokens, user: userData } = response.data.data;
-        const { accessToken, refreshToken: newRefreshToken } = tokens || {};
-        
-        // Guardar tokens en SecureStore y user en AsyncStorage
-        await SecureStore.setItemAsync('accessToken', accessToken);
-        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-        
-        // Actualizar estado
-        setToken(accessToken);
-        setRefreshToken(newRefreshToken);
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        return { success: true }; 
-      } else {
-        throw new Error(response?.data?.message || 'Error en login');
-      }
+      return { success: true, data: response };
     } catch (error) {
-      console.error('Error en login:', error);
-      throw new Error(error.response?.data?.message || 'Error de conexión');
+      const errorMessage = apiUtils.handleError(error);
+      setError(errorMessage.message);
+      return { success: false, error: errorMessage };
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   const register = async (userData) => {
     try {
-      setIsLoading(true);
-      const response = await api?.post('/api/auth/register', userData);
+      setLoading(true);
+      setError(null);
+
+      const response = await authService.register(userData);
       
-      if (response?.data?.success) {
-        const { tokens, user: newUser } = response.data.data;
-        const { accessToken, refreshToken: newRefreshToken } = tokens || {};
-        
-        // Guardar tokens
-        await SecureStore.setItemAsync('accessToken', accessToken);
-        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
-        await AsyncStorage.setItem('user', JSON.stringify(newUser));
-        
-        // Actualizar estado
-        setToken(accessToken);
-        setRefreshToken(newRefreshToken);
-        setUser(newUser);
-        setIsAuthenticated(true);
-        
-        return { success: true };
-      } else {
-        throw new Error(response?.data?.message || 'Error en registro');
+      // Opcional: hacer login automático después del registro
+      if (response.success) {
+        await login({
+          email: userData.email,
+          password: userData.password,
+        });
       }
+      
+      return { success: true, data: response };
     } catch (error) {
-      console.error('Error en registro:', error);
-      throw new Error(error.response?.data?.message || 'Error de conexión');
+      const errorMessage = apiUtils.handleError(error);
+      setError(errorMessage.message);
+      return { success: false, error: errorMessage };
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const refreshAccessToken = async () => {
-    try {
-      const currentRefresh = refreshToken || (await SecureStore.getItemAsync('refreshToken'));
-      if (!currentRefresh) throw new Error('No hay refresh token');
-
-      const response = await axios.post(
-        `${API_BASE_URL}/api/auth/refresh-token`,
-        { refreshToken: currentRefresh }
-      );
-
-      if (response?.data?.success) {
-        const { tokens } = response.data.data || {};
-        const { accessToken, refreshToken: newRefreshToken } = tokens || {};
-        
-        // Actualizar tokens
-        await SecureStore.setItemAsync('accessToken', accessToken);
-        await SecureStore.setItemAsync('refreshToken', newRefreshToken);
-        
-        setToken(accessToken);
-        setRefreshToken(newRefreshToken);
-        
-        return { accessToken, refreshToken: newRefreshToken };
-      }
-    } catch (error) {
-      console.error('Error refrescando token:', error);
-      throw error;
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
-      // Llamar al endpoint de logout si hay token
-      const bearer = token || (await SecureStore.getItemAsync('accessToken'));
-      if (bearer) {
-        try {
-          await api?.post('/api/auth/logout', {});
-        } catch (error) {
-          console.error('Error en logout del servidor:', error);
-        }
-      }
-
-      // Limpiar tokens y user
-      await SecureStore.deleteItemAsync('accessToken');
-      await SecureStore.deleteItemAsync('refreshToken');
-      await AsyncStorage.multiRemove(['user']);
-      
-      // Limpiar estado
-      setToken(null);
-      setRefreshToken(null);
-      setUser(null);
-      setIsAuthenticated(false);
+      setLoading(true);
+      await authService.logout();
     } catch (error) {
       console.error('Error en logout:', error);
+    } finally {
+      setUser(null);
+      await apiUtils.clearAuth();
+      setLoading(false);
     }
   };
 
-  const updateProfile = async (profileData) => {
+  const updateProfile = async (userData) => {
     try {
-      const response = await api?.put('/api/auth/profile', profileData);
+      setLoading(true);
+      setError(null);
+
+      const response = await authService.updateProfile(userData);
+      setUser(response.user);
       
-      if (response?.data?.success) {
-        const updatedUser = response.data.data.user || response.data.data;
-        setUser(updatedUser);
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-        return { success: true, user: updatedUser };
-      } else {
-        throw new Error(response?.data?.message || 'Error actualizando perfil');
-      }
+      return { success: true, data: response };
     } catch (error) {
-      console.error('Error actualizando perfil:', error);
-      throw new Error(error.response?.data?.message || 'Error de conexión');
+      const errorMessage = apiUtils.handleError(error);
+      setError(errorMessage.message);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const changePassword = async (currentPassword, newPassword) => {
+  const changePassword = async (passwordData) => {
     try {
-      const response = await api?.put('/api/auth/change-password', {
-        currentPassword,
-        newPassword
-      });
+      setLoading(true);
+      setError(null);
+
+      const response = await authService.changePassword(passwordData);
       
-      if (response?.data?.success) {
-        return { success: true };
-      } else {
-        throw new Error(response?.data?.message || 'Error cambiando contraseña');
-      }
+      return { success: true, data: response };
     } catch (error) {
-      console.error('Error cambiando contraseña:', error);
-      throw new Error(error.response?.data?.message || 'Error de conexión');
+      const errorMessage = apiUtils.handleError(error);
+      setError(errorMessage.message);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
     }
   };
 
   const forgotPassword = async (email) => {
     try {
-      const response = await api?.post('/api/auth/request-password-reset', { email });
-      
-      if (response?.data?.success) {
-        return { success: true };
-      } else {
-        throw new Error(response?.data?.message || 'Error enviando email de reset');
-      }
-    } catch (error) {
-      console.error('Error en forgot password:', error);
-      throw new Error(error.response?.data?.message || 'Error de conexión');
-    }
-  };
+      setLoading(true);
+      setError(null);
 
-  const resetPassword = async (token, newPassword) => {
-    try {
-      const response = await api?.post('/api/auth/reset-password', {
-        token,
-        newPassword
-      });
+      const response = await authService.forgotPassword(email);
       
-      if (response?.data?.success) {
-        return { success: true };
-      } else {
-        throw new Error(response?.data?.message || 'Error reseteando contraseña');
-      }
+      return { success: true, data: response };
     } catch (error) {
-      console.error('Error en reset password:', error);
-      throw new Error(error.response?.data?.message || 'Error de conexión');
-    }
-  };
-
-  // ==========================================
-  // OAUTH METHODS
-  // ==========================================
-
-  const loginWithGoogle = async () => {
-    try {
-      setIsLoading(true);
-      const result = await authService.loginWithGoogle();
-      
-      if (result.success) {
-        const { user: userData } = result;
-        const userToken = authService.getToken();
-        const userRefreshToken = authService.refreshToken;
-        
-        // Actualizar estado
-        setToken(userToken);
-        setRefreshToken(userRefreshToken);
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        return { success: true };
-      }
-    } catch (error) {
-      console.error('Error en Google OAuth:', error);
-      throw new Error(error.message || 'Error de conexión con Google');
+      const errorMessage = apiUtils.handleError(error);
+      setError(errorMessage.message);
+      return { success: false, error: errorMessage };
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const loginWithFacebook = async () => {
+  const resetPassword = async (token, password) => {
     try {
-      setIsLoading(true);
-      const result = await authService.loginWithFacebook();
+      setLoading(true);
+      setError(null);
+
+      const response = await authService.resetPassword(token, password);
       
-      if (result.success) {
-        const { user: userData } = result;
-        const userToken = authService.getToken();
-        const userRefreshToken = authService.refreshToken;
-        
-        // Actualizar estado
-        setToken(userToken);
-        setRefreshToken(userRefreshToken);
-        setUser(userData);
-        setIsAuthenticated(true);
-        
-        return { success: true };
-      }
+      return { success: true, data: response };
     } catch (error) {
-      console.error('Error en Facebook OAuth:', error);
-      throw new Error(error.message || 'Error de conexión con Facebook');
+      const errorMessage = apiUtils.handleError(error);
+      setError(errorMessage.message);
+      return { success: false, error: errorMessage };
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // ==========================================
-  // MFA METHODS  
-  // ==========================================
-
-  const enableMFA = async () => {
-    try {
-      return await authService.enableMFA();
-    } catch (error) {
-      throw new Error(error.message || 'Error habilitando MFA');
-    }
-  };
-
-  const verifyMFA = async (token) => {
-    try {
-      return await authService.verifyMFA(token);
-    } catch (error) {
-      throw new Error(error.message || 'Token MFA inválido');
-    }
-  };
-
-  const disableMFA = async (token) => {
-    try {
-      return await authService.disableMFA(token);
-    } catch (error) {
-      throw new Error(error.message || 'Error deshabilitando MFA');
-    }
-  };
-
-  // ==========================================
-  // SESSION MANAGEMENT
-  // ==========================================
-
-  const getSessions = async () => {
-    try {
-      return await authService.getSessions();
-    } catch (error) {
-      throw new Error(error.message || 'Error obteniendo sesiones');
-    }
-  };
-
-  const revokeSession = async (sessionId) => {
-    try {
-      return await authService.revokeSession(sessionId);
-    } catch (error) {
-      throw new Error(error.message || 'Error revocando sesión');
-    }
-  };
-
-  const revokeAllSessions = async () => {
-    try {
-      const result = await authService.revokeAllSessions();
-      // También hacer logout local
-      await logout();
-      return result;
-    } catch (error) {
-      throw new Error(error.message || 'Error revocando sesiones');
-    }
+  const clearError = () => {
+    setError(null);
   };
 
   const value = {
     user,
-    token,
-    isAuthenticated,
-    isLoading,
-    api,
+    loading,
+    error,
+    isAuthenticated: !!user,
     login,
     register,
     logout,
@@ -430,18 +188,8 @@ export const AuthProvider = ({ children }) => {
     changePassword,
     forgotPassword,
     resetPassword,
-    refreshAccessToken,
-    // OAuth methods
-    loginWithGoogle,
-    loginWithFacebook,
-    // MFA methods
-    enableMFA,
-    verifyMFA,
-    disableMFA,
-    // Session management
-    getSessions,
-    revokeSession,
-    revokeAllSessions
+    clearError,
+    checkAuth,
   };
 
   return (

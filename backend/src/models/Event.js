@@ -263,7 +263,10 @@ const eventSchema = new mongoose.Schema(
     },
     cancellationReason: {
       type: String,
-      maxlength: [500, 'La razón de cancelación no puede exceder 500 caracteres'],
+      maxlength: [
+        500,
+        'La razón de cancelación no puede exceder 500 caracteres',
+      ],
     },
     visibility: {
       type: String,

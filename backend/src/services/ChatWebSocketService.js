@@ -6,6 +6,10 @@ const { Chat, User, Event, Tribe } = require('../models');
  * WebSocket service for real-time chat functionality
  */
 class ChatWebSocketService {
+  /**
+   *
+   * @param io
+   */
   constructor(io) {
     this.io = io;
     this.activeConnections = new Map();
